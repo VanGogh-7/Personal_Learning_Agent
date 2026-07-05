@@ -36,7 +36,8 @@
       "Bash(echo \"gitkeep ignored? exit=$?\")",
       "Bash(git add *)",
       "Bash(/home/van-gogh/miniconda3/envs/pla/bin/python *)",
-      "Bash(DATABASE_URL='' /home/van-gogh/miniconda3/envs/pla/bin/python -c ' *)"
+      "Bash(DATABASE_URL='' /home/van-gogh/miniconda3/envs/pla/bin/python -c ' *)",
+      "Bash(/home/van-gogh/miniconda3/envs/pla/bin/pip show *)"
     ]
   }
 }

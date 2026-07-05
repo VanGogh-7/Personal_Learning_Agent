@@ -67,13 +67,16 @@ def test_get_database_url_returns_value_when_set(monkeypatch) -> None:
         get_settings.cache_clear()
 
 
-def test_alembic_script_directory_has_initial_revision() -> None:
+def test_alembic_script_directory_has_expected_revision_chain() -> None:
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     script = ScriptDirectory.from_config(config)
 
     heads = script.get_heads()
     assert len(heads) == 1
 
-    revision = script.get_revision(heads[0])
-    assert revision.revision == "ff156aef8dbe"
-    assert revision.down_revision is None
+    head_revision = script.get_revision(heads[0])
+    assert head_revision.revision == "d9b287f324f9"
+    assert head_revision.down_revision == "ff156aef8dbe"
+
+    initial_revision = script.get_revision("ff156aef8dbe")
+    assert initial_revision.down_revision is None

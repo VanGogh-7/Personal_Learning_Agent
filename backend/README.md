@@ -8,15 +8,20 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 3: PostgreSQL schema.
+Stage 4: Embedding + pgvector MVP.
 
-- FastAPI app with health/status endpoints (Stage 1)
-- Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2)
-- SQLAlchemy models + Alembic migrations for the initial schema (Stage 3)
+- FastAPI app with health/status endpoints (Stage 1, completed)
+- Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
+- SQLAlchemy models + Alembic migrations for the initial schema (Stage 3, completed)
+- pgvector/vector extension support via migration, a nullable `embedding`
+  column on `document_chunks`, deterministic mock embeddings, and minimal
+  vector persistence/search functions (Stage 4, current)
 
-RAG, embeddings, pgvector search, LangGraph workflows, short/long-term
-memory, and the frontend (Tauri + React) are planned but
-**not implemented yet**.
+Full RAG Q&A, real embedding provider integration (DeepSeek, OpenAI, or
+otherwise), LangGraph workflows, short/long-term memory, and the
+frontend (Tauri + React) are planned but **not implemented yet**. See
+[Embedding + pgvector (Stage 4)](#embedding--pgvector-stage-4) below for
+what Stage 4 actually adds.
 
 ## Setup
 
@@ -42,9 +47,12 @@ memory, and the frontend (Tauri + React) are planned but
    cp backend/.env.example .env
    ```
 
-4. PostgreSQL: have a local PostgreSQL server running and set
-   `DATABASE_URL` in the root `.env` to point at your local development
-   database (see [Environment Variables](#environment-variables) below).
+4. PostgreSQL + pgvector: have a local PostgreSQL server running with the
+   `pgvector` extension installed, and set `DATABASE_URL` in the root
+   `.env` to point at your local development database (see
+   [Environment Variables](#environment-variables) below). The `vector`
+   extension itself is enabled by the Stage 4 migration (see below), not
+   manually.
 
 If the `pla` conda environment already exists, use this shorter workflow:
 
@@ -97,11 +105,9 @@ model metadata; they do not require a live PostgreSQL connection.
 
 ## Database (PostgreSQL) — Stage 3
 
-Stage 3 adds the initial database schema only: SQLAlchemy models and an
+Stage 3 added the initial database schema: SQLAlchemy models and an
 Alembic migration for `learning_sources`, `documents`,
-`document_chunks`, and `agent_runs`. It does **not** add embeddings,
-pgvector search, RAG, LangGraph, or memory logic — that is planned for
-later stages.
+`document_chunks`, and `agent_runs`.
 
 - ORM: SQLAlchemy 2.x (`app/db/`, `app/models/`)
 - Driver: `psycopg` (v3)
@@ -125,6 +131,36 @@ alembic upgrade head
 # roll back the most recent migration
 alembic downgrade -1
 ```
+
+## Embedding + pgvector (Stage 4)
+
+Stage 4 proves a minimal pipeline: document chunk text → deterministic
+mock embedding → vector stored in PostgreSQL → basic similarity search.
+It adds:
+
+- `CREATE EXTENSION IF NOT EXISTS vector` and a nullable `embedding`
+  vector column on `document_chunks`, via an Alembic migration
+  (`backend/alembic/versions/d9b287f324f9_add_pgvector_embedding_column.py`)
+- A deterministic mock embedding provider (`backend/app/embeddings/`) —
+  same text always produces the same fixed-length vector; no external
+  API calls or API keys involved
+- Minimal vector persistence/search functions
+  (`backend/app/db/vector_search.py`): `set_chunk_embedding` and
+  `search_similar_chunks` (pgvector L2 distance ordering)
+
+**Requires PostgreSQL with the `pgvector` extension installed.** The
+`vector` extension is enabled by the migration above
+(`CREATE EXTENSION IF NOT EXISTS vector`), not manually. Apply it the
+same way as any other migration:
+
+```bash
+alembic upgrade head
+```
+
+Stage 4 uses **deterministic mock embeddings only** — there is no real
+embedding provider integration (DeepSeek, OpenAI, or otherwise), no full
+RAG Q&A, and no LangGraph, memory, frontend, Tauri, MCP, PDF/LaTeX/DOCX
+parsing, or repository analysis. Those remain planned for later stages.
 
 ## Document Ingestion (MVP)
 
@@ -188,8 +224,7 @@ Response:
 
 ## Roadmap (not yet implemented)
 
-- Embeddings + pgvector search
-- RAG Q&A over personal learning materials
+- Full RAG Q&A over personal learning materials (real embedding provider integration)
 - Short-term and long-term memory
 - Learning progress tracking
 - Study plan generation

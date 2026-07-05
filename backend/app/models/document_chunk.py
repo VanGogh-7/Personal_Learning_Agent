@@ -13,15 +13,15 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from pgvector.sqlalchemy import Vector
+
 from app.db.base import Base
+from app.embeddings.base import EMBEDDING_DIMENSION
 
 
 class DocumentChunk(Base):
-    """A chunk generated from a document.
-
-    Prepares for future embedding/pgvector integration; no embedding
-    column is added at this stage.
-    """
+    """A chunk generated from a document, with an optional embedding
+    vector for pgvector similarity search (Stage 4)."""
 
     __tablename__ = "document_chunks"
     __table_args__ = (
@@ -45,4 +45,8 @@ class DocumentChunk(Base):
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    # Nullable: existing chunks may not have an embedding yet.
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIMENSION), nullable=True
     )

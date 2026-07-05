@@ -1,4 +1,7 @@
+from pgvector.sqlalchemy import Vector
+
 from app.db.base import Base
+from app.embeddings.base import EMBEDDING_DIMENSION
 from app.models import AgentRun, Document, DocumentChunk, LearningSource
 
 
@@ -45,7 +48,7 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
 
     assert set(table.columns.keys()) == {
         "id", "document_id", "chunk_index", "content", "char_start",
-        "char_end", "created_at",
+        "char_end", "created_at", "embedding",
     }
     assert not table.c.document_id.nullable
     assert not table.c.content.nullable
@@ -60,6 +63,14 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
     assert "ck_document_chunks_char_start_non_negative" in constraint_names
     assert "ck_document_chunks_char_end_non_negative" in constraint_names
     assert "ck_document_chunks_char_end_gte_char_start" in constraint_names
+
+
+def test_document_chunk_embedding_column_is_nullable_vector() -> None:
+    table = DocumentChunk.__table__
+
+    assert table.c.embedding.nullable
+    assert isinstance(table.c.embedding.type, Vector)
+    assert table.c.embedding.type.dim == EMBEDDING_DIMENSION
 
 
 def test_agent_run_columns() -> None:
