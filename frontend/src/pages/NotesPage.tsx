@@ -8,6 +8,7 @@ import {
   updateNote,
 } from "../api/client";
 import type { LibraryItem, Note, NoteCreateRequest, NoteUpdateRequest } from "../api/types";
+import { exportTexNote } from "../tauri/noteExport";
 
 const DEFAULT_TEMPLATE = String.raw`\section{Title}
 
@@ -37,6 +38,7 @@ export default function NotesPage() {
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastMode, setLastMode] = useState<"list" | "search">("list");
@@ -136,6 +138,35 @@ export default function NotesPage() {
       setError(err instanceof Error ? err.message : "Note archive failed.");
     } finally {
       setArchiving(false);
+    }
+  }
+
+  async function exportSelectedNote() {
+    setError(null);
+    setMessage(null);
+
+    if (!selectedNote) {
+      setError("Select an existing note before exporting.");
+      return;
+    }
+    if (!form.contentLatex.trim()) {
+      setError("Cannot export an empty LaTeX note.");
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const exportedPath = await exportTexNote({
+        title: form.title || selectedNote.title,
+        contentLatex: form.contentLatex,
+      });
+      if (exportedPath) {
+        setMessage(`Exported .tex file to ${exportedPath}.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Note export failed.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -313,6 +344,12 @@ export default function NotesPage() {
                 {formatDate(selectedNote.updated_at)}
               </p>
             )}
+            {selectedNote && (
+              <p className="muted compact-note">
+                Export writes the current editor content to a local `.tex` file. Save first if you
+                want the database note updated too.
+              </p>
+            )}
             {error && <p className="error compact-error">{error}</p>}
             {message && <p className="success">{message}</p>}
 
@@ -328,6 +365,16 @@ export default function NotesPage() {
                   onClick={archiveSelectedNote}
                 >
                   {archiving ? "Archiving..." : "Archive note"}
+                </button>
+              )}
+              {selectedNote && (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={exporting}
+                  onClick={exportSelectedNote}
+                >
+                  {exporting ? "Exporting..." : "Export as .tex"}
                 </button>
               )}
             </div>

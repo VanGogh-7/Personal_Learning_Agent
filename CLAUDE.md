@@ -32,8 +32,9 @@ Stage 13: Library Detail Page / Panel MVP — completed.
 Stage 14: Library Indexing MVP — completed.
 Stage 15: Book-Scoped RAG MVP — completed.
 Stage 16: Notes MVP — completed.
+Stage 17: Generate LaTeX Notes from Chat — completed.
 
-Current active stage: Stage 17: Generate LaTeX Notes from Chat.
+Current active stage: Stage 18: Local Notes File Export.
 
 Do not implement the full product at once.
 
@@ -56,7 +57,8 @@ Project stage roadmap:
 14. Library indexing MVP — completed
 15. Book-scoped RAG MVP — completed
 16. Notes MVP — completed
-17. Generate LaTeX Notes from Chat — current
+17. Generate LaTeX Notes from Chat — completed
+18. Local Notes File Export — current
 
 ---
 
@@ -145,36 +147,59 @@ database-backed LaTeX note manager. Users can create, list, view, edit,
 and archive notes. Notes may optionally reference a Library item through
 `notes.library_item_id`.
 
-The current goal (Stage 17) is Generate LaTeX Notes from Chat. The user
-can take the latest global or book-scoped Chat/RAG response, generate a
+Stage 17 (completed): Generate LaTeX Notes from Chat. The user can take
+the latest global or book-scoped Chat/RAG response, generate a
 deterministic LaTeX note draft from the question, answer, retrieved
 chunks, optional Library item metadata, and optional session id, review
 or edit that draft, and save it through the existing Notes API.
 
-Allowed in the current stage:
-- Add deterministic/template-based note draft generation
-- Add `POST /api/notes/from-chat/draft`
-- Escape LaTeX-sensitive characters in generated content
-- Include question, answer, optional book context, and retrieved chunk excerpts
-- Add a Chat page `Create LaTeX Note` action after a RAG response
-- Let the user review/edit title and LaTeX content before saving
-- Save reviewed drafts through the existing `POST /api/notes` endpoint
-- Add focused backend tests and update README/CLAUDE.md
+The current goal (Stage 18) is Local Notes File Export. The user can
+select an existing database-backed note in the Notes page, choose a
+local save path through the Tauri desktop app, and write the note's
+LaTeX source as a UTF-8 `.tex` file. The backend must not write
+arbitrary local paths.
 
-Do not implement in Stage 17:
+Allowed in the current stage:
+- Add `Export as .tex` to the selected note editor
+- Use Tauri save dialog for user-selected local file paths
+- Write the current editor LaTeX content as UTF-8 text
+- Sanitize default filenames and ensure `.tex` extension
+- Append `.tex` if the selected path lacks that extension
+- Show export loading, success, cancel, and error states
+- Keep Notes CRUD, Chat-to-Notes, and backend APIs unchanged
+- Update README/CLAUDE.md
+
+Do not implement in Stage 18:
+- LaTeX compilation
+- PDF generation
+- PDF preview
+- Internal PDF viewer
+- `.pdf` export
+- VS Code integration
+- Opening notes in VS Code
+- Opening exported files with system default app
+- Notes workspace management
+- Default `~/math_notes` workspace
+- Git sync
+- File watcher
+- Automatic synchronization between database and local file
+- Bidirectional editing
+- Importing `.tex` files back into Notes
+- Multi-file LaTeX projects
+- Attachments
+- Folder export
+- Batch export
+- Background jobs
+- Redis / Celery / RQ
+- Changing the existing Notes CRUD architecture
+- Changing the existing Chat-to-Notes architecture
+- Backend arbitrary-path file writing
 - Real LLM calls
 - OpenAI/DeepSeek calls
 - Real AI note generation
 - Real summarization
 - Real mathematical proof generation
 - Real embedding calls
-- LaTeX compilation
-- PDF preview
-- `.tex` file export
-- Local notes workspace
-- Opening notes in VS Code
-- Opening notes with system default app
-- Git sync
 - Markdown editor
 - Rich text editor
 - WYSIWYG editor
@@ -281,6 +306,9 @@ Frontend:
   drafts from Chat/RAG responses and saves reviewed drafts through the
   existing Notes API; it does not call LLMs, summarize with AI, compile
   LaTeX, preview PDFs, or export files
+- Stage 18 Notes export writes selected note editor content to a local
+  `.tex` file through Tauri after a save dialog; the backend does not
+  write arbitrary local file paths and no export history/sync is stored
 
 Planned later:
 - LangGraph

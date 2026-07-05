@@ -25,7 +25,7 @@ export default function AppLayout({
       <main className="workspace-main">
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Stage 17</p>
+            <p className="eyebrow">Stage 18</p>
             <h1>{PAGE_TITLES[activePage]}</h1>
           </div>
           <p className="backend-note">Backend: {getBackendBaseUrl()}</p>

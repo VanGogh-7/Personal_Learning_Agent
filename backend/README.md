@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 17: Generate LaTeX Notes from Chat.
+Stage 18: Local Notes File Export.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -50,7 +50,9 @@ Stage 17: Generate LaTeX Notes from Chat.
   completed)
 - Generate LaTeX Notes from Chat: Chat/RAG responses can be converted
   into deterministic LaTeX note drafts and then saved through the
-  existing Notes API (Stage 17,
+  existing Notes API (Stage 17, completed)
+- Local Notes File Export: existing database-backed notes can be
+  exported from the Tauri desktop app as local `.tex` files (Stage 18,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
@@ -58,9 +60,9 @@ production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-17 adds deterministic template-based Chat-to-Notes draft generation
-only; it does not call a real LLM, compile LaTeX, preview PDFs, or
-export `.tex` files.
+18 adds local `.tex` export from the desktop app only; it does not
+compile LaTeX, generate PDFs, preview PDFs, sync local files, or add
+backend arbitrary-path file writing.
 
 ## Setup
 
@@ -759,6 +761,35 @@ retrieved chunk excerpts. It does not call a real LLM, perform real
 summarization, generate proofs, compile LaTeX, preview PDFs, export
 `.tex` files, add editor integrations, or change the Notes CRUD
 architecture.
+
+## Local Notes File Export (Stage 18)
+
+Stage 18 adds desktop-side export for existing Notes. From the Notes
+page, a selected database-backed note can be exported as a UTF-8 `.tex`
+file through the Tauri desktop app.
+
+Export behavior:
+
+- The user clicks `Export as .tex` on a selected note.
+- Tauri opens a save-file dialog with a sanitized default filename.
+- If the chosen path does not end with `.tex`, the frontend appends
+  `.tex`.
+- The Tauri desktop layer writes exactly the current editor LaTeX
+  content to the selected local file path.
+- The database note is not mutated by export.
+
+There is intentionally no backend endpoint such as
+`POST /api/notes/{note_id}/export`; the FastAPI backend does not accept
+arbitrary absolute local paths and does not write files to the user's
+filesystem.
+
+Stage 18 does not add LaTeX compilation, PDF generation, PDF preview,
+internal PDF viewing, `.pdf` export, VS Code integration, opening
+exported files, local notes workspace management, Git sync, file
+watchers, bidirectional sync, `.tex` import, multi-file LaTeX projects,
+attachments, folder/batch export, background jobs, real LLM calls, AI
+note generation, or changes to the Notes CRUD or Chat-to-Notes
+architectures.
 
 ## Document Ingestion (MVP)
 

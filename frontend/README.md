@@ -1,8 +1,8 @@
 # Personal Learning Agent Frontend
 
-Stage 17 adds deterministic Chat-to-Notes draft generation. Chat/RAG
-responses can be converted into editable LaTeX note drafts and saved
-through the existing Notes API. The FastAPI backend must be started separately on
+Stage 18 adds local `.tex` export from the Tauri desktop Notes page.
+Existing database-backed LaTeX notes can be saved to user-selected local
+files. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -76,6 +76,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library `Index File` button for `.txt` and `.md` files
 - Notes page with LaTeX note create/list/view/edit/archive workflow
 - Optional Notes association with an existing Library item
+- Notes page `Export as .tex` action in the Tauri desktop app
 
 ## Current Limitations
 
@@ -94,7 +95,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Notes are stored in PostgreSQL through the backend API
 - Chat-to-Notes generation is deterministic and template-based; it does
   not call a real LLM or create mathematical proofs
-- Notes use a plain textarea; there is no rich editor, compiler, preview, or export
+- Notes export writes the current editor content as UTF-8 `.tex`; if the
+  selected path does not end with `.tex`, the app appends `.tex`
+- Notes use a plain textarea; there is no rich editor, compiler, PDF preview, or PDF export
+- Notes export requires the Tauri runtime and should be tested with `npm run tauri dev`
 - No internal PDF preview or file upload
 - No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
 - Book-scoped RAG supports one selected indexed Library item at a time;
