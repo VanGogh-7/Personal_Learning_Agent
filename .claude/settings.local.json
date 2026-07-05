@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import fastapi; print\\('fastapi', fastapi.__version__\\)\")",
+      "Bash(python3 -c \"import pydantic_settings; print\\('pydantic_settings ok'\\)\")",
+      "Bash(python3 -c \"import pytest; print\\('pytest', pytest.__version__\\)\")",
+      "Bash(python3 -c \"import httpx; print\\('httpx ok'\\)\")",
+      "Bash(pip3 list *)",
+      "Bash(rm -rf .venv)",
+      "Bash(python3 -m pytest -q)"
+    ]
+  }
+}
