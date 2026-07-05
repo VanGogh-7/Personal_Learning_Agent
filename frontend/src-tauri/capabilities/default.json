@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default desktop window capability with local file opening for registered library item paths.",
+  "description": "Default desktop window capability with local file selection and opening for registered library item paths.",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:allow-open-path"]
+  "permissions": ["core:default", "dialog:allow-open", "opener:allow-open-path"]
 }

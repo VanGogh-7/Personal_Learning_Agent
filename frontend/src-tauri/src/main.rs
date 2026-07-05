@@ -5,6 +5,7 @@ fn main() {
     context.set_default_window_icon(None);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .run(context)
         .expect("error while running tauri application");

@@ -27,8 +27,9 @@ Stage 8: Tauri + React Frontend MVP — completed.
 Stage 9: Backend/Frontend Integration Polish — completed.
 Stage 10: Book Library MVP — completed.
 Stage 11: Open Local Files from Desktop App — completed.
+Stage 12: Frontend Layout Redesign MVP — completed.
 
-Current active stage: Stage 12: Frontend Layout Redesign MVP.
+Current active stage: Stage 13: Library Detail Page / Panel MVP.
 
 Do not implement the full product at once.
 
@@ -46,7 +47,8 @@ Project stage roadmap:
 9. Backend/frontend integration polish — completed
 10. Book Library MVP — completed
 11. Open local files from desktop app — completed
-12. Frontend layout redesign — current
+12. Frontend layout redesign — completed
+13. Library detail page/panel — current
 
 ---
 
@@ -109,37 +111,54 @@ only. `file_path` remains metadata stored by the backend. The desktop
 frontend may ask Tauri to open that path externally with the system
 default application.
 
-The current goal (Stage 12) is a frontend layout redesign MVP. Refactor
-the single long page into a calm three-page desktop workspace with
-sidebar navigation:
-- Chat
-- Library
-- Notes
+Stage 12 (completed): frontend layout redesign MVP. The single long
+page was refactored into a calm three-page desktop workspace with
+sidebar navigation for Chat, Library, and Notes.
+
+The current goal (Stage 13) is a Library detail page/panel MVP. The
+Library page should allow selecting a library item and viewing all key
+metadata in a structured detail area, with simple edit metadata support
+if it fits the existing frontend code.
 
 Allowed in the current stage:
-- Simple React state for page switching
-- App shell with left sidebar navigation and main content area
-- Chat page containing existing RAG query, backend status, and memory tools
-- Library page containing existing Book Library and local file open UI
-- Notes page placeholder for later LaTeX notes functionality
-- Minimal CSS polish using the existing CSS approach
-- README/CLAUDE.md updates documenting Stage 12
+- Library item selection from list/search results
+- A detail panel or detail section for the selected item
+- Display of id, title, author, description, `file_path`, `file_type`,
+  topic tags, status, created_at, and updated_at
+- Existing local file open behavior from the detail panel
+- Simple edit-in-detail behavior using the existing update API
+- A small Tauri file picker for populating Library `file_path` metadata
+  in the create/edit form
+- Static placeholders for summary, indexing, related notes, and
+  book-scoped chat
+- README/CLAUDE.md updates documenting Stage 13
 
-Do not implement in Stage 12:
+Do not implement in Stage 13:
 - New backend API endpoints
 - Database migrations
-- Notes CRUD
-- LaTeX compilation
-- LaTeX PDF preview
-- Internal PDF preview
 - PDF parsing
+- PDF preview
+- Internal PDF viewer
+- react-pdf
+- PDF.js
 - DOCX parsing
 - LaTeX parsing
 - File upload
 - Drag-and-drop upload
+- Automatic metadata extraction
+- Automatic book summary generation
+- Document ingestion from library item
 - Automatic book indexing
 - Embedding generation
+- Indexing pipeline
+- pgvector search for library items
 - Book-scoped RAG
+- Chat with this Book actual functionality
+- Related notes actual functionality
+- Notes CRUD
+- LaTeX generation
+- LaTeX compilation
+- VS Code integration
 - Real LLM answer generation
 - MCP
 - LangGraph
@@ -152,8 +171,6 @@ Do not implement in Stage 12:
 - Docker setup
 - Redis or queues
 - Major CSS framework migration
-- VS Code integration
-- LaTeX editing automation
 
 ---
 
@@ -189,6 +206,10 @@ Frontend:
 - Book Library UI stores `file_path` as backend metadata and can open it
   externally through Tauri in the desktop app; it does not preview,
   parse, upload, copy, or read file contents
+- Library file picker may populate `file_path` and infer `file_type`,
+  but must not read, upload, copy, parse, ingest, or validate files
+- Stage 13 Library detail placeholders are static UI only; they do not
+  call summary, indexing, notes, or book-scoped chat APIs
 
 Planned later:
 - LangGraph

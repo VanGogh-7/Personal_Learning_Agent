@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 12: Frontend Layout Redesign MVP.
+Stage 13: Library Detail Page / Panel MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -36,14 +36,17 @@ Stage 12: Frontend Layout Redesign MVP.
   system default application (Stage 11, completed)
 - Frontend Layout Redesign MVP: the React/Tauri frontend is organized
   into Chat, Library, and Notes pages with sidebar navigation (Stage 12,
-  current)
+  completed)
+- Library Detail Page / Panel MVP: the Library page can select a
+  library item and show structured metadata plus future placeholders
+  without adding backend behavior (Stage 13, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-12 is frontend layout-only and does not change backend behavior.
+13 is frontend-focused and does not change backend behavior.
 
 ## Setup
 
@@ -595,6 +598,19 @@ database tables, migrations, notes CRUD, LaTeX compilation, PDF preview,
 file upload, automatic book indexing, embeddings, book-scoped RAG,
 LangGraph, MCP, authentication, Docker, Redis/queues, or production
 packaging.
+
+## Library Detail Panel (Stage 13)
+
+Stage 13 adds a frontend detail panel for selected Library items. The
+detail panel displays core metadata, tags, timestamps, local file path,
+and existing local file opening controls. It also includes static future
+placeholders for summary, indexing, related notes, and book-scoped chat.
+
+Stage 13 does not add backend routes, database tables, migrations,
+backend file validation, PDF parsing, PDF preview, file upload,
+document ingestion from library items, embeddings, pgvector indexing,
+book-scoped RAG, notes CRUD, LangGraph, MCP, authentication, Docker,
+Redis/queues, or production packaging.
 
 ## Document Ingestion (MVP)
 

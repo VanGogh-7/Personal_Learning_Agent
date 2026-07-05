@@ -6,7 +6,13 @@ import {
   searchLibraryItems,
   updateLibraryItem,
 } from "../api/client";
-import type { LibraryItem, LibraryItemListResponse } from "../api/types";
+import type {
+  LibraryItem,
+  LibraryItemListResponse,
+  UpdateLibraryItemPayload,
+} from "../api/types";
+import LibraryItemDetail from "./library/LibraryItemDetail";
+import { inferFileTypeFromPath, selectLocalFile } from "../tauri/filePicker";
 import { openLocalFile } from "../tauri/localFiles";
 
 const DEFAULT_STATUS = "registered";
@@ -29,10 +35,13 @@ export default function BookLibraryPanel() {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [result, setResult] = useState<LibraryItemListResponse | null>(null);
+  const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [lastMode, setLastMode] = useState<"list" | "search" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingSave, setLoadingSave] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [loadingDetailSave, setLoadingDetailSave] = useState(false);
+  const [choosingFile, setChoosingFile] = useState(false);
   const [openingItemId, setOpeningItemId] = useState<string | null>(null);
 
   async function submitItem(event: FormEvent<HTMLFormElement>) {
@@ -60,11 +69,13 @@ export default function BookLibraryPanel() {
         status: form.status.trim(),
       };
 
+      let savedItem: LibraryItem;
       if (editingId) {
-        await updateLibraryItem(editingId, payload);
+        savedItem = await updateLibraryItem(editingId, payload);
       } else {
-        await createLibraryItem(payload);
+        savedItem = await createLibraryItem(payload);
       }
+      setSelectedItem(savedItem);
       resetForm();
       await loadItems("list");
     } catch (err) {
@@ -99,6 +110,9 @@ export default function BookLibraryPanel() {
               limit: params.limit,
             });
       setResult(response);
+      setSelectedItem((current) =>
+        current ? response.items.find((item) => item.id === current.id) || current : null,
+      );
       setLastMode(mode);
     } catch (err) {
       setResult(null);
@@ -112,6 +126,9 @@ export default function BookLibraryPanel() {
     setError(null);
     try {
       await archiveLibraryItem(itemId);
+      setSelectedItem((current) =>
+        current?.id === itemId ? { ...current, status: "archived" } : current,
+      );
       await loadItems(lastMode || "list");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Archive request failed.");
@@ -130,7 +147,31 @@ export default function BookLibraryPanel() {
     }
   }
 
+  async function chooseFileForForm() {
+    setError(null);
+    setChoosingFile(true);
+    try {
+      const selectedPath = await selectLocalFile();
+      if (!selectedPath) {
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+        filePath: selectedPath,
+        fileType: current.fileType.trim()
+          ? current.fileType
+          : inferFileTypeFromPath(selectedPath),
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "File picker failed.");
+    } finally {
+      setChoosingFile(false);
+    }
+  }
+
   function startEdit(item: LibraryItem) {
+    setSelectedItem(item);
     setEditingId(item.id);
     setForm({
       title: item.title,
@@ -141,6 +182,31 @@ export default function BookLibraryPanel() {
       topicTags: item.topic_tags?.join(", ") || "",
       status: item.status,
     });
+  }
+
+  async function saveDetailEdit(itemId: string, payload: UpdateLibraryItemPayload) {
+    setError(null);
+    setLoadingDetailSave(true);
+    try {
+      const updated = await updateLibraryItem(itemId, payload);
+      setSelectedItem(updated);
+      setResult((current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((item) => (item.id === updated.id ? updated : item)),
+            }
+          : current,
+      );
+      if (editingId === itemId) {
+        startEdit(updated);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Library item update failed.");
+      throw err;
+    } finally {
+      setLoadingDetailSave(false);
+    }
   }
 
   function resetForm() {
@@ -182,15 +248,25 @@ export default function BookLibraryPanel() {
               onChange={(event) => setForm({ ...form, author: event.target.value })}
             />
           </label>
-          <label>
+          <label className="full-width">
             file_path
-            <input
-              value={form.filePath}
-              onChange={(event) => setForm({ ...form, filePath: event.target.value })}
-              placeholder="/path/to/book.pdf"
-            />
+            <div className="input-with-action">
+              <input
+                value={form.filePath}
+                onChange={(event) => setForm({ ...form, filePath: event.target.value })}
+                placeholder="/path/to/book.pdf"
+              />
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={choosingFile}
+                onClick={chooseFileForForm}
+              >
+                {choosingFile ? "Choosing..." : "Choose File"}
+              </button>
+            </div>
             <span className="field-help">
-              Local file path metadata, for example: /home/user/books/munkres-topology.pdf
+              Select a local book or note file. The path is stored as metadata.
             </span>
           </label>
           <label>
@@ -297,18 +373,30 @@ export default function BookLibraryPanel() {
                 : "No library items found for these filters."}
             </p>
           ) : (
-            <ul className="item-list">
-              {result.items.map((item) => (
-                <LibraryItemCard
-                  key={item.id}
-                  item={item}
-                  opening={openingItemId === item.id}
-                  onEdit={startEdit}
-                  onOpen={openItemFile}
-                  onArchive={archiveItem}
-                />
-              ))}
-            </ul>
+            <div className="library-workspace">
+              <ul className="item-list library-list">
+                {result.items.map((item) => (
+                  <LibraryItemCard
+                    key={item.id}
+                    item={item}
+                    selected={selectedItem?.id === item.id}
+                    opening={openingItemId === item.id}
+                    onSelect={setSelectedItem}
+                    onEdit={startEdit}
+                    onOpen={openItemFile}
+                    onArchive={archiveItem}
+                  />
+                ))}
+              </ul>
+              <LibraryItemDetail
+                item={selectedItem}
+                opening={selectedItem ? openingItemId === selectedItem.id : false}
+                saving={loadingDetailSave}
+                onEdit={startEdit}
+                onOpen={openItemFile}
+                onSave={saveDetailEdit}
+              />
+            </div>
           )}
         </div>
       )}
@@ -318,13 +406,17 @@ export default function BookLibraryPanel() {
 
 function LibraryItemCard({
   item,
+  selected,
   opening,
+  onSelect,
   onEdit,
   onOpen,
   onArchive,
 }: {
   item: LibraryItem;
+  selected: boolean;
   opening: boolean;
+  onSelect: (item: LibraryItem) => void;
   onEdit: (item: LibraryItem) => void;
   onOpen: (item: LibraryItem) => void;
   onArchive: (itemId: string) => void;
@@ -332,7 +424,7 @@ function LibraryItemCard({
   const hasFilePath = Boolean(item.file_path?.trim());
 
   return (
-    <li>
+    <li className={selected ? "library-list-item selected" : "library-list-item"}>
       <div className="item-title">
         <span>{item.title}</span>
         <span className="status-badge">{item.status}</span>
@@ -345,6 +437,9 @@ function LibraryItemCard({
       </small>
       {!hasFilePath && <p className="muted compact-note">No local file path.</p>}
       <div className="button-row item-actions">
+        <button type="button" className="secondary-button" onClick={() => onSelect(item)}>
+          {selected ? "Selected" : "View details"}
+        </button>
         {hasFilePath && (
           <button
             type="button"
