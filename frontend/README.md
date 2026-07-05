@@ -1,7 +1,7 @@
 # Personal Learning Agent Frontend
 
-Stage 14 adds manually triggered Library indexing for `.txt` and `.md`
-files. The FastAPI backend must be started separately on
+Stage 15 adds book-scoped RAG from the Chat page for indexed Library
+items. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -64,7 +64,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 ## Current Features
 
 - Sidebar navigation for Chat, Library, and Notes
-- Chat page, opened by default, with RAG query, backend status, and long-term memory tools
+- Chat page, opened by default, with global RAG, book-scoped RAG,
+  backend status, and long-term memory tools
 - Library page with Book Library metadata create/list/search/edit/archive
 - Library item selection and detail metadata panel
 - Library `Choose File` button in Tauri to fill `file_path` metadata
@@ -88,7 +89,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library detail summary, related notes, and book chat sections are placeholders only
 - Notes page is a placeholder only; it does not create, save, compile, or export notes
 - No internal PDF preview or file upload
-- No automatic indexing, real embedding provider, automatic book summary, or book-scoped RAG
+- No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
+- Book-scoped RAG supports one selected indexed Library item at a time;
+  no multi-book RAG, reranking, or real LLM answer generation
 - No MCP
 - No LangGraph
 - No real embedding provider integration

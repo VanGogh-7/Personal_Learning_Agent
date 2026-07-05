@@ -3,6 +3,8 @@ import type {
   HealthResponse,
   LibraryItem,
   LibraryItemIndexResponse,
+  LibraryItemRagQueryRequest,
+  LibraryItemRagQueryResponse,
   LibraryItemListParams,
   LibraryItemListResponse,
   LongTermMemoryCreateRequest,
@@ -137,6 +139,15 @@ export function getStatus(): Promise<StatusResponse> {
 
 export function queryRag(payload: RagQueryRequest): Promise<RagQueryResponse> {
   return requestJson<RagQueryResponse>("/api/rag/query", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function queryLibraryItemRag(
+  payload: LibraryItemRagQueryRequest,
+): Promise<LibraryItemRagQueryResponse> {
+  return requestJson<LibraryItemRagQueryResponse>("/api/rag/query/library-item", {
     method: "POST",
     body: JSON.stringify(payload),
   });

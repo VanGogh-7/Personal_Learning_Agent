@@ -29,8 +29,9 @@ Stage 10: Book Library MVP — completed.
 Stage 11: Open Local Files from Desktop App — completed.
 Stage 12: Frontend Layout Redesign MVP — completed.
 Stage 13: Library Detail Page / Panel MVP — completed.
+Stage 14: Library Indexing MVP — completed.
 
-Current active stage: Stage 14: Library Indexing MVP.
+Current active stage: Stage 15: Book-Scoped RAG MVP.
 
 Do not implement the full product at once.
 
@@ -50,7 +51,8 @@ Project stage roadmap:
 11. Open local files from desktop app — completed
 12. Frontend layout redesign — completed
 13. Library detail page/panel — completed
-14. Library indexing MVP — current
+14. Library indexing MVP — completed
+15. Book-scoped RAG MVP — current
 
 ---
 
@@ -121,26 +123,30 @@ Stage 13 (completed): Library detail page/panel MVP. The Library page
 can select a library item, view all key metadata in a structured detail
 area, edit metadata, choose local files, and open local files externally.
 
-The current goal (Stage 14) is Library Indexing MVP. The user can
-manually index a registered Library item that points to a `.txt` or
-`.md` local file. The backend reads that selected local file path,
-chunks text, generates deterministic mock embeddings, persists
-document chunks with pgvector embeddings, associates the document to
-the Library item, and marks the item indexed.
+Stage 14 (completed): Library Indexing MVP. The user can manually index
+a registered Library item that points to a `.txt` or `.md` local file.
+The backend reads that selected local file path, chunks text, generates
+deterministic mock embeddings, persists document chunks with pgvector
+embeddings, associates the document to the Library item, and marks the
+item indexed.
+
+The current goal (Stage 15) is Book-Scoped RAG MVP. The Chat page can
+select one indexed Library item and send RAG queries to
+`POST /api/rag/query/library-item`, retrieving only chunks connected to
+that item's `documents.library_item_id`. Global `POST /api/rag/query`
+must continue to work unchanged.
 
 Allowed in the current stage:
-- Add nullable `documents.library_item_id` relationship if needed
-- Add `POST /api/library/items/{item_id}/index`
-- Support `.txt` and `.md` files only
-- Validate missing path, nonexistent path, directory path, unsupported
-  type, and UTF-8 decoding errors
-- Reuse existing chunking, mock embedding, document chunk, and vector
-  persistence model code
-- Replace chunks on re-indexing instead of accumulating duplicates
-- Add an `Index File` button in the Library detail panel
-- README/CLAUDE.md updates documenting Stage 14
+- Add scoped retrieval for one Library item
+- Add `POST /api/rag/query/library-item`
+- Preserve short-term memory and optional long-term memory behavior
+- Save short-term memory metadata with `scope=library_item` and
+  `library_item_id`
+- Add a Chat page selector for indexed Library items with a Global RAG option
+- Preserve existing global RAG behavior
+- README/CLAUDE.md updates documenting Stage 15
 
-Do not implement in Stage 14:
+Do not implement in Stage 15:
 - PDF parsing
 - PDF preview
 - Internal PDF viewer
@@ -155,12 +161,13 @@ Do not implement in Stage 14:
 - Automatic background indexing
 - Automatic metadata extraction
 - Automatic book summary generation
+- Advanced ranking or reranking
+- Multi-book RAG
 - Queue system
 - Redis
 - Celery/RQ
 - Real embedding provider
 - OpenAI/DeepSeek embedding calls
-- Book-scoped RAG
 - Chat with this Book actual functionality
 - Related notes actual functionality
 - Real LLM summary generation
@@ -222,7 +229,8 @@ Frontend:
   backend only after the user clicks `Index File`
 - Stage 14 uses deterministic mock embeddings only; no real embedding
   provider or LLM API calls
-- Book-scoped RAG and Library summaries remain unimplemented
+- Stage 15 book-scoped RAG retrieves from one selected indexed Library
+  item only; Library summaries remain unimplemented
 
 Planned later:
 - LangGraph

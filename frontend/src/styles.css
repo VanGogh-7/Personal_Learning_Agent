@@ -12,6 +12,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -39,6 +40,7 @@ button:disabled {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid #cbd5e1;

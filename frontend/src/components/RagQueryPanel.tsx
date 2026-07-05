@@ -1,15 +1,53 @@
-import { FormEvent, useState } from "react";
-import { queryRag } from "../api/client";
-import type { RagQueryResponse } from "../api/types";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { listLibraryItems, queryLibraryItemRag, queryRag } from "../api/client";
+import type {
+  LibraryItem,
+  LibraryItemRagQueryResponse,
+  RagQueryResponse,
+} from "../api/types";
 
 export default function RagQueryPanel() {
   const [question, setQuestion] = useState("");
   const [topK, setTopK] = useState(5);
   const [sessionId, setSessionId] = useState("");
   const [includeLongTermMemory, setIncludeLongTermMemory] = useState(false);
-  const [result, setResult] = useState<RagQueryResponse | null>(null);
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [selectedLibraryItemId, setSelectedLibraryItemId] = useState("");
+  const [result, setResult] = useState<RagQueryResponse | LibraryItemRagQueryResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
+  const [contextError, setContextError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingContexts, setLoadingContexts] = useState(false);
+
+  const selectedLibraryItem = useMemo(
+    () => libraryItems.find((item) => item.id === selectedLibraryItemId) || null,
+    [libraryItems, selectedLibraryItemId],
+  );
+
+  useEffect(() => {
+    void loadLibraryContexts();
+  }, []);
+
+  async function loadLibraryContexts() {
+    setContextError(null);
+    setLoadingContexts(true);
+    try {
+      const response = await listLibraryItems({ status: "indexed", limit: 100 });
+      setLibraryItems(response.items);
+      setSelectedLibraryItemId((current) =>
+        current && response.items.some((item) => item.id === current) ? current : "",
+      );
+    } catch (err) {
+      setLibraryItems([]);
+      setContextError(
+        err instanceof Error ? err.message : "Could not load indexed library items.",
+      );
+    } finally {
+      setLoadingContexts(false);
+    }
+  }
 
   async function submitQuery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,12 +64,18 @@ export default function RagQueryPanel() {
 
     setLoading(true);
     try {
-      const response = await queryRag({
+      const payload = {
         question: question.trim(),
         top_k: topK,
         session_id: sessionId.trim() || undefined,
         include_long_term_memory: includeLongTermMemory,
-      });
+      };
+      const response = selectedLibraryItemId
+        ? await queryLibraryItemRag({
+            ...payload,
+            library_item_id: selectedLibraryItemId,
+          })
+        : await queryRag(payload);
       setResult(response);
       setSessionId(response.session_id);
     } catch (err) {
@@ -52,6 +96,41 @@ export default function RagQueryPanel() {
       </div>
 
       <form className="form-grid" onSubmit={submitQuery}>
+        <label className="full-width">
+          Context
+          <div className="input-with-action">
+            <select
+              value={selectedLibraryItemId}
+              onChange={(event) => {
+                setSelectedLibraryItemId(event.target.value);
+                setResult(null);
+                setError(null);
+              }}
+            >
+              <option value="">Global RAG</option>
+              {libraryItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                  {item.author ? ` — ${item.author}` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={loadingContexts}
+              onClick={loadLibraryContexts}
+            >
+              {loadingContexts ? "Loading..." : "Reload books"}
+            </button>
+          </div>
+          <span className="field-help">
+            {selectedLibraryItem
+              ? `Book-scoped RAG: ${selectedLibraryItem.title}`
+              : "No specific book selected. Queries use the global indexed knowledge base."}
+          </span>
+        </label>
+
         <label className="full-width">
           Question
           <textarea
@@ -96,11 +175,25 @@ export default function RagQueryPanel() {
         </button>
       </form>
 
+      {contextError && <p className="error">{contextError}</p>}
       {error && <p className="error">{error}</p>}
 
       {result && (
         <div className="response-block">
           <h3>Answer</h3>
+          {isLibraryItemResult(result) && (
+            <div className="result-block">
+              <h3>Selected Book</h3>
+              <p>
+                {result.library_item.title}
+                {result.library_item.author ? ` by ${result.library_item.author}` : ""}
+              </p>
+              <small>
+                status {result.library_item.status} · type{" "}
+                {result.library_item.file_type || "unknown"}
+              </small>
+            </div>
+          )}
           <p>{result.answer}</p>
 
           <dl className="metadata-list">
@@ -149,4 +242,10 @@ export default function RagQueryPanel() {
 
 function preview(content: string): string {
   return content.length > 260 ? `${content.slice(0, 260)}...` : content;
+}
+
+function isLibraryItemResult(
+  result: RagQueryResponse | LibraryItemRagQueryResponse,
+): result is LibraryItemRagQueryResponse {
+  return "library_item" in result;
 }

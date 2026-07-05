@@ -86,3 +86,63 @@ def search_similar_chunks(
         )
         for chunk, distance in rows
     ]
+
+
+def search_similar_chunks_for_documents(
+    session: Session,
+    query_embedding: Sequence[float],
+    document_ids: Sequence[uuid.UUID],
+    limit: int = 5,
+) -> list[SimilarChunkResult]:
+    """Return nearest embedded chunks restricted to a set of documents.
+
+    The global search path uses pgvector ordering directly. For the
+    Stage 15 scoped path, this helper first filters to a small explicit
+    document set and then applies the same L2 distance deterministically
+    in Python. This keeps tests portable across SQLite and PostgreSQL
+    while still using the embeddings persisted on document chunks.
+    """
+    _validate_embedding_dimension(query_embedding)
+    _validate_limit(limit)
+    if not document_ids:
+        return []
+
+    rows = (
+        session.execute(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id.in_(list(document_ids)))
+            .where(DocumentChunk.embedding.is_not(None))
+        )
+        .scalars()
+        .all()
+    )
+
+    scored = [
+        (
+            chunk,
+            _l2_distance(query_embedding, chunk.embedding if chunk.embedding is not None else []),
+        )
+        for chunk in rows
+    ]
+    scored.sort(key=lambda item: item[1])
+
+    return [
+        SimilarChunkResult(
+            chunk_id=chunk.id,
+            document_id=chunk.document_id,
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+            char_start=chunk.char_start,
+            char_end=chunk.char_end,
+            distance=float(distance),
+        )
+        for chunk, distance in scored[:limit]
+    ]
+
+
+def _l2_distance(left: Sequence[float], right: Sequence[float]) -> float:
+    _validate_embedding_dimension(right)
+    squared_distance = sum(
+        (left_value - right_value) ** 2 for left_value, right_value in zip(left, right)
+    )
+    return squared_distance**0.5

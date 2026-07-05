@@ -32,6 +32,10 @@ class RagQueryRequest(BaseModel):
         return value.strip() if value is not None else value
 
 
+class LibraryItemRagQueryRequest(RagQueryRequest):
+    library_item_id: str
+
+
 class RetrievedChunk(BaseModel):
     chunk_id: str
     document_id: str
@@ -55,3 +59,15 @@ class RagQueryResponse(BaseModel):
     total_retrieved: int
     session_id: str
     memory: MemoryMetadata
+
+
+class RagLibraryItemMetadata(BaseModel):
+    id: str
+    title: str
+    author: str | None = None
+    file_type: str | None = None
+    status: str
+
+
+class LibraryItemRagQueryResponse(RagQueryResponse):
+    library_item: RagLibraryItemMetadata

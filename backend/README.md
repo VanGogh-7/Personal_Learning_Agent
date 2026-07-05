@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 14: Library Indexing MVP.
+Stage 15: Book-Scoped RAG MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -42,14 +42,16 @@ Stage 14: Library Indexing MVP.
   without adding backend behavior (Stage 13, completed)
 - Library Indexing MVP: a supported `.txt` or `.md` library item can be
   manually indexed into documents, chunks, and deterministic mock
-  embeddings (Stage 14, current)
+  embeddings (Stage 14, completed)
+- Book-Scoped RAG MVP: Chat/RAG can retrieve only chunks associated
+  with one selected indexed Library item (Stage 15, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-14 supports only manually triggered `.txt` and `.md` Library indexing.
+15 adds single-book scoped RAG only; global RAG still works.
 
 ## Setup
 
@@ -636,6 +638,33 @@ queues, Redis, Celery/RQ, real embedding providers, OpenAI/DeepSeek
 embedding calls, LLM summaries, automatic book summaries, book-scoped
 RAG, notes generation, authentication, Docker, and production packaging
 are not implemented in Stage 14.
+
+## Book-Scoped RAG (Stage 15)
+
+Stage 15 adds `POST /api/rag/query/library-item`. It accepts a
+`library_item_id`, question, `top_k`, optional `session_id`, and
+`include_long_term_memory`. Retrieval is restricted to chunks whose
+document is connected through `documents.library_item_id`.
+
+Request:
+
+```json
+{
+  "library_item_id": "00000000-0000-0000-0000-000000000000",
+  "question": "What is this book about?",
+  "top_k": 5,
+  "include_long_term_memory": false
+}
+```
+
+Response includes the deterministic answer, selected Library item
+metadata, retrieved chunks, session id, and memory metadata. The
+existing global endpoint `POST /api/rag/query` is unchanged.
+
+Stage 15 does not add real LLM calls, real embedding providers,
+advanced reranking, multi-book RAG, PDF/DOCX/LaTeX parsing, OCR,
+notes generation, LangGraph, MCP, authentication, Docker, Redis, or
+production packaging.
 
 ## Document Ingestion (MVP)
 

@@ -15,6 +15,10 @@ export interface RagQueryRequest {
   include_long_term_memory: boolean;
 }
 
+export interface LibraryItemRagQueryRequest extends RagQueryRequest {
+  library_item_id: string;
+}
+
 export interface RetrievedChunk {
   chunk_id: string;
   document_id: string;
@@ -38,6 +42,18 @@ export interface RagQueryResponse {
   total_retrieved: number;
   session_id: string;
   memory: RagMemoryMetadata;
+}
+
+export interface RagLibraryItemMetadata {
+  id: string;
+  title: string;
+  author: string | null;
+  file_type: string | null;
+  status: string;
+}
+
+export interface LibraryItemRagQueryResponse extends RagQueryResponse {
+  library_item: RagLibraryItemMetadata;
 }
 
 export interface LongTermMemoryCreateRequest {
