@@ -1,5 +1,7 @@
 .idea/
-data/
+/data/
+backend/data/*
+!backend/data/.gitkeep
 /datasets/*
 !/datasets/.gitignore
 !/datasets/README.md

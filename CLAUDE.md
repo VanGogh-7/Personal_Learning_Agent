@@ -17,12 +17,23 @@ The project will later support:
 - Optional Tauri + React desktop UI
 
 Stage 1: Backend skeleton — completed.
+Stage 2: Document ingestion MVP — completed.
 
-Current active stage: Stage 2: Document ingestion MVP.
+Current active stage: Stage 3: PostgreSQL schema.
 
 Do not implement the full product at once.
 
 The default backend development port is `8081`.
+
+Project stage roadmap:
+1. Backend skeleton — completed
+2. Document ingestion MVP — completed
+3. PostgreSQL schema — current
+4. Embedding + pgvector
+5. RAG Q&A
+6. Short-term memory
+7. Long-term memory
+8. Tauri + React frontend
 
 ---
 
@@ -33,34 +44,44 @@ environment variable configuration, `.env.example`, health/status
 endpoints, minimal DeepSeek client module, basic tests, README setup
 instructions, clean backend directory structure.
 
-The current goal (Stage 2) is a minimal document ingestion module for
-plain text and Markdown content only.
+Stage 2 (completed): a minimal document ingestion module for plain text
+and Markdown content — character-based chunking, safe `.txt`/`.md`
+loading from `backend/data`, `/api/ingestion` routes, and tests.
+
+The current goal (Stage 3) is PostgreSQL schema support only: database
+configuration, SQLAlchemy models, and Alembic migrations for
+`learning_sources`, `documents`, `document_chunks`, and `agent_runs`.
 
 Allowed in the current stage:
-- Ingestion module (`backend/app/ingestion/`)
-- Character-based text chunking
-- Loading `.txt` and `.md` files from `backend/data` only
-- Minimal FastAPI routes under `/api/ingestion`
-- Tests for chunking, file loading, and the ingestion routes
-- README updates documenting the ingestion endpoints
+- `DATABASE_URL` in the settings/config system, read from the project
+  root `.env`
+- SQLAlchemy 2.x setup (`backend/app/db/`)
+- ORM models (`backend/app/models/`) for the four Stage 3 tables
+- Alembic migration setup (`backend/alembic/`) with an initial migration
+- Tests for database config, model definitions, and safe schema/migration
+  setup that do not require a live database connection
+- README/CLAUDE.md updates documenting the schema and migration commands
 
-Do not implement yet:
+Do not implement yet (Stage 3 must not include):
 - RAG
 - Embeddings
+- pgvector search
 - LangGraph workflows
 - Long-term memory
 - Short-term memory
-- PostgreSQL schema
-- pgvector
 - Frontend
 - Tauri
 - MCP
-- PDF/LaTeX parsing
+- PDF parsing
+- LaTeX parsing
+- DOCX parsing
 - Recursive directory scanning
 - Repository analysis
 - Multi-agent workflows
 - Email/calendar reminders
 - Automatic local file modification outside `backend/data`
+- Running migrations automatically from application startup
+- Destructive SQL or database create/drop/reset operations
 
 ---
 
@@ -70,13 +91,14 @@ Backend:
 - Python
 - FastAPI
 - pytest
+- PostgreSQL (schema layer only, via SQLAlchemy 2.x + Alembic)
+- SQLAlchemy 2.x
+- Alembic
+- psycopg (v3)
 
 Planned later:
 - LangGraph
-- PostgreSQL
 - pgvector
-- SQLAlchemy or SQLModel
-- Alembic
 - Tauri + React
 - Rust local backend
 - MCP integration

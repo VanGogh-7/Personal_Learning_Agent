@@ -8,15 +8,14 @@ and knowledge retrieval.
 
 ## Current Stage
 
-MVP backend skeleton only:
+Stage 3: PostgreSQL schema.
 
-- FastAPI app with health/status endpoints
-- Environment-based configuration
-- Minimal DeepSeek client shell (no API calls yet)
-- Basic tests
+- FastAPI app with health/status endpoints (Stage 1)
+- Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2)
+- SQLAlchemy models + Alembic migrations for the initial schema (Stage 3)
 
-RAG, LangGraph workflows, short/long-term memory, PostgreSQL + pgvector,
-document ingestion, and the frontend (Tauri + React) are planned but
+RAG, embeddings, pgvector search, LangGraph workflows, short/long-term
+memory, and the frontend (Tauri + React) are planned but
 **not implemented yet**.
 
 ## Setup
@@ -35,11 +34,17 @@ document ingestion, and the frontend (Tauri + React) are planned but
    pip install -r requirements.txt
    ```
 
-3. Copy the example environment file and fill in real values locally:
+3. Copy the example environment file and fill in real values locally.
+   The real `.env` lives at the **project root** (one level above
+   `backend/`), not inside `backend/`:
 
    ```bash
-   cp .env.example .env
+   cp backend/.env.example .env
    ```
+
+4. PostgreSQL: have a local PostgreSQL server running and set
+   `DATABASE_URL` in the root `.env` to point at your local development
+   database (see [Environment Variables](#environment-variables) below).
 
 If the `pla` conda environment already exists, use this shorter workflow:
 
@@ -61,8 +66,13 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 | `DEEPSEEK_API_KEY`  | DeepSeek API key                          | *(none — set in `.env`)*        |
 | `DEEPSEEK_BASE_URL` | DeepSeek API base URL                     | `https://api.deepseek.com`      |
 | `DEEPSEEK_MODEL`    | DeepSeek model name                       | `deepseek-chat`                 |
+| `DATABASE_URL`      | PostgreSQL connection string (SQLAlchemy) | *(none — set in `.env`)*        |
 
-`.env` is never committed. Only `.env.example` (placeholders) is tracked.
+`DATABASE_URL` uses the SQLAlchemy + psycopg (v3) format, e.g.
+`postgresql+psycopg://user:password@localhost:5432/personal_learning_agent`.
+
+`.env` lives at the project root and is never committed. Only
+`backend/.env.example` (placeholders) is tracked.
 
 ## Running the API
 
@@ -82,7 +92,39 @@ pytest
 ```
 
 Tests do not require a real DeepSeek API key and do not call any
-external API.
+external API. The database-related tests validate configuration and
+model metadata; they do not require a live PostgreSQL connection.
+
+## Database (PostgreSQL) — Stage 3
+
+Stage 3 adds the initial database schema only: SQLAlchemy models and an
+Alembic migration for `learning_sources`, `documents`,
+`document_chunks`, and `agent_runs`. It does **not** add embeddings,
+pgvector search, RAG, LangGraph, or memory logic — that is planned for
+later stages.
+
+- ORM: SQLAlchemy 2.x (`app/db/`, `app/models/`)
+- Driver: `psycopg` (v3)
+- Migrations: Alembic (`backend/alembic/`)
+- `DATABASE_URL` is read from the root `.env` via `app.core.config.get_settings()`.
+  No connection string or credential is hard-coded, and migrations are
+  never run automatically from application startup.
+
+### Running migrations manually
+
+From `backend/`, with the `pla` environment active and `DATABASE_URL` set
+in the root `.env`:
+
+```bash
+# create a new migration after changing models
+alembic revision --autogenerate -m "describe the change"
+
+# apply all pending migrations
+alembic upgrade head
+
+# roll back the most recent migration
+alembic downgrade -1
+```
 
 ## Document Ingestion (MVP)
 
@@ -136,21 +178,20 @@ Request:
 
 Response:
 
-```json
+```text
 {
   "file_path": "example.md",
-  "chunks": [...],
+  "chunks": [ ... ],
   "total_chunks": 3
 }
 ```
 
 ## Roadmap (not yet implemented)
 
-- Document ingestion
-- RAG over personal learning materials
+- Embeddings + pgvector search
+- RAG Q&A over personal learning materials
 - Short-term and long-term memory
 - Learning progress tracking
 - Study plan generation
 - LangGraph-based agent workflows
-- PostgreSQL + pgvector storage
 - Tauri + React desktop UI
