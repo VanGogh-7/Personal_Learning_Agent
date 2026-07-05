@@ -20,8 +20,9 @@ Stage 1: Backend skeleton — completed.
 Stage 2: Document ingestion MVP — completed.
 Stage 3: PostgreSQL schema — completed.
 Stage 4: Embedding + pgvector MVP — completed.
+Stage 5: Minimal RAG Q&A MVP — completed.
 
-Current active stage: Stage 5: Minimal RAG Q&A MVP.
+Current active stage: Stage 6: Short-term Memory MVP.
 
 Do not implement the full product at once.
 
@@ -32,8 +33,8 @@ Project stage roadmap:
 2. Document ingestion MVP — completed
 3. PostgreSQL schema — completed
 4. Embedding + pgvector — completed
-5. Minimal RAG Q&A — current
-6. Short-term memory
+5. Minimal RAG Q&A — completed
+6. Short-term memory — current
 7. Long-term memory
 8. Tauri + React frontend
 
@@ -59,31 +60,42 @@ pipeline of document chunk text → deterministic mock embedding →
 vector stored in PostgreSQL → basic similarity search, via
 `backend/app/embeddings/` and `backend/app/db/vector_search.py`.
 
-The current goal (Stage 5) is a minimal RAG Q&A MVP only: proving the
-pipeline of user question → deterministic mock embedding → pgvector
-similarity search over `document_chunks` → simple deterministic
-(extractive, non-LLM) answer → answer plus retrieved chunks and source
-metadata.
+Stage 5 (completed): a minimal RAG Q&A MVP — proving the pipeline of
+user question → deterministic mock embedding → pgvector similarity
+search over `document_chunks` → simple deterministic (extractive,
+non-LLM) answer → answer plus retrieved chunks and source metadata, via
+`backend/app/rag/` and `POST /api/rag/query`.
+
+The current goal (Stage 6) is a minimal short-term memory MVP only: a
+user question (with an optional `session_id`) loads recent conversation
+turns for that session, the deterministic answer generator notes when
+recent context was considered, the current turn is saved afterward, and
+the response includes `session_id` plus memory metadata.
 
 Allowed in the current stage:
-- Request/response schemas for a RAG query (`backend/app/rag/schemas.py`)
-- A retrieval service (`backend/app/rag/retrieval.py`) that reuses the
-  existing Stage 4 mock embedding provider and `search_similar_chunks` —
-  no new tables, no new migration
-- A QA service (`backend/app/rag/qa.py`) that builds a deterministic,
-  non-LLM extractive answer from retrieved chunks, with a clear
-  fallback message when nothing relevant is found
-- `POST /api/rag/query` returning `answer`, `retrieved_chunks`, and
-  `total_retrieved`
-- Tests for schemas, the QA service, the retrieval service (mocking
-  vector search), and the API endpoint (mocking retrieval/DB session)
-  that do not require a live database connection
-- README/CLAUDE.md updates documenting Stage 5 status
+- A `conversation_turns` table and Alembic migration
+  (`session_id`, `question`, `answer`, `turn_index`, `metadata_json`,
+  `created_at`, indexed on `session_id`) — no vector columns
+- A short-term memory service (`backend/app/memory/short_term.py`):
+  `create_session_id`, `get_recent_turns` (bounded, session-scoped),
+  `save_turn`, `build_memory_context` (deterministic, no LLM
+  summarization, no external API calls)
+- Optional `session_id` on `RagQueryRequest`; if omitted, a new one is
+  generated and returned; if provided, it is reused
+- `RagQueryResponse` extended with `session_id` and `memory`
+  (`used_recent_turns`, `saved_current_turn`)
+- Tests for schemas, the memory service, RAG+memory integration (mocking
+  vector search, using a throwaway in-memory SQLite database instead of
+  the real PostgreSQL database), and the API endpoint
+- README/CLAUDE.md updates documenting Stage 6 status
 
-Do not implement yet (Stage 5 must not include):
-- LangGraph workflows
+Do not implement yet (Stage 6 must not include):
 - Long-term memory
-- Short-term memory
+- Semantic memory
+- User profile memory
+- Cross-session memory retrieval
+- LangGraph workflows
+- Agent planning or tool calling
 - Real embedding provider integration (DeepSeek, OpenAI, or otherwise)
 - Production LLM answer generation
 - Frontend
@@ -95,15 +107,13 @@ Do not implement yet (Stage 5 must not include):
 - Recursive directory scanning
 - Repository analysis
 - Multi-agent workflows
-- Multi-turn conversation
-- Agent planning or tool calling
+- Multi-turn conversation planning beyond storing/replaying recent turns
 - Email/calendar reminders
 - Automatic local file modification outside `backend/data`
-- Automatic embedding during ingestion, background jobs, reranking,
-  hybrid search, or chunk metadata enrichment
-- New database tables or migrations (Stage 5 reuses existing schema)
+- Background jobs, reranking, hybrid search, or complex prompt management
+- Redis or a message queue
 - Running migrations automatically from application startup
-- Destructive SQL or database create/drop/reset operations
+- Destructive SQL, or dropping existing tables manually
 
 ---
 
@@ -122,10 +132,14 @@ Backend:
 - Minimal RAG Q&A (`backend/app/rag/`): deterministic mock embeddings +
   pgvector search + simple extractive answer generation; no real LLM or
   embedding provider
+- Short-term memory (`backend/app/memory/`): bounded, per-session
+  `conversation_turns` in PostgreSQL; deterministic context only, no LLM
+  summarization
 
 Planned later:
 - LangGraph
 - Real embedding provider integration and production-quality RAG Q&A
+- Long-term memory
 - Tauri + React
 - Rust local backend
 - MCP integration

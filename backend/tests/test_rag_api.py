@@ -14,9 +14,29 @@ class _FakeSession:
     def close(self) -> None:
         pass
 
+    def commit(self) -> None:
+        pass
+
+    def rollback(self) -> None:
+        pass
+
 
 def _fake_get_db_session():
     return _FakeSession()
+
+
+def _patch_no_memory(monkeypatch) -> None:
+    """Patch memory calls to a no-op/empty state, for tests that only
+    care about the retrieval/answer contract, not memory persistence."""
+    monkeypatch.setattr(rag_routes_module, "get_db_session", _fake_get_db_session)
+    monkeypatch.setattr(
+        rag_routes_module, "get_recent_turns", lambda session, session_id, limit: []
+    )
+    monkeypatch.setattr(
+        rag_routes_module,
+        "save_turn",
+        lambda session, session_id, question, answer, metadata=None: None,
+    )
 
 
 def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
@@ -31,7 +51,7 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
         score=0.05,
     )
 
-    monkeypatch.setattr(rag_routes_module, "get_db_session", _fake_get_db_session)
+    _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
         rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: [chunk]
     )
@@ -45,6 +65,8 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
     assert "answer" in data
     assert data["total_retrieved"] == 1
     assert len(data["retrieved_chunks"]) == 1
+    assert isinstance(data["session_id"], str) and data["session_id"]
+    assert data["memory"] == {"used_recent_turns": 0, "saved_current_turn": True}
 
     returned_chunk = data["retrieved_chunks"][0]
     assert returned_chunk["chunk_id"] == str(chunk.chunk_id)
@@ -57,7 +79,7 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
 
 
 def test_rag_query_with_no_matches_returns_fallback_answer(monkeypatch) -> None:
-    monkeypatch.setattr(rag_routes_module, "get_db_session", _fake_get_db_session)
+    _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
         rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
     )
@@ -69,6 +91,33 @@ def test_rag_query_with_no_matches_returns_fallback_answer(monkeypatch) -> None:
     assert data["total_retrieved"] == 0
     assert data["retrieved_chunks"] == []
     assert "could not find relevant information" in data["answer"]
+    assert data["memory"]["saved_current_turn"] is True
+
+
+def test_rag_query_works_without_session_id_and_generates_one(monkeypatch) -> None:
+    _patch_no_memory(monkeypatch)
+    monkeypatch.setattr(
+        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+    )
+
+    response = client.post("/api/rag/query", json={"question": "no session id here"})
+
+    assert response.status_code == 200
+    assert response.json()["session_id"]
+
+
+def test_rag_query_works_with_session_id_and_reuses_it(monkeypatch) -> None:
+    _patch_no_memory(monkeypatch)
+    monkeypatch.setattr(
+        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+    )
+
+    response = client.post(
+        "/api/rag/query", json={"question": "a question", "session_id": "my-existing-session"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "my-existing-session"
 
 
 def test_rag_query_rejects_empty_question() -> None:
@@ -89,6 +138,13 @@ def test_rag_query_rejects_missing_question() -> None:
     assert response.status_code == 422
 
 
+def test_rag_query_rejects_empty_session_id() -> None:
+    response = client.post(
+        "/api/rag/query", json={"question": "valid question", "session_id": "   "}
+    )
+    assert response.status_code == 422
+
+
 def test_rag_query_returns_503_when_database_not_configured(monkeypatch) -> None:
     def _raise_value_error():
         raise ValueError("DATABASE_URL is required for database operations")
@@ -100,7 +156,7 @@ def test_rag_query_returns_503_when_database_not_configured(monkeypatch) -> None
 
 
 def test_rag_query_returns_503_when_vector_search_fails(monkeypatch) -> None:
-    monkeypatch.setattr(rag_routes_module, "get_db_session", _fake_get_db_session)
+    _patch_no_memory(monkeypatch)
 
     def _raise_db_error(session, question, top_k):
         raise SQLAlchemyError("connection failed")

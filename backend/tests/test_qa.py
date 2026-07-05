@@ -1,5 +1,7 @@
 import uuid
+from datetime import datetime, timezone
 
+from app.memory.short_term import ConversationTurnResult
 from app.rag.qa import NO_RESULTS_ANSWER, generate_answer
 from app.rag.retrieval import RetrievedChunkResult
 
@@ -14,6 +16,16 @@ def _make_chunk(content: str, score: float = 0.1) -> RetrievedChunkResult:
         char_start=0,
         char_end=len(content),
         score=score,
+    )
+
+
+def _make_turn(question: str, answer: str = "some prior answer") -> ConversationTurnResult:
+    return ConversationTurnResult(
+        turn_id=uuid.uuid4(),
+        session_id="session-a",
+        question=question,
+        answer=answer,
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -41,3 +53,58 @@ def test_answer_uses_top_ranked_chunk() -> None:
 
     assert "The most relevant excerpt." in answer
     assert "A less relevant excerpt." not in answer
+
+
+def test_answer_includes_most_recent_prior_question_when_turns_present() -> None:
+    chunk = _make_chunk("Gradient descent minimizes a loss function.")
+    prior_turn = _make_turn("What is a loss function?")
+
+    with_memory = generate_answer("question", [chunk], recent_turns=[prior_turn])
+    without_memory = generate_answer("question", [chunk], recent_turns=[])
+
+    assert "recent session context" in with_memory
+    assert "What is a loss function?" in with_memory
+    assert "recent session context" not in without_memory
+    assert without_memory in with_memory
+
+
+def test_answer_only_mentions_the_single_most_recent_turn() -> None:
+    chunk = _make_chunk("Some content.")
+    older_turn = _make_turn("An older question")
+    latest_turn = _make_turn("The latest question")
+
+    answer = generate_answer("question", [chunk], recent_turns=[older_turn, latest_turn])
+
+    assert "The latest question" in answer
+    assert "An older question" not in answer
+
+
+def test_answer_notes_recent_context_even_with_no_retrieved_chunks() -> None:
+    prior_turn = _make_turn("Previous question text")
+
+    answer = generate_answer("question", [], recent_turns=[prior_turn])
+
+    assert answer.startswith(NO_RESULTS_ANSWER)
+    assert "recent session context" in answer
+    assert "Previous question text" in answer
+
+
+def test_generate_answer_is_deterministic_with_recent_turns() -> None:
+    chunk = _make_chunk("Deterministic content.")
+    prior_turn = _make_turn("Same prior question")
+
+    first = generate_answer("question", [chunk], recent_turns=[prior_turn])
+    second = generate_answer("question", [chunk], recent_turns=[prior_turn])
+
+    assert first == second
+
+
+def test_recent_question_is_truncated_defensively() -> None:
+    chunk = _make_chunk("Some content.")
+    very_long_question = "x" * 500
+    prior_turn = _make_turn(very_long_question)
+
+    answer = generate_answer("question", [chunk], recent_turns=[prior_turn])
+
+    assert very_long_question not in answer
+    assert "x" * 200 in answer

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 5: Minimal RAG Q&A MVP.
+Stage 6: Short-term Memory MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -17,13 +17,15 @@ Stage 5: Minimal RAG Q&A MVP.
   column on `document_chunks`, deterministic mock embeddings, and minimal
   vector persistence/search functions (Stage 4, completed)
 - Minimal RAG Q&A: question → mock embedding → pgvector similarity search
-  → simple deterministic extractive answer (Stage 5, current)
+  → simple deterministic extractive answer (Stage 5, completed)
+- Short-term memory: bounded per-session conversation turns, used as
+  simple deterministic context for the RAG answer (Stage 6, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
-production LLM answer generation, LangGraph workflows, short/long-term
-memory, and the frontend (Tauri + React) are planned but **not
-implemented yet**. See [Minimal RAG Q&A (Stage 5)](#minimal-rag-qa-stage-5)
-below for what Stage 5 actually adds.
+production LLM answer generation, long-term memory, LangGraph workflows,
+and the frontend (Tauri + React) are planned but **not implemented
+yet**. See [Short-term Memory (Stage 6)](#short-term-memory-stage-6)
+below for what Stage 6 actually adds.
 
 ## Setup
 
@@ -106,7 +108,10 @@ external API. The database-related tests validate configuration and
 model metadata; they do not require a live PostgreSQL connection. The
 RAG tests (`test_rag_schemas.py`, `test_qa.py`, `test_retrieval.py`,
 `test_rag_api.py`) monkeypatch the vector search and database session,
-so they also run without a live PostgreSQL connection.
+so they also run without a live PostgreSQL connection. The memory tests
+(`test_memory_service.py`, `test_rag_memory_integration.py`) exercise
+real SQLAlchemy query logic against a throwaway in-memory SQLite
+database (not the project's real PostgreSQL database).
 
 ## Database (PostgreSQL) — Stage 3
 
@@ -185,6 +190,35 @@ plus retrieved chunks and source metadata.
   (required, non-empty after stripping) and `top_k` (default 5, must be
   between 1 and 20)
 
+Stage 5 uses **deterministic mock embeddings and a simple deterministic
+extractive answer generator only** — no real embedding provider
+(DeepSeek, OpenAI, or otherwise) and no production LLM answer
+generation. See [Short-term Memory (Stage 6)](#short-term-memory-stage-6)
+below for the current endpoint contract, which extends this with
+`session_id` and memory metadata.
+
+## Short-term Memory (Stage 6)
+
+Stage 6 adds a minimal short-term memory layer on top of Stage 5's RAG
+pipeline: user question (with an optional `session_id`) → recent
+conversation turns for that session are loaded → the deterministic
+answer generator notes when recent context was considered → the current
+question/answer turn is saved → the response returns the answer,
+retrieved chunks, `session_id`, and memory metadata.
+
+- Model (`backend/app/models/conversation_turn.py`) and migration
+  (`backend/alembic/versions/ffbb0aa351cd_add_conversation_turns_table.py`):
+  a `conversation_turns` table (`session_id`, `question`, `answer`,
+  `turn_index`, `metadata_json`, `created_at`), indexed on `session_id`.
+  No vector columns, no long-term/semantic memory tables.
+- Memory service (`backend/app/memory/short_term.py`): `create_session_id`,
+  `get_recent_turns` (bounded, session-scoped, default last 5 turns),
+  `save_turn`, and `build_memory_context` (deterministic, no LLM
+  summarization, no external API calls)
+- `session_id` is optional on request: if omitted, a new one is
+  generated and returned; if provided, it is reused so the same session
+  builds up conversation history over subsequent calls
+
 ### Endpoint
 
 **`POST /api/rag/query`**
@@ -193,8 +227,9 @@ Request:
 
 ```json
 {
-  "question": "What is gradient descent?",
-  "top_k": 5
+  "question": "What did I ask before?",
+  "top_k": 5,
+  "session_id": "optional-existing-session-id"
 }
 ```
 
@@ -215,18 +250,26 @@ Response:
       "score": 0.123
     }
   ],
-  "total_retrieved": 1
+  "total_retrieved": 1,
+  "session_id": "generated-or-existing-session-id",
+  "memory": {
+    "used_recent_turns": 2,
+    "saved_current_turn": true
+  }
 }
 ```
 
 `score` is the raw pgvector L2 distance between the question embedding
-and the chunk embedding (lower means more similar).
+and the chunk embedding (lower means more similar). `memory` reports how
+many recent turns were used as context and confirms the current turn was
+saved.
 
-Stage 5 uses **deterministic mock embeddings and a simple deterministic
-extractive answer generator only** — no real embedding provider
-(DeepSeek, OpenAI, or otherwise), no production LLM answer generation,
-and no LangGraph, memory, frontend, Tauri, MCP, PDF/LaTeX/DOCX parsing,
-or repository analysis. Those remain planned for later stages.
+Stage 6 is **short-term memory only** — bounded, per-session, in
+PostgreSQL. It does **not** include long-term memory, semantic memory,
+user profile memory, cross-session memory retrieval, LangGraph, agent
+planning, tool calling, real embedding providers, production LLM answer
+generation, frontend, Tauri, MCP, PDF/LaTeX/DOCX parsing, or repository
+analysis. Those remain planned for later stages.
 
 ## Document Ingestion (MVP)
 
@@ -291,7 +334,7 @@ Response:
 ## Roadmap (not yet implemented)
 
 - Real embedding provider integration and full RAG Q&A quality
-- Short-term and long-term memory
+- Long-term memory
 - Learning progress tracking
 - Study plan generation
 - LangGraph-based agent workflows

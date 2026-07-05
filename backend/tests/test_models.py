@@ -2,7 +2,7 @@ from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
 from app.embeddings.base import EMBEDDING_DIMENSION
-from app.models import AgentRun, Document, DocumentChunk, LearningSource
+from app.models import AgentRun, ConversationTurn, Document, DocumentChunk, LearningSource
 
 
 def test_all_models_registered_on_metadata() -> None:
@@ -11,6 +11,7 @@ def test_all_models_registered_on_metadata() -> None:
         "documents",
         "document_chunks",
         "agent_runs",
+        "conversation_turns",
     }
 
 
@@ -71,6 +72,28 @@ def test_document_chunk_embedding_column_is_nullable_vector() -> None:
     assert table.c.embedding.nullable
     assert isinstance(table.c.embedding.type, Vector)
     assert table.c.embedding.type.dim == EMBEDDING_DIMENSION
+
+
+def test_conversation_turn_columns_and_constraints() -> None:
+    table = ConversationTurn.__table__
+
+    assert set(table.columns.keys()) == {
+        "id", "session_id", "question", "answer", "turn_index",
+        "metadata_json", "created_at",
+    }
+    assert not table.c.session_id.nullable
+    assert not table.c.question.nullable
+    assert not table.c.answer.nullable
+    assert table.c.turn_index.nullable
+    assert table.c.metadata_json.nullable
+
+    constraint_names = {c.name for c in table.constraints if c.name}
+    assert "ck_conversation_turns_session_id_non_empty" in constraint_names
+    assert "ck_conversation_turns_question_non_empty" in constraint_names
+    assert "ck_conversation_turns_answer_non_empty" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_conversation_turns_session_id" in index_names
 
 
 def test_agent_run_columns() -> None:

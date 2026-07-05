@@ -2,29 +2,42 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.memory.short_term import (
+    DEFAULT_RECENT_TURNS_LIMIT,
+    create_session_id,
+    get_recent_turns,
+    save_turn,
+)
 from app.rag.qa import generate_answer
 from app.rag.retrieval import retrieve_relevant_chunks
-from app.rag.schemas import RagQueryRequest, RagQueryResponse, RetrievedChunk
+from app.rag.schemas import MemoryMetadata, RagQueryRequest, RagQueryResponse, RetrievedChunk
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
 
 
 @router.post("/query", response_model=RagQueryResponse)
 def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
+    session_id = request.session_id or create_session_id()
+
     try:
-        session = get_db_session()
+        db_session = get_db_session()
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     try:
         try:
-            retrieved = retrieve_relevant_chunks(session, request.question, top_k=request.top_k)
+            retrieved = retrieve_relevant_chunks(db_session, request.question, top_k=request.top_k)
+            recent_turns = get_recent_turns(
+                db_session, session_id, limit=DEFAULT_RECENT_TURNS_LIMIT
+            )
+            answer = generate_answer(request.question, retrieved, recent_turns=recent_turns)
+            save_turn(db_session, session_id, request.question, answer)
+            db_session.commit()
         except SQLAlchemyError as exc:
+            db_session.rollback()
             raise HTTPException(status_code=503, detail="Database is unavailable") from exc
     finally:
-        session.close()
-
-    answer = generate_answer(request.question, retrieved)
+        db_session.close()
 
     retrieved_chunks = [
         RetrievedChunk(
@@ -44,4 +57,9 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
         answer=answer,
         retrieved_chunks=retrieved_chunks,
         total_retrieved=len(retrieved_chunks),
+        session_id=session_id,
+        memory=MemoryMetadata(
+            used_recent_turns=len(recent_turns),
+            saved_current_turn=True,
+        ),
     )

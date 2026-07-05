@@ -40,3 +40,28 @@ def test_top_k_within_range_is_accepted() -> None:
 
     request = RagQueryRequest(question="valid question", top_k=20)
     assert request.top_k == 20
+
+
+def test_request_without_session_id_is_valid() -> None:
+    request = RagQueryRequest(question="valid question")
+    assert request.session_id is None
+
+
+def test_request_with_valid_session_id_is_valid() -> None:
+    request = RagQueryRequest(question="valid question", session_id="my-session")
+    assert request.session_id == "my-session"
+
+
+def test_session_id_is_stripped() -> None:
+    request = RagQueryRequest(question="valid question", session_id="  my-session  ")
+    assert request.session_id == "my-session"
+
+
+def test_empty_session_id_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        RagQueryRequest(question="valid question", session_id="")
+
+
+def test_whitespace_only_session_id_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        RagQueryRequest(question="valid question", session_id="   ")

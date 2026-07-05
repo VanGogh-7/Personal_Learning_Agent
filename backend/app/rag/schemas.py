@@ -7,6 +7,7 @@ MAX_TOP_K = 20
 class RagQueryRequest(BaseModel):
     question: str
     top_k: int = 5
+    session_id: str | None = None
 
     @field_validator("question")
     @classmethod
@@ -22,6 +23,13 @@ class RagQueryRequest(BaseModel):
             raise ValueError(f"top_k must be between {MIN_TOP_K} and {MAX_TOP_K}")
         return value
 
+    @field_validator("session_id")
+    @classmethod
+    def session_id_must_not_be_blank_if_provided(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("session_id must not be empty")
+        return value.strip() if value is not None else value
+
 
 class RetrievedChunk(BaseModel):
     chunk_id: str
@@ -34,7 +42,14 @@ class RetrievedChunk(BaseModel):
     score: float
 
 
+class MemoryMetadata(BaseModel):
+    used_recent_turns: int
+    saved_current_turn: bool
+
+
 class RagQueryResponse(BaseModel):
     answer: str
     retrieved_chunks: list[RetrievedChunk]
     total_retrieved: int
+    session_id: str
+    memory: MemoryMetadata
