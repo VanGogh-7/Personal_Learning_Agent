@@ -1,7 +1,7 @@
 # Personal Learning Agent Frontend
 
-Stage 11 adds local file opening from the Tauri desktop app to the Book
-Library UI. The FastAPI backend must be started separately on
+Stage 12 organizes the frontend into a three-page desktop workspace:
+Chat, Library, and Notes. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -63,12 +63,11 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 ## Current Features
 
-- Backend health/status check
-- Book Library metadata create/list/search/edit/archive
-- Book Library `Open` button in Tauri for local `file_path` values
-- RAG query form
-- Long-term memory create form
-- Long-term memory list/search
+- Sidebar navigation for Chat, Library, and Notes
+- Chat page, opened by default, with RAG query, backend status, and long-term memory tools
+- Library page with Book Library metadata create/list/search/edit/archive
+- Library `Open` button in Tauri for local `file_path` values
+- Notes page placeholder for a future LaTeX notes workflow
 
 ## Current Limitations
 
@@ -76,6 +75,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library `file_path` is still metadata stored in the backend
 - Opening local files is performed by Tauri, not the backend
 - Local file opening should be tested with `npm run tauri dev`
+- Notes page is a placeholder only; it does not create, save, compile, or export notes
 - No internal PDF preview or file upload
 - No automatic document ingestion from library items
 - No MCP

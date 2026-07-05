@@ -26,8 +26,9 @@ Stage 7: Long-term Memory MVP — completed.
 Stage 8: Tauri + React Frontend MVP — completed.
 Stage 9: Backend/Frontend Integration Polish — completed.
 Stage 10: Book Library MVP — completed.
+Stage 11: Open Local Files from Desktop App — completed.
 
-Current active stage: Stage 11: Open Local Files from Desktop App.
+Current active stage: Stage 12: Frontend Layout Redesign MVP.
 
 Do not implement the full product at once.
 
@@ -44,7 +45,8 @@ Project stage roadmap:
 8. Tauri + React frontend — completed
 9. Backend/frontend integration polish — completed
 10. Book Library MVP — completed
-11. Open local files from desktop app — current
+11. Open local files from desktop app — completed
+12. Frontend layout redesign — current
 
 ---
 
@@ -102,42 +104,54 @@ listing, updating, archiving, and search/filtering of book or
 learning-material metadata. Library items may store title, author,
 description, `file_path`, `file_type`, topic tags, and status.
 
-The current goal (Stage 11) is local file opening from the Tauri
-desktop app only. `file_path` remains metadata stored by the backend.
-The desktop frontend may ask Tauri to open that path externally with
-the system default application.
+Stage 11 (completed): local file opening from the Tauri desktop app
+only. `file_path` remains metadata stored by the backend. The desktop
+frontend may ask Tauri to open that path externally with the system
+default application.
+
+The current goal (Stage 12) is a frontend layout redesign MVP. Refactor
+the single long page into a calm three-page desktop workspace with
+sidebar navigation:
+- Chat
+- Library
+- Notes
 
 Allowed in the current stage:
-- Official Tauri opener plugin setup if needed
-- A small frontend helper such as `openLocalFile(filePath)`
-- An `Open` button in the Book Library UI for non-empty local
-  `file_path` values
-- Clear UI errors if Tauri cannot open the path
-- README/CLAUDE.md updates documenting Stage 11
+- Simple React state for page switching
+- App shell with left sidebar navigation and main content area
+- Chat page containing existing RAG query, backend status, and memory tools
+- Library page containing existing Book Library and local file open UI
+- Notes page placeholder for later LaTeX notes functionality
+- Minimal CSS polish using the existing CSS approach
+- README/CLAUDE.md updates documenting Stage 12
 
-Do not implement in Stage 11:
+Do not implement in Stage 12:
+- New backend API endpoints
+- Database migrations
+- Notes CRUD
+- LaTeX compilation
+- LaTeX PDF preview
+- Internal PDF preview
+- PDF parsing
+- DOCX parsing
+- LaTeX parsing
+- File upload
+- Drag-and-drop upload
+- Automatic book indexing
+- Embedding generation
+- Book-scoped RAG
+- Real LLM answer generation
 - MCP
 - LangGraph
 - Real embedding providers
 - Backend auto-start from Tauri
 - Complex Rust local backend logic
-- PDF parsing
-- DOCX parsing
-- LaTeX parsing
-- Internal PDF preview
-- File upload
-- Drag-and-drop upload
-- Automatic document ingestion from library items
-- Embeddings for library items
-- pgvector search for library items
-- RAG scoping by selected book
-- Real LLM answer generation
 - Repository analysis
 - Production packaging
 - Authentication or user accounts
 - Docker setup
 - Redis or queues
-- Complex UI redesign
+- Major CSS framework migration
 - VS Code integration
 - LaTeX editing automation
 
@@ -170,6 +184,8 @@ Frontend:
 - Tauri + React + TypeScript + Vite frontend shell (`frontend/`)
 - Fetch-based local API client for `http://127.0.0.1:8081`
 - No backend auto-start, no Rust backend API
+- Stage 12 layout uses local React state for Chat/Library/Notes page
+  switching; do not add routing dependencies without a concrete need
 - Book Library UI stores `file_path` as backend metadata and can open it
   externally through Tauri in the desktop app; it does not preview,
   parse, upload, copy, or read file contents

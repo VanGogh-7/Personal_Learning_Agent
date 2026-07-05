@@ -335,7 +335,7 @@ function LibraryItemCard({
     <li>
       <div className="item-title">
         <span>{item.title}</span>
-        <span>{item.status}</span>
+        <span className="status-badge">{item.status}</span>
       </div>
       <p>{item.description || "No description."}</p>
       <small>

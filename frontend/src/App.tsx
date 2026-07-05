@@ -1,26 +1,17 @@
-import { getBackendBaseUrl } from "./api/config";
-import BackendStatus from "./components/BackendStatus";
-import BookLibraryPanel from "./components/BookLibraryPanel";
-import LongTermMemoryPanel from "./components/LongTermMemoryPanel";
-import RagQueryPanel from "./components/RagQueryPanel";
+import { useState } from "react";
+import AppLayout, { type AppPage } from "./components/AppLayout";
+import ChatPage from "./pages/ChatPage";
+import LibraryPage from "./pages/LibraryPage";
+import NotesPage from "./pages/NotesPage";
 
 export default function App() {
-  return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Stage 11</p>
-          <h1>Personal Learning Agent</h1>
-        </div>
-        <p className="backend-note">Backend: {getBackendBaseUrl()}</p>
-      </header>
+  const [activePage, setActivePage] = useState<AppPage>("chat");
 
-      <div className="panel-stack">
-        <BackendStatus />
-        <BookLibraryPanel />
-        <RagQueryPanel />
-        <LongTermMemoryPanel />
-      </div>
-    </main>
+  return (
+    <AppLayout activePage={activePage} onNavigate={setActivePage}>
+      {activePage === "chat" && <ChatPage />}
+      {activePage === "library" && <LibraryPage />}
+      {activePage === "notes" && <NotesPage />}
+    </AppLayout>
   );
 }

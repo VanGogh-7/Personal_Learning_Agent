@@ -4,7 +4,7 @@
 
 body {
   margin: 0;
-  background: #f5f7fb;
+  background: #f3f5f8;
   color: #1f2937;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -58,13 +58,99 @@ pre {
   white-space: pre-wrap;
 }
 
-.app-shell {
-  width: min(1180px, calc(100% - 32px));
+.workspace-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-height: 100vh;
+  border-right: 1px solid #d8dee8;
+  background: #ffffff;
+  padding: 28px 18px;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #111827;
+}
+
+.sidebar-brand p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sidebar-brand strong {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1.2rem;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-item {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #334155;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.nav-item span {
+  font-weight: 750;
+}
+
+.nav-item small {
+  color: inherit;
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.workspace-main {
+  width: min(1080px, calc(100% - 48px));
   margin: 0 auto;
   padding: 32px 0 48px;
 }
 
-.app-header {
+.workspace-header {
   display: flex;
   align-items: end;
   justify-content: space-between;
@@ -72,9 +158,9 @@ pre {
   margin-bottom: 24px;
 }
 
-.app-header h1 {
+.workspace-header h1 {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-size: 2.25rem;
   letter-spacing: 0;
 }
 
@@ -99,9 +185,24 @@ small {
   font-size: 0.95rem;
 }
 
+.page-stack,
 .panel-stack {
   display: grid;
   gap: 18px;
+}
+
+.page-intro {
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px 18px;
+}
+
+.page-intro p {
+  max-width: 760px;
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
 }
 
 .panel {
@@ -260,6 +361,18 @@ label {
   font-weight: 750;
 }
 
+.status-badge {
+  align-self: start;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1;
+  padding: 0.32rem 0.55rem;
+}
+
 .item-list p,
 .memory-card p {
   margin: 0.5rem 0;
@@ -273,11 +386,51 @@ label {
   margin: 0.5rem 0 0;
 }
 
+.notes-placeholder {
+  display: grid;
+  gap: 14px;
+}
+
+.plain-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
 @media (max-width: 760px) {
-  .app-header,
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #d8dee8;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .nav-item {
+    min-height: 64px;
+  }
+
+  .workspace-main {
+    width: min(100% - 28px, 1080px);
+    padding-top: 22px;
+  }
+
+  .workspace-header,
   .panel-heading {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .workspace-header h1 {
+    font-size: 1.9rem;
   }
 
   .result-grid,

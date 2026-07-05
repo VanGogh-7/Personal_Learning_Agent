@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 11: Open Local Files from Desktop App.
+Stage 12: Frontend Layout Redesign MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -33,15 +33,17 @@ Stage 11: Open Local Files from Desktop App.
   search/filter book or learning-material metadata (Stage 10, completed)
 - Open Local Files from Desktop App: the Tauri frontend can ask the
   operating system to open a library item's local `file_path` with the
-  system default application (Stage 11, current)
+  system default application (Stage 11, completed)
+- Frontend Layout Redesign MVP: the React/Tauri frontend is organized
+  into Chat, Library, and Notes pages with sidebar navigation (Stage 12,
+  current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
-and production packaging are planned but **not implemented yet**. See
-[Open Local Files (Stage 11)](#open-local-files-stage-11) below for the
-current desktop file-opening boundary.
+and production packaging are planned but **not implemented yet**. Stage
+12 is frontend layout-only and does not change backend behavior.
 
 ## Setup
 
@@ -579,6 +581,21 @@ integration, LaTeX editing automation, LangGraph, MCP, real LLM calls,
 real embedding providers, authentication, user accounts, production
 packaging, Docker, Redis/queues, or complex UI redesign.
 
+## Frontend Layout (Stage 12)
+
+Stage 12 reorganizes the frontend into a three-page desktop workspace:
+
+- Chat: RAG query, backend status, and long-term memory tools
+- Library: Book Library metadata management and Stage 11 local file
+  opening
+- Notes: placeholder for a later LaTeX notes workflow
+
+The Chat page opens by default. Stage 12 does not add backend routes,
+database tables, migrations, notes CRUD, LaTeX compilation, PDF preview,
+file upload, automatic book indexing, embeddings, book-scoped RAG,
+LangGraph, MCP, authentication, Docker, Redis/queues, or production
+packaging.
+
 ## Document Ingestion (MVP)
 
 A minimal ingestion module supporting plain text and Markdown files.
@@ -642,7 +659,6 @@ Response:
 ## Roadmap (not yet implemented)
 
 - Document ingestion UI
-- Opening local files from library metadata
 - Real embedding provider integration and full RAG Q&A quality
 - Automatic memory extraction and short-term → long-term promotion
 - Semantic memory embeddings and long-term memory vector search
