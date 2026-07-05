@@ -19,8 +19,9 @@ The project will later support:
 Stage 1: Backend skeleton — completed.
 Stage 2: Document ingestion MVP — completed.
 Stage 3: PostgreSQL schema — completed.
+Stage 4: Embedding + pgvector MVP — completed.
 
-Current active stage: Stage 4: Embedding + pgvector MVP.
+Current active stage: Stage 5: Minimal RAG Q&A MVP.
 
 Do not implement the full product at once.
 
@@ -30,8 +31,8 @@ Project stage roadmap:
 1. Backend skeleton — completed
 2. Document ingestion MVP — completed
 3. PostgreSQL schema — completed
-4. Embedding + pgvector — current
-5. RAG Q&A
+4. Embedding + pgvector — completed
+5. Minimal RAG Q&A — current
 6. Short-term memory
 7. Long-term memory
 8. Tauri + React frontend
@@ -53,28 +54,38 @@ Stage 3 (completed): PostgreSQL schema support — `DATABASE_URL` config,
 SQLAlchemy 2.x models, and Alembic migrations for `learning_sources`,
 `documents`, `document_chunks`, and `agent_runs`.
 
-The current goal (Stage 4) is a minimal embedding + pgvector MVP only:
-proving the pipeline of document chunk text → deterministic mock
-embedding → vector stored in PostgreSQL → basic similarity search.
+Stage 4 (completed): a minimal embedding + pgvector MVP — proving the
+pipeline of document chunk text → deterministic mock embedding →
+vector stored in PostgreSQL → basic similarity search, via
+`backend/app/embeddings/` and `backend/app/db/vector_search.py`.
+
+The current goal (Stage 5) is a minimal RAG Q&A MVP only: proving the
+pipeline of user question → deterministic mock embedding → pgvector
+similarity search over `document_chunks` → simple deterministic
+(extractive, non-LLM) answer → answer plus retrieved chunks and source
+metadata.
 
 Allowed in the current stage:
-- `CREATE EXTENSION IF NOT EXISTS vector` and a nullable `embedding`
-  vector column added to `document_chunks` via an Alembic migration
-- A deterministic mock embedding provider (`backend/app/embeddings/`)
-  that does not call any external API
-- Minimal vector persistence/search functions
-  (`backend/app/db/vector_search.py`): storing an embedding for a chunk
-  and a basic pgvector similarity search
-- Tests for embedding determinism/dimension, model metadata, and safe
-  query construction that do not require a live database connection
-- README/CLAUDE.md updates documenting Stage 4 status
+- Request/response schemas for a RAG query (`backend/app/rag/schemas.py`)
+- A retrieval service (`backend/app/rag/retrieval.py`) that reuses the
+  existing Stage 4 mock embedding provider and `search_similar_chunks` —
+  no new tables, no new migration
+- A QA service (`backend/app/rag/qa.py`) that builds a deterministic,
+  non-LLM extractive answer from retrieved chunks, with a clear
+  fallback message when nothing relevant is found
+- `POST /api/rag/query` returning `answer`, `retrieved_chunks`, and
+  `total_retrieved`
+- Tests for schemas, the QA service, the retrieval service (mocking
+  vector search), and the API endpoint (mocking retrieval/DB session)
+  that do not require a live database connection
+- README/CLAUDE.md updates documenting Stage 5 status
 
-Do not implement yet (Stage 4 must not include):
-- Full RAG Q&A
-- Real embedding provider integration (DeepSeek, OpenAI, or otherwise)
+Do not implement yet (Stage 5 must not include):
 - LangGraph workflows
 - Long-term memory
 - Short-term memory
+- Real embedding provider integration (DeepSeek, OpenAI, or otherwise)
+- Production LLM answer generation
 - Frontend
 - Tauri
 - MCP
@@ -84,10 +95,13 @@ Do not implement yet (Stage 4 must not include):
 - Recursive directory scanning
 - Repository analysis
 - Multi-agent workflows
+- Multi-turn conversation
+- Agent planning or tool calling
 - Email/calendar reminders
 - Automatic local file modification outside `backend/data`
 - Automatic embedding during ingestion, background jobs, reranking,
   hybrid search, or chunk metadata enrichment
+- New database tables or migrations (Stage 5 reuses existing schema)
 - Running migrations automatically from application startup
 - Destructive SQL or database create/drop/reset operations
 
@@ -105,10 +119,13 @@ Backend:
 - psycopg (v3)
 - pgvector (nullable embedding column + basic similarity search only;
   embeddings are deterministic mocks, not a real provider)
+- Minimal RAG Q&A (`backend/app/rag/`): deterministic mock embeddings +
+  pgvector search + simple extractive answer generation; no real LLM or
+  embedding provider
 
 Planned later:
 - LangGraph
-- Real embedding provider integration (RAG Q&A)
+- Real embedding provider integration and production-quality RAG Q&A
 - Tauri + React
 - Rust local backend
 - MCP integration

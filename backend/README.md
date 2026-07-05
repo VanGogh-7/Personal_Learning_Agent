@@ -8,20 +8,22 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 4: Embedding + pgvector MVP.
+Stage 5: Minimal RAG Q&A MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
 - SQLAlchemy models + Alembic migrations for the initial schema (Stage 3, completed)
 - pgvector/vector extension support via migration, a nullable `embedding`
   column on `document_chunks`, deterministic mock embeddings, and minimal
-  vector persistence/search functions (Stage 4, current)
+  vector persistence/search functions (Stage 4, completed)
+- Minimal RAG Q&A: question → mock embedding → pgvector similarity search
+  → simple deterministic extractive answer (Stage 5, current)
 
-Full RAG Q&A, real embedding provider integration (DeepSeek, OpenAI, or
-otherwise), LangGraph workflows, short/long-term memory, and the
-frontend (Tauri + React) are planned but **not implemented yet**. See
-[Embedding + pgvector (Stage 4)](#embedding--pgvector-stage-4) below for
-what Stage 4 actually adds.
+Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
+production LLM answer generation, LangGraph workflows, short/long-term
+memory, and the frontend (Tauri + React) are planned but **not
+implemented yet**. See [Minimal RAG Q&A (Stage 5)](#minimal-rag-qa-stage-5)
+below for what Stage 5 actually adds.
 
 ## Setup
 
@@ -101,7 +103,10 @@ pytest
 
 Tests do not require a real DeepSeek API key and do not call any
 external API. The database-related tests validate configuration and
-model metadata; they do not require a live PostgreSQL connection.
+model metadata; they do not require a live PostgreSQL connection. The
+RAG tests (`test_rag_schemas.py`, `test_qa.py`, `test_retrieval.py`,
+`test_rag_api.py`) monkeypatch the vector search and database session,
+so they also run without a live PostgreSQL connection.
 
 ## Database (PostgreSQL) — Stage 3
 
@@ -158,9 +163,70 @@ alembic upgrade head
 ```
 
 Stage 4 uses **deterministic mock embeddings only** — there is no real
-embedding provider integration (DeepSeek, OpenAI, or otherwise), no full
-RAG Q&A, and no LangGraph, memory, frontend, Tauri, MCP, PDF/LaTeX/DOCX
-parsing, or repository analysis. Those remain planned for later stages.
+embedding provider integration (DeepSeek, OpenAI, or otherwise). Stage 5
+(below) builds a minimal Q&A layer on top of this; full RAG Q&A with a
+real embedding provider remains planned for later stages.
+
+## Minimal RAG Q&A (Stage 5)
+
+Stage 5 proves a minimal end-to-end pipeline: user question →
+deterministic mock embedding → pgvector similarity search over
+`document_chunks` → simple deterministic (extractive) answer → answer
+plus retrieved chunks and source metadata.
+
+- Retrieval service (`backend/app/rag/retrieval.py`): embeds the
+  question with the Stage 4 mock embedding provider and reuses the
+  Stage 4 `search_similar_chunks` pgvector search — no new tables, no
+  new migration
+- QA service (`backend/app/rag/qa.py`): builds a deterministic,
+  non-LLM answer from the top retrieved chunk, or a clear fallback
+  message when nothing relevant is found
+- Schemas (`backend/app/rag/schemas.py`): validates `question`
+  (required, non-empty after stripping) and `top_k` (default 5, must be
+  between 1 and 20)
+
+### Endpoint
+
+**`POST /api/rag/query`**
+
+Request:
+
+```json
+{
+  "question": "What is gradient descent?",
+  "top_k": 5
+}
+```
+
+Response:
+
+```text
+{
+  "answer": "...",
+  "retrieved_chunks": [
+    {
+      "chunk_id": "...",
+      "document_id": "...",
+      "document_title": "...",
+      "chunk_index": 0,
+      "content": "...",
+      "char_start": 0,
+      "char_end": 500,
+      "score": 0.123
+    }
+  ],
+  "total_retrieved": 1
+}
+```
+
+`score` is the raw pgvector L2 distance between the question embedding
+and the chunk embedding (lower means more similar).
+
+Stage 5 uses **deterministic mock embeddings and a simple deterministic
+extractive answer generator only** — no real embedding provider
+(DeepSeek, OpenAI, or otherwise), no production LLM answer generation,
+and no LangGraph, memory, frontend, Tauri, MCP, PDF/LaTeX/DOCX parsing,
+or repository analysis. Those remain planned for later stages.
 
 ## Document Ingestion (MVP)
 
@@ -224,7 +290,7 @@ Response:
 
 ## Roadmap (not yet implemented)
 
-- Full RAG Q&A over personal learning materials (real embedding provider integration)
+- Real embedding provider integration and full RAG Q&A quality
 - Short-term and long-term memory
 - Learning progress tracking
 - Study plan generation

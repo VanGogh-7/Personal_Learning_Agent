@@ -17,6 +17,8 @@ class SimilarChunkResult:
     document_id: uuid.UUID
     chunk_index: int
     content: str
+    char_start: int
+    char_end: int
     distance: float
 
 
@@ -78,6 +80,8 @@ def search_similar_chunks(
             document_id=chunk.document_id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
+            char_start=chunk.char_start,
+            char_end=chunk.char_end,
             distance=float(distance),
         )
         for chunk, distance in rows
