@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 10: Book Library MVP.
+Stage 11: Open Local Files from Desktop App.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -30,15 +30,18 @@ Stage 10: Book Library MVP.
   centralized backend URL handling, safer fetch errors, clearer UI
   empty states, and local development docs cleanup (Stage 9, completed)
 - Book Library MVP: manually register, list, update, archive, and
-  search/filter book or learning-material metadata (Stage 10, current)
+  search/filter book or learning-material metadata (Stage 10, completed)
+- Open Local Files from Desktop App: the Tauri frontend can ask the
+  operating system to open a library item's local `file_path` with the
+  system default application (Stage 11, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. See
-[Book Library (Stage 10)](#book-library-stage-10) below for the
-current metadata-only library boundaries.
+[Open Local Files (Stage 11)](#open-local-files-stage-11) below for the
+current desktop file-opening boundary.
 
 ## Setup
 
@@ -540,13 +543,41 @@ Query params: `keyword` (optional, searches title/author/description),
 workflow.
 
 Stage 10 intentionally does **not** include PDF parsing, DOCX parsing,
-LaTeX parsing, internal PDF preview, opening local files through Tauri,
-file upload, drag-and-drop upload, automatic document ingestion from
-library items, embeddings for library items, pgvector search for
-library items, RAG scoping by selected book, real LLM answer
-generation, real embedding providers, LangGraph, MCP, authentication,
-user accounts, production packaging, Docker, Redis/queues, or complex
-UI redesign.
+LaTeX parsing, internal PDF preview, file upload, drag-and-drop upload,
+automatic document ingestion from library items, embeddings for library
+items, pgvector search for library items, RAG scoping by selected book,
+real LLM answer generation, real embedding providers, LangGraph, MCP,
+authentication, user accounts, production packaging, Docker,
+Redis/queues, or complex UI redesign.
+
+## Open Local Files (Stage 11)
+
+Stage 11 adds desktop-only local file opening for library items. The
+backend still stores `file_path` as metadata only; it does not open,
+validate, copy, upload, parse, index, or read files. Opening is
+performed by the Tauri frontend using the system default application.
+
+When a library item has a non-empty `file_path`, the Book Library UI
+shows an `Open` button in the desktop app. Clicking it asks Tauri to
+open that local path externally, for example with the operating
+system's default PDF viewer, text editor, or TeX editor.
+
+If you run only the browser dev server with `npm run dev`, local file
+opening depends on Tauri APIs and should be tested with:
+
+```bash
+cd frontend
+npm run tauri dev
+```
+
+Stage 11 intentionally does **not** include internal PDF preview,
+embedded PDF rendering, `react-pdf`, PDF.js, iframe preview, PDF
+parsing, text extraction, document indexing, embedding generation,
+pgvector indexing, RAG scoping by selected book, file upload,
+drag-and-drop upload, automatic ingestion from library items, VS Code
+integration, LaTeX editing automation, LangGraph, MCP, real LLM calls,
+real embedding providers, authentication, user accounts, production
+packaging, Docker, Redis/queues, or complex UI redesign.
 
 ## Document Ingestion (MVP)
 

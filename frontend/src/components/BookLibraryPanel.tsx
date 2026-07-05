@@ -7,6 +7,7 @@ import {
   updateLibraryItem,
 } from "../api/client";
 import type { LibraryItem, LibraryItemListResponse } from "../api/types";
+import { openLocalFile } from "../tauri/localFiles";
 
 const DEFAULT_STATUS = "registered";
 
@@ -32,6 +33,7 @@ export default function BookLibraryPanel() {
   const [error, setError] = useState<string | null>(null);
   const [loadingSave, setLoadingSave] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
+  const [openingItemId, setOpeningItemId] = useState<string | null>(null);
 
   async function submitItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -116,6 +118,18 @@ export default function BookLibraryPanel() {
     }
   }
 
+  async function openItemFile(item: LibraryItem) {
+    setError(null);
+    setOpeningItemId(item.id);
+    try {
+      await openLocalFile(item.file_path || "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open local file.");
+    } finally {
+      setOpeningItemId(null);
+    }
+  }
+
   function startEdit(item: LibraryItem) {
     setEditingId(item.id);
     setForm({
@@ -175,6 +189,9 @@ export default function BookLibraryPanel() {
               onChange={(event) => setForm({ ...form, filePath: event.target.value })}
               placeholder="/path/to/book.pdf"
             />
+            <span className="field-help">
+              Local file path metadata, for example: /home/user/books/munkres-topology.pdf
+            </span>
           </label>
           <label>
             file_type
@@ -285,7 +302,9 @@ export default function BookLibraryPanel() {
                 <LibraryItemCard
                   key={item.id}
                   item={item}
+                  opening={openingItemId === item.id}
                   onEdit={startEdit}
+                  onOpen={openItemFile}
                   onArchive={archiveItem}
                 />
               ))}
@@ -299,13 +318,19 @@ export default function BookLibraryPanel() {
 
 function LibraryItemCard({
   item,
+  opening,
   onEdit,
+  onOpen,
   onArchive,
 }: {
   item: LibraryItem;
+  opening: boolean;
   onEdit: (item: LibraryItem) => void;
+  onOpen: (item: LibraryItem) => void;
   onArchive: (itemId: string) => void;
 }) {
+  const hasFilePath = Boolean(item.file_path?.trim());
+
   return (
     <li>
       <div className="item-title">
@@ -318,7 +343,18 @@ function LibraryItemCard({
         {item.file_type || "none"} · tags{" "}
         {item.topic_tags?.length ? item.topic_tags.join(", ") : "none"}
       </small>
+      {!hasFilePath && <p className="muted compact-note">No local file path.</p>}
       <div className="button-row item-actions">
+        {hasFilePath && (
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={opening}
+            onClick={() => onOpen(item)}
+          >
+            {opening ? "Opening..." : "Open"}
+          </button>
+        )}
         <button type="button" className="secondary-button" onClick={() => onEdit(item)}>
           Edit
         </button>

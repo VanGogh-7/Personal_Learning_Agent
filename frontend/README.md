@@ -1,8 +1,8 @@
 # Personal Learning Agent Frontend
 
-Stage 10 adds a minimal Book Library MVP to the Tauri + React +
-TypeScript frontend shell. The FastAPI backend must be started
-separately on `http://127.0.0.1:8081`.
+Stage 11 adds local file opening from the Tauri desktop app to the Book
+Library UI. The FastAPI backend must be started separately on
+`http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -65,6 +65,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 - Backend health/status check
 - Book Library metadata create/list/search/edit/archive
+- Book Library `Open` button in Tauri for local `file_path` values
 - RAG query form
 - Long-term memory create form
 - Long-term memory list/search
@@ -72,9 +73,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 ## Current Limitations
 
 - Does not auto-start the FastAPI backend
-- Library `file_path` is metadata only
-- No local file opening through Tauri
-- No PDF preview or file upload
+- Library `file_path` is still metadata stored in the backend
+- Opening local files is performed by Tauri, not the backend
+- Local file opening should be tested with `npm run tauri dev`
+- No internal PDF preview or file upload
 - No automatic document ingestion from library items
 - No MCP
 - No LangGraph
@@ -82,3 +84,6 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - No document ingestion UI or file parsing UI
 - No repository analysis
 - No production packaging workflow
+
+The app opens files with the operating system default application. It
+does not preview, parse, index, upload, copy, or read file contents.

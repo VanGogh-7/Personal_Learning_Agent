@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default desktop window capability with no filesystem, shell, or HTTP plugin permissions.",
+  "description": "Default desktop window capability with local file opening for registered library item paths.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "opener:allow-open-path"]
 }

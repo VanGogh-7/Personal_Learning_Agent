@@ -25,8 +25,9 @@ Stage 6: Short-term Memory MVP — completed.
 Stage 7: Long-term Memory MVP — completed.
 Stage 8: Tauri + React Frontend MVP — completed.
 Stage 9: Backend/Frontend Integration Polish — completed.
+Stage 10: Book Library MVP — completed.
 
-Current active stage: Stage 10: Book Library MVP.
+Current active stage: Stage 11: Open Local Files from Desktop App.
 
 Do not implement the full product at once.
 
@@ -42,7 +43,8 @@ Project stage roadmap:
 7. Long-term memory — completed
 8. Tauri + React frontend — completed
 9. Backend/frontend integration polish — completed
-10. Book Library MVP — current
+10. Book Library MVP — completed
+11. Open local files from desktop app — current
 
 ---
 
@@ -95,22 +97,25 @@ types aligned with backend schemas, centralized backend URL handling,
 safer fetch errors, clearer UI empty states, explicit local-development
 CORS, and local development docs cleanup.
 
-The current goal (Stage 10) is a Book Library MVP only: allow manual
-registration, listing, updating, archiving, and search/filtering of
-book or learning-material metadata. Library items may store title,
-author, description, `file_path`, `file_type`, topic tags, and status.
-`file_path` is metadata only.
+Stage 10 (completed): a Book Library MVP — manual registration,
+listing, updating, archiving, and search/filtering of book or
+learning-material metadata. Library items may store title, author,
+description, `file_path`, `file_type`, topic tags, and status.
+
+The current goal (Stage 11) is local file opening from the Tauri
+desktop app only. `file_path` remains metadata stored by the backend.
+The desktop frontend may ask Tauri to open that path externally with
+the system default application.
 
 Allowed in the current stage:
-- A `library_items` table and Alembic migration for metadata only
-- Backend schemas, service functions, API routes, and tests for
-  create/list/get/update/search/filter/archive
-- Frontend API methods and TypeScript types for library items
-- A simple Book Library UI section for creating, listing, searching,
-  editing, and archiving metadata records
-- README/CLAUDE.md updates documenting Stage 10
+- Official Tauri opener plugin setup if needed
+- A small frontend helper such as `openLocalFile(filePath)`
+- An `Open` button in the Book Library UI for non-empty local
+  `file_path` values
+- Clear UI errors if Tauri cannot open the path
+- README/CLAUDE.md updates documenting Stage 11
 
-Do not implement in Stage 10:
+Do not implement in Stage 11:
 - MCP
 - LangGraph
 - Real embedding providers
@@ -120,7 +125,6 @@ Do not implement in Stage 10:
 - DOCX parsing
 - LaTeX parsing
 - Internal PDF preview
-- Opening local files through Tauri
 - File upload
 - Drag-and-drop upload
 - Automatic document ingestion from library items
@@ -134,6 +138,8 @@ Do not implement in Stage 10:
 - Docker setup
 - Redis or queues
 - Complex UI redesign
+- VS Code integration
+- LaTeX editing automation
 
 ---
 
@@ -163,9 +169,10 @@ Backend:
 Frontend:
 - Tauri + React + TypeScript + Vite frontend shell (`frontend/`)
 - Fetch-based local API client for `http://127.0.0.1:8081`
-- No backend auto-start, no Rust backend API, no Tauri filesystem APIs
-- Book Library UI stores `file_path` as metadata only; it does not open
-  or preview files
+- No backend auto-start, no Rust backend API
+- Book Library UI stores `file_path` as backend metadata and can open it
+  externally through Tauri in the desktop app; it does not preview,
+  parse, upload, copy, or read file contents
 
 Planned later:
 - LangGraph
