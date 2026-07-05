@@ -20,6 +20,8 @@ Current stage: MVP backend foundation.
 
 Do not implement the full product at once.
 
+The default backend development port is `8081`.
+
 ---
 
 ## Current Development Scope

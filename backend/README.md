@@ -21,16 +21,17 @@ document ingestion, and the frontend (Tauri + React) are planned but
 
 ## Setup
 
-1. Create and activate a virtual environment:
+1. Create and activate the conda environment:
 
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
+   conda create -n pla python=3.12
+   conda activate pla
    ```
 
 2. Install dependencies:
 
    ```bash
+   cd backend
    pip install -r requirements.txt
    ```
 
@@ -39,6 +40,16 @@ document ingestion, and the frontend (Tauri + React) are planned but
    ```bash
    cp .env.example .env
    ```
+
+If the `pla` conda environment already exists, use this shorter workflow:
+
+```bash
+conda activate pla
+cd backend
+pip install -r requirements.txt
+pytest
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
+```
 
 ## Environment Variables
 
@@ -55,8 +66,10 @@ document ingestion, and the frontend (Tauri + React) are planned but
 
 ## Running the API
 
+The default backend development port is `8081`.
+
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 ```
 
 - `GET /health` → `{"status": "ok"}`
