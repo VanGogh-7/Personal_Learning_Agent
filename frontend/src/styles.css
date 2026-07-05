@@ -596,6 +596,24 @@ label {
   line-height: 1.5;
 }
 
+.workspace-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 14px;
+}
+
+.workspace-card h4,
+.workspace-card p {
+  margin: 0;
+}
+
+.workspace-path {
+  overflow-wrap: anywhere;
+}
+
 .chat-note-draft {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

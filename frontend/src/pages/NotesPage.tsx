@@ -8,7 +8,14 @@ import {
   updateNote,
 } from "../api/client";
 import type { LibraryItem, Note, NoteCreateRequest, NoteUpdateRequest } from "../api/types";
-import { exportTexNote } from "../tauri/noteExport";
+import {
+  chooseNotesWorkspaceFolder,
+  clearNotesWorkspacePath,
+  exportTexNote,
+  exportTexNoteToWorkspace,
+  loadNotesWorkspacePath,
+  saveNotesWorkspacePath,
+} from "../tauri/noteExport";
 
 const DEFAULT_TEMPLATE = String.raw`\section{Title}
 
@@ -39,11 +46,15 @@ export default function NotesPage() {
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingToWorkspace, setExportingToWorkspace] = useState(false);
+  const [choosingWorkspace, setChoosingWorkspace] = useState(false);
+  const [workspacePath, setWorkspacePath] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [lastMode, setLastMode] = useState<"list" | "search">("list");
 
   useEffect(() => {
+    setWorkspacePath(loadNotesWorkspacePath());
     void loadNotes("list");
     void loadLibraryItems();
   }, []);
@@ -167,6 +178,65 @@ export default function NotesPage() {
       setError(err instanceof Error ? err.message : "Note export failed.");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function chooseWorkspaceFolder() {
+    setError(null);
+    setMessage(null);
+    setChoosingWorkspace(true);
+    try {
+      const selectedPath = await chooseNotesWorkspaceFolder();
+      if (!selectedPath) {
+        return;
+      }
+
+      saveNotesWorkspacePath(selectedPath);
+      setWorkspacePath(selectedPath);
+      setMessage(`Notes workspace set to ${selectedPath}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Workspace selection failed.");
+    } finally {
+      setChoosingWorkspace(false);
+    }
+  }
+
+  function clearWorkspaceFolder() {
+    clearNotesWorkspacePath();
+    setWorkspacePath("");
+    setError(null);
+    setMessage("Notes workspace cleared.");
+  }
+
+  async function exportSelectedNoteToWorkspace() {
+    setError(null);
+    setMessage(null);
+
+    if (!selectedNote) {
+      setError("Select an existing note before exporting to the workspace.");
+      return;
+    }
+    if (!workspacePath.trim()) {
+      setError("Choose a Notes workspace folder before exporting.");
+      return;
+    }
+    if (!form.contentLatex.trim()) {
+      setError("Cannot export an empty LaTeX note.");
+      return;
+    }
+
+    setExportingToWorkspace(true);
+    try {
+      const exportedPath = await exportTexNoteToWorkspace({
+        workspacePath,
+        title: form.title || selectedNote.title,
+        contentLatex: form.contentLatex,
+      });
+      setMessage(`Exported note to workspace: ${exportedPath}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Workspace export failed.");
+    } finally {
+      setExportingToWorkspace(false);
     }
   }
 
@@ -331,6 +401,47 @@ export default function NotesPage() {
                 />
               </label>
             </div>
+
+            <section className="workspace-card">
+              <div>
+                <h4>Notes Workspace</h4>
+                <p className="muted">
+                  {workspacePath ? "Current workspace folder" : "No workspace selected."}
+                </p>
+                {workspacePath && <p className="mono-value workspace-path">{workspacePath}</p>}
+              </div>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={choosingWorkspace}
+                  onClick={chooseWorkspaceFolder}
+                >
+                  {choosingWorkspace ? "Choosing..." : "Choose Workspace Folder"}
+                </button>
+                {workspacePath && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={clearWorkspaceFolder}
+                  >
+                    Clear Workspace
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={!selectedNote || !workspacePath || exportingToWorkspace}
+                  onClick={exportSelectedNoteToWorkspace}
+                >
+                  {exportingToWorkspace ? "Exporting..." : "Export to Workspace"}
+                </button>
+              </div>
+              <p className="field-help">
+                Workspace export writes the current editor content as a uniquely named `.tex`
+                file. The workspace path is stored locally in this desktop app.
+              </p>
+            </section>
 
             {associatedLibraryItem && (
               <p className="muted compact-note">

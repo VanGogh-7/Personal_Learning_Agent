@@ -33,8 +33,9 @@ Stage 14: Library Indexing MVP — completed.
 Stage 15: Book-Scoped RAG MVP — completed.
 Stage 16: Notes MVP — completed.
 Stage 17: Generate LaTeX Notes from Chat — completed.
+Stage 18: Local Notes File Export — completed.
 
-Current active stage: Stage 18: Local Notes File Export.
+Current active stage: Stage 19: Notes Workspace MVP.
 
 Do not implement the full product at once.
 
@@ -58,7 +59,8 @@ Project stage roadmap:
 15. Book-scoped RAG MVP — completed
 16. Notes MVP — completed
 17. Generate LaTeX Notes from Chat — completed
-18. Local Notes File Export — current
+18. Local Notes File Export — completed
+19. Notes Workspace MVP — current
 
 ---
 
@@ -153,23 +155,31 @@ deterministic LaTeX note draft from the question, answer, retrieved
 chunks, optional Library item metadata, and optional session id, review
 or edit that draft, and save it through the existing Notes API.
 
-The current goal (Stage 18) is Local Notes File Export. The user can
-select an existing database-backed note in the Notes page, choose a
-local save path through the Tauri desktop app, and write the note's
-LaTeX source as a UTF-8 `.tex` file. The backend must not write
-arbitrary local paths.
+Stage 18 (completed): Local Notes File Export. The user can select an
+existing database-backed note in the Notes page, choose a local save
+path through the Tauri desktop app, and write the note's LaTeX source
+as a UTF-8 `.tex` file. The backend does not write arbitrary local
+paths.
+
+The current goal (Stage 19) is Notes Workspace MVP. The user can choose
+a local Notes workspace folder from the Tauri desktop app, have that
+path remembered locally, and export the selected database-backed note
+into that workspace with a sanitized unique `.tex` filename. The
+workspace path is local machine configuration, not PostgreSQL data.
 
 Allowed in the current stage:
-- Add `Export as .tex` to the selected note editor
-- Use Tauri save dialog for user-selected local file paths
-- Write the current editor LaTeX content as UTF-8 text
-- Sanitize default filenames and ensure `.tex` extension
-- Append `.tex` if the selected path lacks that extension
-- Show export loading, success, cancel, and error states
+- Add Notes Workspace UI to the Notes page
+- Use Tauri folder-selection dialog for choosing a workspace folder
+- Store the workspace path locally, e.g. `localStorage` key `pla.notesWorkspacePath`
+- Add `Export to Workspace` for the selected note
+- Write current editor LaTeX content as UTF-8 text into the workspace
+- Reuse compatible filename sanitization and ensure `.tex` extension
+- Handle duplicate filenames with `name-2.tex`, `name-3.tex`, etc.
+- Preserve existing manual `Export as .tex`
 - Keep Notes CRUD, Chat-to-Notes, and backend APIs unchanged
 - Update README/CLAUDE.md
 
-Do not implement in Stage 18:
+Do not implement in Stage 19:
 - LaTeX compilation
 - PDF generation
 - PDF preview
@@ -178,13 +188,14 @@ Do not implement in Stage 18:
 - VS Code integration
 - Opening notes in VS Code
 - Opening exported files with system default app
-- Notes workspace management
+- Complex notes workspace management beyond choosing one folder
 - Default `~/math_notes` workspace
 - Git sync
 - File watcher
 - Automatic synchronization between database and local file
 - Bidirectional editing
 - Importing `.tex` files back into Notes
+- Workspace scanning
 - Multi-file LaTeX projects
 - Attachments
 - Folder export
@@ -309,6 +320,10 @@ Frontend:
 - Stage 18 Notes export writes selected note editor content to a local
   `.tex` file through Tauri after a save dialog; the backend does not
   write arbitrary local file paths and no export history/sync is stored
+- Stage 19 Notes Workspace stores one local workspace path in
+  `localStorage` and exports selected notes into that folder with unique
+  `.tex` filenames; the backend still does not know or write workspace
+  paths
 
 Planned later:
 - LangGraph

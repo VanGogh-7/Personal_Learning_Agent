@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
+
+export const NOTES_WORKSPACE_STORAGE_KEY = "pla.notesWorkspacePath";
 
 export interface ExportTexNoteRequest {
   title: string;
@@ -44,6 +46,57 @@ export async function exportTexNote({
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`Could not export LaTeX note. ${detail}`);
+  }
+}
+
+export async function chooseNotesWorkspaceFolder(): Promise<string | null> {
+  try {
+    const selectedPath = await open({
+      title: "Choose Notes workspace folder",
+      multiple: false,
+      directory: true,
+    });
+
+    return typeof selectedPath === "string" ? selectedPath : null;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not open the workspace folder picker. ${detail}`);
+  }
+}
+
+export function loadNotesWorkspacePath(): string {
+  return localStorage.getItem(NOTES_WORKSPACE_STORAGE_KEY) || "";
+}
+
+export function saveNotesWorkspacePath(workspacePath: string): void {
+  localStorage.setItem(NOTES_WORKSPACE_STORAGE_KEY, workspacePath);
+}
+
+export function clearNotesWorkspacePath(): void {
+  localStorage.removeItem(NOTES_WORKSPACE_STORAGE_KEY);
+}
+
+export async function exportTexNoteToWorkspace({
+  workspacePath,
+  title,
+  contentLatex,
+}: ExportTexNoteRequest & { workspacePath: string }): Promise<string> {
+  if (!workspacePath.trim()) {
+    throw new Error("Choose a Notes workspace folder before exporting.");
+  }
+  if (!contentLatex.trim()) {
+    throw new Error("Cannot export an empty LaTeX note.");
+  }
+
+  try {
+    return await invoke<string>("export_tex_note_to_workspace", {
+      workspacePath,
+      filename: sanitizeTexFilename(title),
+      content: contentLatex,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not export note to workspace. ${detail}`);
   }
 }
 

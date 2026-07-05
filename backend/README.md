@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 18: Local Notes File Export.
+Stage 19: Notes Workspace MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -53,6 +53,10 @@ Stage 18: Local Notes File Export.
   existing Notes API (Stage 17, completed)
 - Local Notes File Export: existing database-backed notes can be
   exported from the Tauri desktop app as local `.tex` files (Stage 18,
+  completed)
+- Notes Workspace MVP: the Tauri desktop app can remember a local Notes
+  workspace folder and export selected notes into it with unique `.tex`
+  filenames (Stage 19,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
@@ -60,9 +64,9 @@ production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-18 adds local `.tex` export from the desktop app only; it does not
-compile LaTeX, generate PDFs, preview PDFs, sync local files, or add
-backend arbitrary-path file writing.
+19 adds local Notes workspace export from the desktop app only; it does
+not compile LaTeX, generate PDFs, preview PDFs, sync local files, scan
+folders, or add backend arbitrary-path file writing.
 
 ## Setup
 
@@ -790,6 +794,35 @@ watchers, bidirectional sync, `.tex` import, multi-file LaTeX projects,
 attachments, folder/batch export, background jobs, real LLM calls, AI
 note generation, or changes to the Notes CRUD or Chat-to-Notes
 architectures.
+
+## Notes Workspace MVP (Stage 19)
+
+Stage 19 adds a local Notes workspace convenience flow in the Tauri
+desktop app. The workspace path is local machine configuration and is
+stored in browser `localStorage` under `pla.notesWorkspacePath`, not in
+PostgreSQL.
+
+Workspace behavior:
+
+- The Notes page shows the current workspace path or "No workspace selected."
+- `Choose Workspace Folder` opens a Tauri folder-selection dialog.
+- `Clear Workspace` removes the locally stored workspace path.
+- `Export to Workspace` writes the current editor LaTeX content for the
+  selected note into the configured workspace folder.
+- Filenames are sanitized from the note title and always end with `.tex`.
+- Duplicate filenames are handled by creating `name-2.tex`,
+  `name-3.tex`, and so on.
+
+The FastAPI backend remains unchanged. It does not store workspace
+paths, does not scan local folders, and does not write arbitrary local
+filesystem paths.
+
+Stage 19 does not add VS Code integration, opening exported files,
+LaTeX compilation, PDF generation, PDF preview, Git sync, file watchers,
+automatic synchronization, bidirectional editing, `.tex` import,
+workspace scanning, multi-file LaTeX projects, attachments, folder or
+batch export, background jobs, real LLM calls, AI note generation, or
+changes to the Notes CRUD or Chat-to-Notes architectures.
 
 ## Document Ingestion (MVP)
 
