@@ -30,8 +30,9 @@ Stage 11: Open Local Files from Desktop App — completed.
 Stage 12: Frontend Layout Redesign MVP — completed.
 Stage 13: Library Detail Page / Panel MVP — completed.
 Stage 14: Library Indexing MVP — completed.
+Stage 15: Book-Scoped RAG MVP — completed.
 
-Current active stage: Stage 15: Book-Scoped RAG MVP.
+Current active stage: Stage 16: Notes MVP.
 
 Do not implement the full product at once.
 
@@ -52,7 +53,8 @@ Project stage roadmap:
 12. Frontend layout redesign — completed
 13. Library detail page/panel — completed
 14. Library indexing MVP — completed
-15. Book-scoped RAG MVP — current
+15. Book-scoped RAG MVP — completed
+16. Notes MVP — current
 
 ---
 
@@ -130,23 +132,50 @@ deterministic mock embeddings, persists document chunks with pgvector
 embeddings, associates the document to the Library item, and marks the
 item indexed.
 
-The current goal (Stage 15) is Book-Scoped RAG MVP. The Chat page can
-select one indexed Library item and send RAG queries to
+Stage 15 (completed): Book-Scoped RAG MVP. The Chat page can select one
+indexed Library item and send RAG queries to
 `POST /api/rag/query/library-item`, retrieving only chunks connected to
 that item's `documents.library_item_id`. Global `POST /api/rag/query`
-must continue to work unchanged.
+continues to work unchanged.
+
+The current goal (Stage 16) is Notes MVP. The Notes page should be a
+minimal database-backed LaTeX note manager. Users can create, list,
+view, edit, and archive notes. Notes may optionally reference a Library
+item through `notes.library_item_id`, but this stage does not generate
+notes from Chat.
 
 Allowed in the current stage:
-- Add scoped retrieval for one Library item
-- Add `POST /api/rag/query/library-item`
-- Preserve short-term memory and optional long-term memory behavior
-- Save short-term memory metadata with `scope=library_item` and
-  `library_item_id`
-- Add a Chat page selector for indexed Library items with a Global RAG option
-- Preserve existing global RAG behavior
-- README/CLAUDE.md updates documenting Stage 15
+- Add a `notes` table/model and Alembic migration
+- Add Notes Pydantic schemas, service functions, and `/api/notes` routes
+- Validate required title/content and optional Library item references
+- Soft archive notes with `status = "archived"`
+- Replace the Notes placeholder with a simple list/detail/edit UI
+- Use a plain textarea for LaTeX source
+- Add an optional Library item selector on the Notes page
+- Add focused backend tests and update README/CLAUDE.md
 
-Do not implement in Stage 15:
+Do not implement in Stage 16:
+- AI note generation
+- Save Chat as Note
+- Note generation from retrieved chunks
+- Real LLM calls
+- OpenAI/DeepSeek calls
+- Real embedding calls
+- LaTeX compilation
+- PDF preview
+- `.tex` file export
+- Local notes workspace
+- Opening notes in VS Code
+- Opening notes with system default app
+- Git sync
+- Markdown editor
+- Rich text editor
+- WYSIWYG editor
+- Collaborative editing
+- Complex tagging UI
+- Full-text search
+- Multi-file notes
+- Attachments
 - PDF parsing
 - PDF preview
 - Internal PDF viewer
@@ -171,10 +200,8 @@ Do not implement in Stage 15:
 - Chat with this Book actual functionality
 - Related notes actual functionality
 - Real LLM summary generation
-- Notes CRUD
 - Notes generation
 - LaTeX generation
-- LaTeX compilation
 - VS Code integration
 - Real LLM answer generation
 - MCP
@@ -231,6 +258,10 @@ Frontend:
   provider or LLM API calls
 - Stage 15 book-scoped RAG retrieves from one selected indexed Library
   item only; Library summaries remain unimplemented
+- Stage 16 Notes MVP stores LaTeX notes in PostgreSQL, optionally
+  associates notes with Library items, and archives notes through soft
+  status updates; it does not compile, preview, export, or generate
+  notes
 
 Planned later:
 - LangGraph

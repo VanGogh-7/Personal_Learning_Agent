@@ -1,7 +1,7 @@
 # Personal Learning Agent Frontend
 
-Stage 15 adds book-scoped RAG from the Chat page for indexed Library
-items. The FastAPI backend must be started separately on
+Stage 16 adds a database-backed Notes page for creating, editing, and
+archiving LaTeX source notes. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -71,7 +71,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library `Choose File` button in Tauri to fill `file_path` metadata
 - Library `Open` button in Tauri for local `file_path` values
 - Library `Index File` button for `.txt` and `.md` files
-- Notes page placeholder for a future LaTeX notes workflow
+- Notes page with LaTeX note create/list/view/edit/archive workflow
+- Optional Notes association with an existing Library item
 
 ## Current Limitations
 
@@ -87,7 +88,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library indexing currently supports `.txt` and `.md` only
 - PDF parsing and indexing are not supported yet
 - Library detail summary, related notes, and book chat sections are placeholders only
-- Notes page is a placeholder only; it does not create, save, compile, or export notes
+- Notes are stored in PostgreSQL through the backend API
+- Notes use a plain textarea; there is no rich editor, compiler, preview, export, or AI generation
 - No internal PDF preview or file upload
 - No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
 - Book-scoped RAG supports one selected indexed Library item at a time;

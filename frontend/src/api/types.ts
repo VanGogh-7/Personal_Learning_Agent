@@ -144,3 +144,52 @@ export interface LibraryItemIndexResponse {
   message: string;
   supported_file_types: string[];
 }
+
+export interface Note {
+  id: string;
+  title: string;
+  content_latex: string;
+  description: string | null;
+  library_item_id: string | null;
+  source_session_id: string | null;
+  topic_tags: string[] | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteCreateRequest {
+  title: string;
+  content_latex: string;
+  description?: string | null;
+  library_item_id?: string | null;
+  source_session_id?: string | null;
+  topic_tags?: string[] | null;
+  status?: string;
+}
+
+export interface NoteUpdateRequest {
+  title?: string;
+  content_latex?: string;
+  description?: string | null;
+  library_item_id?: string | null;
+  source_session_id?: string | null;
+  topic_tags?: string[] | null;
+  status?: string;
+}
+
+export interface NoteListParams {
+  status?: string | null;
+  library_item_id?: string | null;
+  limit?: number;
+  offset?: number;
+}
+
+export interface NoteSearchParams extends NoteListParams {
+  keyword?: string;
+}
+
+export interface NoteListResponse {
+  notes: Note[];
+  total: number;
+}

@@ -12,6 +12,12 @@ import type {
   LongTermMemoryListParams,
   LongTermMemoryListResponse,
   LongTermMemorySearchParams,
+  Note,
+  NoteCreateRequest,
+  NoteListParams,
+  NoteListResponse,
+  NoteSearchParams,
+  NoteUpdateRequest,
   RagQueryRequest,
   RagQueryResponse,
   StatusResponse,
@@ -129,6 +135,19 @@ function toLibraryQueryString(params: LibraryItemListParams): string {
   return query ? `?${query}` : "";
 }
 
+function toNoteQueryString(params: NoteListParams | NoteSearchParams): string {
+  const searchParams = new URLSearchParams();
+  if ("keyword" in params) {
+    appendOptionalParam(searchParams, "keyword", params.keyword?.trim());
+  }
+  appendOptionalParam(searchParams, "status", params.status?.trim());
+  appendOptionalParam(searchParams, "library_item_id", params.library_item_id?.trim());
+  appendOptionalParam(searchParams, "limit", params.limit);
+  appendOptionalParam(searchParams, "offset", params.offset);
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
 export function getHealth(): Promise<HealthResponse> {
   return requestJson<HealthResponse>("/health");
 }
@@ -226,6 +245,38 @@ export function indexLibraryItem(itemId: string): Promise<LibraryItemIndexRespon
 
 export function archiveLibraryItem(itemId: string): Promise<LibraryItem> {
   return requestJson<LibraryItem>(`/api/library/items/${itemId}`, {
+    method: "DELETE",
+  });
+}
+
+export function createNote(payload: NoteCreateRequest): Promise<Note> {
+  return requestJson<Note>("/api/notes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listNotes(params: NoteListParams = {}): Promise<NoteListResponse> {
+  return requestJson<NoteListResponse>(`/api/notes${toNoteQueryString(params)}`);
+}
+
+export function searchNotes(params: NoteSearchParams): Promise<NoteListResponse> {
+  return requestJson<NoteListResponse>(`/api/notes/search${toNoteQueryString(params)}`);
+}
+
+export function getNote(noteId: string): Promise<Note> {
+  return requestJson<Note>(`/api/notes/${noteId}`);
+}
+
+export function updateNote(noteId: string, payload: NoteUpdateRequest): Promise<Note> {
+  return requestJson<Note>(`/api/notes/${noteId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function archiveNote(noteId: string): Promise<Note> {
+  return requestJson<Note>(`/api/notes/${noteId}`, {
     method: "DELETE",
   });
 }

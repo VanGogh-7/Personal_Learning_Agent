@@ -10,6 +10,7 @@ from app.models import (
     LearningSource,
     LibraryItem,
     LongTermMemory,
+    Note,
 )
 
 
@@ -22,6 +23,7 @@ def test_all_models_registered_on_metadata() -> None:
         "conversation_turns",
         "long_term_memories",
         "library_items",
+        "notes",
     }
 
 
@@ -162,6 +164,35 @@ def test_library_item_columns_and_constraints() -> None:
     assert "ix_library_items_title" in index_names
     assert "ix_library_items_status" in index_names
     assert "ix_library_items_created_at" in index_names
+
+
+def test_note_columns_constraints_indexes_and_foreign_key() -> None:
+    table = Note.__table__
+
+    assert set(table.columns.keys()) == {
+        "id", "title", "content_latex", "description", "library_item_id",
+        "source_session_id", "topic_tags", "status", "created_at", "updated_at",
+    }
+    assert not table.c.title.nullable
+    assert not table.c.content_latex.nullable
+    assert table.c.description.nullable
+    assert table.c.library_item_id.nullable
+    assert table.c.source_session_id.nullable
+    assert table.c.topic_tags.nullable
+    assert not table.c.status.nullable
+
+    fk_targets = {fk.target_fullname for fk in table.c.library_item_id.foreign_keys}
+    assert fk_targets == {"library_items.id"}
+
+    constraint_names = {c.name for c in table.constraints if c.name}
+    assert "ck_notes_title_non_empty" in constraint_names
+    assert "ck_notes_content_latex_required" in constraint_names
+    assert "ck_notes_status_non_empty" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_notes_library_item_id" in index_names
+    assert "ix_notes_status" in index_names
+    assert "ix_notes_created_at" in index_names
 
 
 def test_agent_run_columns() -> None:

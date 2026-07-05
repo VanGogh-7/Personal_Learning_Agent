@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.ingestion_routes import router as ingestion_router
 from app.api.library_routes import router as library_router
 from app.api.memory_routes import router as memory_router
+from app.api.notes_routes import router as notes_router
 from app.api.rag_routes import router as rag_router
 from app.api.routes import router
 from app.core.config import get_settings
@@ -30,3 +31,4 @@ app.include_router(ingestion_router)
 app.include_router(rag_router)
 app.include_router(memory_router)
 app.include_router(library_router)
+app.include_router(notes_router)

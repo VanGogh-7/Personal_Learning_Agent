@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 15: Book-Scoped RAG MVP.
+Stage 16: Notes MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -44,14 +44,18 @@ Stage 15: Book-Scoped RAG MVP.
   manually indexed into documents, chunks, and deterministic mock
   embeddings (Stage 14, completed)
 - Book-Scoped RAG MVP: Chat/RAG can retrieve only chunks associated
-  with one selected indexed Library item (Stage 15, current)
+  with one selected indexed Library item (Stage 15, completed)
+- Notes MVP: database-backed LaTeX notes can be created, listed,
+  viewed, edited, associated with Library items, and archived (Stage 16,
+  current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-15 adds single-book scoped RAG only; global RAG still works.
+16 adds database-backed notes CRUD only; it does not generate, compile,
+preview, or export notes.
 
 ## Setup
 
@@ -665,6 +669,33 @@ Stage 15 does not add real LLM calls, real embedding providers,
 advanced reranking, multi-book RAG, PDF/DOCX/LaTeX parsing, OCR,
 notes generation, LangGraph, MCP, authentication, Docker, Redis, or
 production packaging.
+
+## Notes MVP (Stage 16)
+
+Stage 16 adds a database-backed LaTeX note manager. Notes are stored in
+the new `notes` table and can optionally reference a Library item
+through `notes.library_item_id`.
+
+Notes API endpoints:
+
+- `POST /api/notes` creates a note.
+- `GET /api/notes` lists notes, returning active notes by default.
+- `GET /api/notes/search` performs simple keyword matching over title
+  and description.
+- `GET /api/notes/{note_id}` returns one note.
+- `PATCH /api/notes/{note_id}` updates note metadata or LaTeX source.
+- `DELETE /api/notes/{note_id}` archives the note by setting
+  `status = "archived"`; it does not physically delete the row.
+
+The Notes page in the frontend provides a plain textarea for LaTeX
+source, optional Library item association, comma-separated topic tags,
+save, and archive actions.
+
+Stage 16 does not add AI note generation, Save Chat as Note, real LLM
+calls, real embedding calls, LaTeX compilation, PDF preview, `.tex`
+export, local notes workspace, opening notes in external apps, rich text
+editing, full-text search, authentication, background jobs, or
+attachments.
 
 ## Document Ingestion (MVP)
 
