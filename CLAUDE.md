@@ -31,8 +31,9 @@ Stage 12: Frontend Layout Redesign MVP — completed.
 Stage 13: Library Detail Page / Panel MVP — completed.
 Stage 14: Library Indexing MVP — completed.
 Stage 15: Book-Scoped RAG MVP — completed.
+Stage 16: Notes MVP — completed.
 
-Current active stage: Stage 16: Notes MVP.
+Current active stage: Stage 17: Generate LaTeX Notes from Chat.
 
 Do not implement the full product at once.
 
@@ -54,7 +55,8 @@ Project stage roadmap:
 13. Library detail page/panel — completed
 14. Library indexing MVP — completed
 15. Book-scoped RAG MVP — completed
-16. Notes MVP — current
+16. Notes MVP — completed
+17. Generate LaTeX Notes from Chat — current
 
 ---
 
@@ -138,28 +140,33 @@ indexed Library item and send RAG queries to
 that item's `documents.library_item_id`. Global `POST /api/rag/query`
 continues to work unchanged.
 
-The current goal (Stage 16) is Notes MVP. The Notes page should be a
-minimal database-backed LaTeX note manager. Users can create, list,
-view, edit, and archive notes. Notes may optionally reference a Library
-item through `notes.library_item_id`, but this stage does not generate
-notes from Chat.
+Stage 16 (completed): Notes MVP. The Notes page is a minimal
+database-backed LaTeX note manager. Users can create, list, view, edit,
+and archive notes. Notes may optionally reference a Library item through
+`notes.library_item_id`.
+
+The current goal (Stage 17) is Generate LaTeX Notes from Chat. The user
+can take the latest global or book-scoped Chat/RAG response, generate a
+deterministic LaTeX note draft from the question, answer, retrieved
+chunks, optional Library item metadata, and optional session id, review
+or edit that draft, and save it through the existing Notes API.
 
 Allowed in the current stage:
-- Add a `notes` table/model and Alembic migration
-- Add Notes Pydantic schemas, service functions, and `/api/notes` routes
-- Validate required title/content and optional Library item references
-- Soft archive notes with `status = "archived"`
-- Replace the Notes placeholder with a simple list/detail/edit UI
-- Use a plain textarea for LaTeX source
-- Add an optional Library item selector on the Notes page
+- Add deterministic/template-based note draft generation
+- Add `POST /api/notes/from-chat/draft`
+- Escape LaTeX-sensitive characters in generated content
+- Include question, answer, optional book context, and retrieved chunk excerpts
+- Add a Chat page `Create LaTeX Note` action after a RAG response
+- Let the user review/edit title and LaTeX content before saving
+- Save reviewed drafts through the existing `POST /api/notes` endpoint
 - Add focused backend tests and update README/CLAUDE.md
 
-Do not implement in Stage 16:
-- AI note generation
-- Save Chat as Note
-- Note generation from retrieved chunks
+Do not implement in Stage 17:
 - Real LLM calls
 - OpenAI/DeepSeek calls
+- Real AI note generation
+- Real summarization
+- Real mathematical proof generation
 - Real embedding calls
 - LaTeX compilation
 - PDF preview
@@ -171,7 +178,15 @@ Do not implement in Stage 16:
 - Markdown editor
 - Rich text editor
 - WYSIWYG editor
+- CodeMirror
+- Monaco editor
 - Collaborative editing
+- Multi-note generation
+- Whole-book summary generation
+- Automatic note generation on every chat response
+- Complex note templates
+- Complex citation system
+- Changing the existing Notes CRUD architecture
 - Complex tagging UI
 - Full-text search
 - Multi-file notes
@@ -262,6 +277,10 @@ Frontend:
   associates notes with Library items, and archives notes through soft
   status updates; it does not compile, preview, export, or generate
   notes
+- Stage 17 Chat-to-Notes creates deterministic template-based LaTeX
+  drafts from Chat/RAG responses and saves reviewed drafts through the
+  existing Notes API; it does not call LLMs, summarize with AI, compile
+  LaTeX, preview PDFs, or export files
 
 Planned later:
 - LangGraph

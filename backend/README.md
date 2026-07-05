@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 16: Notes MVP.
+Stage 17: Generate LaTeX Notes from Chat.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -47,6 +47,10 @@ Stage 16: Notes MVP.
   with one selected indexed Library item (Stage 15, completed)
 - Notes MVP: database-backed LaTeX notes can be created, listed,
   viewed, edited, associated with Library items, and archived (Stage 16,
+  completed)
+- Generate LaTeX Notes from Chat: Chat/RAG responses can be converted
+  into deterministic LaTeX note drafts and then saved through the
+  existing Notes API (Stage 17,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
@@ -54,8 +58,9 @@ production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-16 adds database-backed notes CRUD only; it does not generate, compile,
-preview, or export notes.
+17 adds deterministic template-based Chat-to-Notes draft generation
+only; it does not call a real LLM, compile LaTeX, preview PDFs, or
+export `.tex` files.
 
 ## Setup
 
@@ -696,6 +701,64 @@ calls, real embedding calls, LaTeX compilation, PDF preview, `.tex`
 export, local notes workspace, opening notes in external apps, rich text
 editing, full-text search, authentication, background jobs, or
 attachments.
+
+## Generate LaTeX Notes from Chat (Stage 17)
+
+Stage 17 adds deterministic Chat-to-Notes draft generation. It converts
+the current Chat/RAG response into a simple LaTeX note draft and returns
+that draft to the frontend for review. The draft endpoint does not save
+to the database; the frontend saves reviewed drafts through the existing
+`POST /api/notes` endpoint.
+
+Endpoint:
+
+- `POST /api/notes/from-chat/draft`
+
+Request example:
+
+```json
+{
+  "question": "What is a vector space?",
+  "answer": "A vector space is a set equipped with addition and scalar multiplication.",
+  "retrieved_chunks": [
+    {
+      "id": "chunk-id",
+      "document_id": "document-id",
+      "chunk_index": 0,
+      "content": "A vector space over a field F is...",
+      "score": 0.123
+    }
+  ],
+  "library_item": {
+    "id": "library-item-id",
+    "title": "Linear Algebra",
+    "author": "Some Author",
+    "file_type": "md",
+    "status": "indexed"
+  },
+  "session_id": "optional-session-id"
+}
+```
+
+Response example:
+
+```json
+{
+  "title": "Notes on What is a vector space?",
+  "content_latex": "\\section{Notes on What is a vector space?}\\n...",
+  "description": "Generated from Chat response.",
+  "library_item_id": "library-item-id",
+  "source_session_id": "optional-session-id",
+  "topic_tags": ["chat-generated"]
+}
+```
+
+Stage 17 uses a template only. It escapes common LaTeX-sensitive
+characters, includes the question, answer, optional book context, and
+retrieved chunk excerpts. It does not call a real LLM, perform real
+summarization, generate proofs, compile LaTeX, preview PDFs, export
+`.tex` files, add editor integrations, or change the Notes CRUD
+architecture.
 
 ## Document Ingestion (MVP)
 

@@ -1,5 +1,7 @@
 import type {
   CreateLibraryItemPayload,
+  ChatNoteDraftRequest,
+  ChatNoteDraftResponse,
   HealthResponse,
   LibraryItem,
   LibraryItemIndexResponse,
@@ -251,6 +253,15 @@ export function archiveLibraryItem(itemId: string): Promise<LibraryItem> {
 
 export function createNote(payload: NoteCreateRequest): Promise<Note> {
   return requestJson<Note>("/api/notes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createChatNoteDraft(
+  payload: ChatNoteDraftRequest,
+): Promise<ChatNoteDraftResponse> {
+  return requestJson<ChatNoteDraftResponse>("/api/notes/from-chat/draft", {
     method: "POST",
     body: JSON.stringify(payload),
   });

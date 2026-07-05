@@ -222,6 +222,10 @@ small {
   margin-bottom: 18px;
 }
 
+.compact-heading {
+  margin-bottom: 0;
+}
+
 .panel-heading h2,
 .panel h3 {
   margin: 0 0 0.35rem;
@@ -592,6 +596,15 @@ label {
   line-height: 1.5;
 }
 
+.chat-note-draft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
 .plain-list {
   display: grid;
   gap: 8px;
@@ -640,6 +653,7 @@ label {
   .metadata-list,
   .library-workspace,
   .notes-workspace,
+  .chat-note-draft,
   .detail-grid,
   .future-grid,
   .input-with-action {

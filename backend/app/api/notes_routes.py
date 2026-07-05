@@ -4,7 +4,15 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
-from app.notes.schemas import NoteCreate, NoteListResponse, NoteRead, NoteUpdate
+from app.notes.generation import generate_chat_note_draft
+from app.notes.schemas import (
+    ChatNoteDraftRequest,
+    ChatNoteDraftResponse,
+    NoteCreate,
+    NoteListResponse,
+    NoteRead,
+    NoteUpdate,
+)
 from app.notes.service import (
     DEFAULT_NOTES_LIMIT,
     MAX_NOTES_LIMIT,
@@ -132,6 +140,11 @@ def search_notes_endpoint(
 
     responses = [_to_response(note) for note in notes]
     return NoteListResponse(notes=responses, total=len(responses))
+
+
+@router.post("/from-chat/draft", response_model=ChatNoteDraftResponse)
+def create_chat_note_draft_endpoint(request: ChatNoteDraftRequest) -> ChatNoteDraftResponse:
+    return generate_chat_note_draft(request)
 
 
 @router.get("/{note_id}", response_model=NoteRead)

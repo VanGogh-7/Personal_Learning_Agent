@@ -193,3 +193,38 @@ export interface NoteListResponse {
   notes: Note[];
   total: number;
 }
+
+export interface ChatNoteChunkInput {
+  id?: string | null;
+  chunk_id?: string | null;
+  document_id?: string | null;
+  document_title?: string | null;
+  chunk_index?: number | null;
+  content: string;
+  score?: number | null;
+}
+
+export interface ChatNoteLibraryItemInput {
+  id: string;
+  title: string;
+  author?: string | null;
+  file_type?: string | null;
+  status?: string | null;
+}
+
+export interface ChatNoteDraftRequest {
+  question: string;
+  answer: string;
+  retrieved_chunks: ChatNoteChunkInput[];
+  library_item?: ChatNoteLibraryItemInput | null;
+  session_id?: string | null;
+}
+
+export interface ChatNoteDraftResponse {
+  title: string;
+  content_latex: string;
+  description?: string | null;
+  library_item_id?: string | null;
+  source_session_id?: string | null;
+  topic_tags?: string[] | null;
+}

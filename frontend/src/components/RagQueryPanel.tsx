@@ -1,8 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { listLibraryItems, queryLibraryItemRag, queryRag } from "../api/client";
+import {
+  createChatNoteDraft,
+  createNote,
+  listLibraryItems,
+  queryLibraryItemRag,
+  queryRag,
+} from "../api/client";
 import type {
+  ChatNoteDraftResponse,
   LibraryItem,
   LibraryItemRagQueryResponse,
+  Note,
   RagQueryResponse,
 } from "../api/types";
 
@@ -16,10 +24,16 @@ export default function RagQueryPanel() {
   const [result, setResult] = useState<RagQueryResponse | LibraryItemRagQueryResponse | null>(
     null,
   );
+  const [lastQuestion, setLastQuestion] = useState("");
+  const [noteDraft, setNoteDraft] = useState<ChatNoteDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [contextError, setContextError] = useState<string | null>(null);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteSuccess, setNoteSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingContexts, setLoadingContexts] = useState(false);
+  const [generatingNote, setGeneratingNote] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
 
   const selectedLibraryItem = useMemo(
     () => libraryItems.find((item) => item.id === selectedLibraryItemId) || null,
@@ -77,13 +91,78 @@ export default function RagQueryPanel() {
           })
         : await queryRag(payload);
       setResult(response);
+      setLastQuestion(payload.question);
       setSessionId(response.session_id);
+      clearNoteDraft();
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : "RAG query failed.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function generateNoteDraft() {
+    if (!result) {
+      return;
+    }
+
+    setNoteError(null);
+    setNoteSuccess(null);
+    setGeneratingNote(true);
+    try {
+      const draft = await createChatNoteDraft({
+        question: lastQuestion || question.trim(),
+        answer: result.answer,
+        retrieved_chunks: result.retrieved_chunks.map((chunk) => ({
+          id: chunk.chunk_id,
+          document_id: chunk.document_id,
+          document_title: chunk.document_title,
+          chunk_index: chunk.chunk_index,
+          content: chunk.content,
+          score: chunk.score,
+        })),
+        library_item: isLibraryItemResult(result) ? result.library_item : null,
+        session_id: result.session_id,
+      });
+      setNoteDraft(draft);
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : "Could not generate note draft.");
+    } finally {
+      setGeneratingNote(false);
+    }
+  }
+
+  async function saveNoteDraft() {
+    if (!noteDraft) {
+      return;
+    }
+
+    setNoteError(null);
+    setNoteSuccess(null);
+    setSavingNote(true);
+    try {
+      const note: Note = await createNote({
+        title: noteDraft.title,
+        content_latex: noteDraft.content_latex,
+        description: noteDraft.description || null,
+        library_item_id: noteDraft.library_item_id || null,
+        source_session_id: noteDraft.source_session_id || null,
+        topic_tags: noteDraft.topic_tags || null,
+      });
+      setNoteSuccess(`Saved note "${note.title}".`);
+      setNoteDraft(null);
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : "Could not save note.");
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  function clearNoteDraft() {
+    setNoteDraft(null);
+    setNoteError(null);
+    setNoteSuccess(null);
   }
 
   return (
@@ -105,6 +184,8 @@ export default function RagQueryPanel() {
                 setSelectedLibraryItemId(event.target.value);
                 setResult(null);
                 setError(null);
+                setLastQuestion("");
+                clearNoteDraft();
               }}
             >
               <option value="">Global RAG</option>
@@ -214,6 +295,74 @@ export default function RagQueryPanel() {
               <dd>{result.memory.used_long_term_memories}</dd>
             </div>
           </dl>
+
+          <div className="result-block">
+            <div className="panel-heading compact-heading">
+              <div>
+                <h3>Create LaTeX Note</h3>
+                <p>
+                  Generate a deterministic draft from this answer, review it, then save it to
+                  Notes.
+                </p>
+              </div>
+              <button type="button" disabled={generatingNote} onClick={generateNoteDraft}>
+                {generatingNote ? "Generating..." : "Create LaTeX Note"}
+              </button>
+            </div>
+
+            {noteError && <p className="error compact-error">{noteError}</p>}
+            {noteSuccess && <p className="success">{noteSuccess}</p>}
+
+            {noteDraft && (
+              <div className="chat-note-draft">
+                <label>
+                  title
+                  <input
+                    value={noteDraft.title}
+                    onChange={(event) =>
+                      setNoteDraft({ ...noteDraft, title: event.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  description
+                  <input
+                    value={noteDraft.description || ""}
+                    onChange={(event) =>
+                      setNoteDraft({ ...noteDraft, description: event.target.value })
+                    }
+                  />
+                </label>
+                <label className="full-width">
+                  content_latex
+                  <textarea
+                    className="latex-textarea"
+                    rows={14}
+                    value={noteDraft.content_latex}
+                    onChange={(event) =>
+                      setNoteDraft({ ...noteDraft, content_latex: event.target.value })
+                    }
+                  />
+                </label>
+                <p className="muted compact-note">
+                  {noteDraft.library_item_id
+                    ? `Will save with library_item_id ${noteDraft.library_item_id}.`
+                    : "Will save without an associated book."}
+                  {noteDraft.source_session_id
+                    ? ` Source session: ${noteDraft.source_session_id}.`
+                    : ""}
+                </p>
+                <div className="button-row full-width">
+                  <button type="button" disabled={savingNote} onClick={saveNoteDraft}>
+                    {savingNote ? "Saving..." : "Save note"}
+                  </button>
+                  <button type="button" className="secondary-button" onClick={clearNoteDraft}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           <h3>Retrieved Chunks</h3>
           {result.retrieved_chunks.length === 0 ? (

@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 import app.api.notes_routes as notes_routes_module
 from app.models.library_item import LibraryItem
 from app.models.note import Note
-from app.notes.schemas import NoteCreate, NoteUpdate
+from app.notes.schemas import ChatNoteDraftRequest, NoteCreate, NoteUpdate
 
 
 @pytest.fixture
@@ -160,3 +160,20 @@ def test_search_notes_by_keyword(notes_session) -> None:
 
     assert response.total == 1
     assert response.notes[0].title == "Topology"
+
+
+def test_chat_note_draft_endpoint_does_not_save_note(notes_session) -> None:
+    response = notes_routes_module.create_chat_note_draft_endpoint(
+        ChatNoteDraftRequest(
+            question="What is a basis?",
+            answer="A basis is a linearly independent spanning set.",
+            retrieved_chunks=[],
+            session_id="session-1",
+        )
+    )
+
+    notes = notes_routes_module.list_notes_endpoint(limit=20, offset=0)
+
+    assert response.title == "Notes on What is a basis?"
+    assert response.source_session_id == "session-1"
+    assert notes.total == 0

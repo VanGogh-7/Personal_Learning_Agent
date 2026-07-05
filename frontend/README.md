@@ -1,7 +1,8 @@
 # Personal Learning Agent Frontend
 
-Stage 16 adds a database-backed Notes page for creating, editing, and
-archiving LaTeX source notes. The FastAPI backend must be started separately on
+Stage 17 adds deterministic Chat-to-Notes draft generation. Chat/RAG
+responses can be converted into editable LaTeX note drafts and saved
+through the existing Notes API. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -66,6 +67,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Sidebar navigation for Chat, Library, and Notes
 - Chat page, opened by default, with global RAG, book-scoped RAG,
   backend status, and long-term memory tools
+- Chat page `Create LaTeX Note` action for the latest RAG response
+- Inline note draft review/edit/save panel in Chat
 - Library page with Book Library metadata create/list/search/edit/archive
 - Library item selection and detail metadata panel
 - Library `Choose File` button in Tauri to fill `file_path` metadata
@@ -89,7 +92,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - PDF parsing and indexing are not supported yet
 - Library detail summary, related notes, and book chat sections are placeholders only
 - Notes are stored in PostgreSQL through the backend API
-- Notes use a plain textarea; there is no rich editor, compiler, preview, export, or AI generation
+- Chat-to-Notes generation is deterministic and template-based; it does
+  not call a real LLM or create mathematical proofs
+- Notes use a plain textarea; there is no rich editor, compiler, preview, or export
 - No internal PDF preview or file upload
 - No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
 - Book-scoped RAG supports one selected indexed Library item at a time;
