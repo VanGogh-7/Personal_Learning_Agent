@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",
     "dev:vite": "vite --host 127.0.0.1 --port 1420",
-    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
     "build:vite": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 1420",
     "tauri": "tauri"

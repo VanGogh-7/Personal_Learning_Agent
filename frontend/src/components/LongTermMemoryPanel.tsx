@@ -20,6 +20,7 @@ export default function LongTermMemoryPanel() {
     keyword: "",
   });
   const [listResult, setListResult] = useState<LongTermMemoryListResponse | null>(null);
+  const [lastListMode, setLastListMode] = useState<"list" | "search" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [loadingList, setLoadingList] = useState(false);
@@ -36,7 +37,7 @@ export default function LongTermMemoryPanel() {
       setError("Content is required.");
       return;
     }
-    if (importance < 1 || importance > 5) {
+    if (!Number.isInteger(importance) || importance < 1 || importance > 5) {
       setError("Importance must be between 1 and 5.");
       return;
     }
@@ -52,6 +53,7 @@ export default function LongTermMemoryPanel() {
       });
       setCreatedMemory(response);
     } catch (err) {
+      setCreatedMemory(null);
       setError(err instanceof Error ? err.message : "Memory create failed.");
     } finally {
       setLoadingCreate(false);
@@ -65,12 +67,24 @@ export default function LongTermMemoryPanel() {
       setError("Keyword is required for search.");
       return;
     }
+    if (!Number.isInteger(filters.limit) || filters.limit < 1 || filters.limit > 50) {
+      setError("Limit must be an integer between 1 and 50.");
+      return;
+    }
+    const minImportance = optionalNumber(filters.minImportance);
+    if (
+      minImportance !== undefined &&
+      (!Number.isInteger(minImportance) || minImportance < 1 || minImportance > 5)
+    ) {
+      setError("min_importance must be an integer between 1 and 5.");
+      return;
+    }
 
     setLoadingList(true);
     try {
       const params = {
         memory_type: filters.memoryType.trim() || undefined,
-        min_importance: optionalNumber(filters.minImportance),
+        min_importance: minImportance,
         limit: filters.limit,
       };
       const response =
@@ -78,7 +92,9 @@ export default function LongTermMemoryPanel() {
           ? await listLongTermMemories(params)
           : await searchLongTermMemories({ ...params, keyword: filters.keyword.trim() });
       setListResult(response);
+      setLastListMode(mode);
     } catch (err) {
+      setListResult(null);
       setError(err instanceof Error ? err.message : "Memory request failed.");
     } finally {
       setLoadingList(false);
@@ -108,7 +124,7 @@ export default function LongTermMemoryPanel() {
               min={1}
               max={5}
               value={importance}
-              onChange={(event) => setImportance(Number(event.target.value))}
+              onChange={(event) => setImportance(event.target.valueAsNumber)}
             />
           </label>
           <label>
@@ -164,7 +180,9 @@ export default function LongTermMemoryPanel() {
               min={1}
               max={50}
               value={filters.limit}
-              onChange={(event) => setFilters({ ...filters, limit: Number(event.target.value) })}
+              onChange={(event) =>
+                setFilters({ ...filters, limit: event.target.valueAsNumber })
+              }
             />
           </label>
           <label>
@@ -199,7 +217,11 @@ export default function LongTermMemoryPanel() {
         <div className="response-block">
           <h3>Memories ({listResult.total})</h3>
           {listResult.memories.length === 0 ? (
-            <p className="muted">No memories returned.</p>
+            <p className="empty-state">
+              {lastListMode === "search"
+                ? "No long-term memories matched this search."
+                : "No long-term memories found for these filters."}
+            </p>
           ) : (
             <ul className="item-list">
               {listResult.memories.map((memory) => (

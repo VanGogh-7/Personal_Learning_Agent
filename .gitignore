@@ -19,7 +19,10 @@ venv/
 .mypy_cache/
 .ruff_cache/
 dist/
+frontend/dist/
 build/
 *.egg-info/
 *.log
 .DS_Store
+node_modules/
+frontend/src-tauri/target/

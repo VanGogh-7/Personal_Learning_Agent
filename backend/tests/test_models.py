@@ -8,6 +8,7 @@ from app.models import (
     Document,
     DocumentChunk,
     LearningSource,
+    LibraryItem,
     LongTermMemory,
 )
 
@@ -20,6 +21,7 @@ def test_all_models_registered_on_metadata() -> None:
         "agent_runs",
         "conversation_turns",
         "long_term_memories",
+        "library_items",
     }
 
 
@@ -128,6 +130,31 @@ def test_long_term_memory_columns_and_constraints() -> None:
     assert "ix_long_term_memories_memory_type" in index_names
     assert "ix_long_term_memories_importance" in index_names
     assert "ix_long_term_memories_created_at" in index_names
+
+
+def test_library_item_columns_and_constraints() -> None:
+    table = LibraryItem.__table__
+
+    assert set(table.columns.keys()) == {
+        "id", "title", "author", "description", "file_path", "file_type",
+        "topic_tags", "status", "created_at", "updated_at",
+    }
+    assert not table.c.title.nullable
+    assert table.c.author.nullable
+    assert table.c.description.nullable
+    assert table.c.file_path.nullable
+    assert table.c.file_type.nullable
+    assert table.c.topic_tags.nullable
+    assert not table.c.status.nullable
+
+    constraint_names = {c.name for c in table.constraints if c.name}
+    assert "ck_library_items_title_non_empty" in constraint_names
+    assert "ck_library_items_status_non_empty" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_library_items_title" in index_names
+    assert "ix_library_items_status" in index_names
+    assert "ix_library_items_created_at" in index_names
 
 
 def test_agent_run_columns() -> None:

@@ -1,4 +1,6 @@
+import { getBackendBaseUrl } from "./api/config";
 import BackendStatus from "./components/BackendStatus";
+import BookLibraryPanel from "./components/BookLibraryPanel";
 import LongTermMemoryPanel from "./components/LongTermMemoryPanel";
 import RagQueryPanel from "./components/RagQueryPanel";
 
@@ -7,14 +9,15 @@ export default function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Stage 8</p>
+          <p className="eyebrow">Stage 10</p>
           <h1>Personal Learning Agent</h1>
         </div>
-        <p className="backend-note">Backend: http://127.0.0.1:8081</p>
+        <p className="backend-note">Backend: {getBackendBaseUrl()}</p>
       </header>
 
       <div className="panel-stack">
         <BackendStatus />
+        <BookLibraryPanel />
         <RagQueryPanel />
         <LongTermMemoryPanel />
       </div>

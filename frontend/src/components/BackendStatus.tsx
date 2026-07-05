@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getHealth, getStatus } from "../api/client";
+import { getBackendBaseUrl } from "../api/config";
 import type { HealthResponse, StatusResponse } from "../api/types";
 
 export default function BackendStatus() {
@@ -21,7 +22,7 @@ export default function BackendStatus() {
       setStatus(null);
       setError(
         `${err instanceof Error ? err.message : "Backend request failed"}. ` +
-          "Make sure the FastAPI backend is running on 127.0.0.1:8081.",
+          `Make sure the FastAPI backend is running at ${getBackendBaseUrl()}.`,
       );
     } finally {
       setLoading(false);
@@ -43,18 +44,26 @@ export default function BackendStatus() {
       {error && <p className="error">{error}</p>}
 
       <div className="result-grid">
-        <ResultBlock title="/health" value={health} />
-        <ResultBlock title="/api/status" value={status} />
+        <ResultBlock title="/health" value={health} loading={loading} />
+        <ResultBlock title="/api/status" value={status} loading={loading} />
       </div>
     </section>
   );
 }
 
-function ResultBlock({ title, value }: { title: string; value: unknown }) {
+function ResultBlock({
+  title,
+  value,
+  loading,
+}: {
+  title: string;
+  value: unknown;
+  loading: boolean;
+}) {
   return (
     <div className="result-block">
       <h3>{title}</h3>
-      <pre>{value ? JSON.stringify(value, null, 2) : "No result yet"}</pre>
+      <pre>{loading ? "Checking..." : value ? JSON.stringify(value, null, 2) : "No result yet"}</pre>
     </div>
   );
 }

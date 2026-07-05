@@ -7,7 +7,7 @@ from alembic import context
 
 from app.core.config import get_database_url
 from app.db.base import Base
-from app.models import AgentRun, Document, DocumentChunk, LearningSource  # noqa: F401
+from app.models import AgentRun, Document, DocumentChunk, LearningSource, LibraryItem  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

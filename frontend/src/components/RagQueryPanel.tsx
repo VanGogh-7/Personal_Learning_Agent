@@ -19,6 +19,10 @@ export default function RagQueryPanel() {
       setError("Question is required.");
       return;
     }
+    if (!Number.isInteger(topK) || topK < 1 || topK > 20) {
+      setError("top_k must be an integer between 1 and 20.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -31,6 +35,7 @@ export default function RagQueryPanel() {
       setResult(response);
       setSessionId(response.session_id);
     } catch (err) {
+      setResult(null);
       setError(err instanceof Error ? err.message : "RAG query failed.");
     } finally {
       setLoading(false);
@@ -64,7 +69,7 @@ export default function RagQueryPanel() {
             min={1}
             max={20}
             value={topK}
-            onChange={(event) => setTopK(Number(event.target.value))}
+            onChange={(event) => setTopK(event.target.valueAsNumber)}
           />
         </label>
 
@@ -119,7 +124,7 @@ export default function RagQueryPanel() {
 
           <h3>Retrieved Chunks</h3>
           {result.retrieved_chunks.length === 0 ? (
-            <p className="muted">No chunks returned.</p>
+            <p className="empty-state">No retrieved chunks returned for this query.</p>
           ) : (
             <ul className="item-list">
               {result.retrieved_chunks.map((chunk) => (

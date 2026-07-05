@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.ingestion_routes import router as ingestion_router
+from app.api.library_routes import router as library_router
 from app.api.memory_routes import router as memory_router
 from app.api.rag_routes import router as rag_router
 from app.api.routes import router
@@ -21,10 +22,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=LOCAL_FRONTEND_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
 )
 app.include_router(router)
 app.include_router(ingestion_router)
 app.include_router(rag_router)
 app.include_router(memory_router)
+app.include_router(library_router)

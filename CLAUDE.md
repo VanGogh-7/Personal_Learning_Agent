@@ -23,8 +23,10 @@ Stage 4: Embedding + pgvector MVP — completed.
 Stage 5: Minimal RAG Q&A MVP — completed.
 Stage 6: Short-term Memory MVP — completed.
 Stage 7: Long-term Memory MVP — completed.
+Stage 8: Tauri + React Frontend MVP — completed.
+Stage 9: Backend/Frontend Integration Polish — completed.
 
-Current active stage: Stage 8: Tauri + React Frontend MVP.
+Current active stage: Stage 10: Book Library MVP.
 
 Do not implement the full product at once.
 
@@ -38,7 +40,9 @@ Project stage roadmap:
 5. Minimal RAG Q&A — completed
 6. Short-term memory — completed
 7. Long-term memory — completed
-8. Tauri + React frontend — current
+8. Tauri + React frontend — completed
+9. Backend/frontend integration polish — completed
+10. Book Library MVP — current
 
 ---
 
@@ -80,32 +84,56 @@ created **manually** through a small service/API, stored in PostgreSQL,
 listable/searchable by type, importance, and keyword, and optionally
 usable as small bounded deterministic context in RAG answers.
 
-The current goal (Stage 8) is a minimal Tauri + React frontend MVP only:
-add a small TypeScript/Vite UI under `frontend/` that calls the existing
-FastAPI backend on `127.0.0.1:8081` for health/status, RAG query, and
-long-term memory create/list/search. The backend remains independently
-started on port `8081`.
+Stage 8 (completed): a minimal Tauri + React frontend MVP — a small
+TypeScript/Vite UI under `frontend/` that calls the existing FastAPI
+backend on `127.0.0.1:8081` for health/status, RAG query, and long-term
+memory create/list/search. The backend remains independently started on
+port `8081`.
+
+Stage 9 (completed): backend/frontend integration polish — frontend API
+types aligned with backend schemas, centralized backend URL handling,
+safer fetch errors, clearer UI empty states, explicit local-development
+CORS, and local development docs cleanup.
+
+The current goal (Stage 10) is a Book Library MVP only: allow manual
+registration, listing, updating, archiving, and search/filtering of
+book or learning-material metadata. Library items may store title,
+author, description, `file_path`, `file_type`, topic tags, and status.
+`file_path` is metadata only.
 
 Allowed in the current stage:
-- Minimal Tauri + React + TypeScript/Vite frontend shell
-- A small fetch-based API client using `http://127.0.0.1:8081`
-- UI sections for backend health/status, RAG query, long-term memory
-  create, and long-term memory list/search
-- Simple React hook state, frontend validation, loading states, and
-  error states
-- Explicit local-development CORS origins if needed for browser/Tauri
-  frontend calls
-- README/CLAUDE.md updates documenting Stage 8 status
+- A `library_items` table and Alembic migration for metadata only
+- Backend schemas, service functions, API routes, and tests for
+  create/list/get/update/search/filter/archive
+- Frontend API methods and TypeScript types for library items
+- A simple Book Library UI section for creating, listing, searching,
+  editing, and archiving metadata records
+- README/CLAUDE.md updates documenting Stage 10
 
-Do not implement in Stage 8:
+Do not implement in Stage 10:
 - MCP
 - LangGraph
 - Real embedding providers
 - Backend auto-start from Tauri
 - Complex Rust local backend logic
-- PDF/LaTeX/DOCX parsing
+- PDF parsing
+- DOCX parsing
+- LaTeX parsing
+- Internal PDF preview
+- Opening local files through Tauri
+- File upload
+- Drag-and-drop upload
+- Automatic document ingestion from library items
+- Embeddings for library items
+- pgvector search for library items
+- RAG scoping by selected book
+- Real LLM answer generation
 - Repository analysis
 - Production packaging
+- Authentication or user accounts
+- Docker setup
+- Redis or queues
+- Complex UI redesign
 
 ---
 
@@ -136,6 +164,8 @@ Frontend:
 - Tauri + React + TypeScript + Vite frontend shell (`frontend/`)
 - Fetch-based local API client for `http://127.0.0.1:8081`
 - No backend auto-start, no Rust backend API, no Tauri filesystem APIs
+- Book Library UI stores `file_path` as metadata only; it does not open
+  or preview files
 
 Planned later:
 - LangGraph

@@ -3,6 +3,7 @@ from app.models.conversation_turn import ConversationTurn
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.learning_source import LearningSource
+from app.models.library_item import LibraryItem
 from app.models.long_term_memory import LongTermMemory
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "LearningSource",
+    "LibraryItem",
     "LongTermMemory",
 ]

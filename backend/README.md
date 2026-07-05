@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 8: Tauri + React Frontend MVP.
+Stage 10: Book Library MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -25,15 +25,20 @@ Stage 8: Tauri + React Frontend MVP.
   context (Stage 7, completed)
 - Minimal Tauri + React + TypeScript frontend shell that calls the
   independently running local FastAPI backend for health/status, RAG
-  query, and long-term memory create/list/search (Stage 8, current)
+  query, and long-term memory create/list/search (Stage 8, completed)
+- Backend/frontend integration polish: tighter frontend API types,
+  centralized backend URL handling, safer fetch errors, clearer UI
+  empty states, and local development docs cleanup (Stage 9, completed)
+- Book Library MVP: manually register, list, update, archive, and
+  search/filter book or learning-material metadata (Stage 10, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. See
-[Frontend (Stage 8)](#frontend-stage-8) below for what Stage 8 actually
-adds.
+[Book Library (Stage 10)](#book-library-stage-10) below for the
+current metadata-only library boundaries.
 
 ## Setup
 
@@ -44,12 +49,20 @@ adds.
    conda activate pla
    ```
 
-2. Install dependencies:
+   This project uses the `pla` conda environment. Do not create a
+   project `.venv`.
+
+2. Install backend Python dependencies:
 
    ```bash
+   conda activate pla
    cd backend
    pip install -r requirements.txt
    ```
+
+   `backend/requirements.txt` is only for backend Python runtime,
+   migration, and test dependencies. Frontend dependencies are managed
+   separately by `frontend/package.json`.
 
 3. Copy the example environment file and fill in real values locally.
    The real `.env` lives at the **project root** (one level above
@@ -102,6 +115,14 @@ The default backend development port is `8081`.
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 ```
 
+Full backend command:
+
+```bash
+conda activate pla
+cd backend
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
+```
+
 - `GET /health` → `{"status": "ok"}`
 - `GET /api/status` → app name, environment, and version
 
@@ -113,8 +134,11 @@ local dev origins:
 - `http://localhost:5173`
 - `http://127.0.0.1:5173`
 
-The backend remains independently started; the desktop shell does not
-auto-start FastAPI.
+The frontend expects the backend at `http://127.0.0.1:8081` by default.
+For local experiments only, the Vite frontend can override this with
+`VITE_BACKEND_URL`, but do not put secrets in frontend environment
+files. The backend remains independently started; the desktop shell
+does not auto-start FastAPI.
 
 ## Running the Frontend
 
@@ -131,9 +155,16 @@ Build the React frontend with:
 npm run build
 ```
 
+If `npm run dev` or `npm run tauri dev` reports a port conflict, stop
+the process already using `127.0.0.1:1420` and rerun the command. The
+Vite dev server is intentionally pinned to that local port for Tauri
+development.
+
 ## Running Tests
 
 ```bash
+conda activate pla
+cd backend
 pytest
 ```
 
@@ -168,6 +199,8 @@ From `backend/`, with the `pla` environment active and `DATABASE_URL` set
 in the root `.env`:
 
 ```bash
+conda activate pla
+cd backend
 # create a new migration after changing models
 alembic revision --autogenerate -m "describe the change"
 
@@ -438,6 +471,83 @@ Stage 8 limitations:
 - No repository analysis
 - No production packaging workflow yet
 
+## Backend/Frontend Integration Polish (Stage 9)
+
+Stage 9 keeps the Stage 8 feature set and focuses on local integration
+quality:
+
+- Frontend API request/response types aligned with backend Pydantic
+  schemas
+- Centralized frontend backend URL handling, defaulting to
+  `http://127.0.0.1:8081`
+- Safer fetch error handling for non-2xx responses, network failures,
+  and invalid JSON
+- Clearer loading, error, and empty states in the existing UI
+- Explicit local-development CORS for the frontend dev server and Tauri
+  shell
+- Documentation and ignore-rule cleanup for local development
+
+Stage 9 does **not** add MCP, LangGraph, real embedding providers,
+production LLM answer generation, automatic memory extraction,
+long-term memory vector search, document ingestion UI, file parsing,
+repository analysis, backend auto-start from Tauri, authentication,
+Docker, Redis, queues, or production packaging.
+
+## Book Library (Stage 10)
+
+Stage 10 adds a minimal metadata-only book/library system. A library
+item represents a manually registered book or learning material. The
+record can store title, author, description, optional `file_path`,
+optional `file_type`, topic tags, and status.
+
+`file_path` is metadata only in this stage. The backend does not open
+the file, verify that it exists, parse contents, index documents, create
+embeddings, or scope RAG queries by selected book.
+
+### Library endpoints
+
+**`POST /api/library/items`** — create a library item
+
+```json
+{
+  "title": "Linear Algebra Done Right",
+  "author": "Sheldon Axler",
+  "description": "Finite-dimensional vector spaces.",
+  "file_path": "/books/linear-algebra.pdf",
+  "file_type": "pdf",
+  "topic_tags": ["linear algebra", "math"],
+  "status": "registered"
+}
+```
+
+**`GET /api/library/items`** — list items
+
+Query params: `status` (optional), `tag` (optional), `limit` (optional,
+default 20, 1–100).
+
+**`GET /api/library/items/search`** — search/filter items
+
+Query params: `keyword` (optional, searches title/author/description),
+`status` (optional), `tag` (optional), `limit` (optional, default 20,
+1–100).
+
+**`GET /api/library/items/{item_id}`** — get one item by UUID.
+
+**`PATCH /api/library/items/{item_id}`** — update item metadata.
+
+**`DELETE /api/library/items/{item_id}`** — archive the item by setting
+`status` to `archived`. This is a soft archive, not a recycle-bin
+workflow.
+
+Stage 10 intentionally does **not** include PDF parsing, DOCX parsing,
+LaTeX parsing, internal PDF preview, opening local files through Tauri,
+file upload, drag-and-drop upload, automatic document ingestion from
+library items, embeddings for library items, pgvector search for
+library items, RAG scoping by selected book, real LLM answer
+generation, real embedding providers, LangGraph, MCP, authentication,
+user accounts, production packaging, Docker, Redis/queues, or complex
+UI redesign.
+
 ## Document Ingestion (MVP)
 
 A minimal ingestion module supporting plain text and Markdown files.
@@ -500,8 +610,8 @@ Response:
 
 ## Roadmap (not yet implemented)
 
-- Backend/frontend integration polish
 - Document ingestion UI
+- Opening local files from library metadata
 - Real embedding provider integration and full RAG Q&A quality
 - Automatic memory extraction and short-term → long-term promotion
 - Semantic memory embeddings and long-term memory vector search
