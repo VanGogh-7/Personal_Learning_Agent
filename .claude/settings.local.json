@@ -7,7 +7,9 @@
       "Bash(python3 -c \"import httpx; print\\('httpx ok'\\)\")",
       "Bash(pip3 list *)",
       "Bash(rm -rf .venv)",
-      "Bash(python3 -m pytest -q)"
+      "Bash(python3 -m pytest -q)",
+      "Bash(python3 -m pytest -v)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

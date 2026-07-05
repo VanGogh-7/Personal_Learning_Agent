@@ -16,7 +16,9 @@ The project will later support:
 - PostgreSQL + pgvector storage
 - Optional Tauri + React desktop UI
 
-Current stage: MVP backend foundation.
+Stage 1: Backend skeleton — completed.
+
+Current active stage: Stage 2: Document ingestion MVP.
 
 Do not implement the full product at once.
 
@@ -26,32 +28,39 @@ The default backend development port is `8081`.
 
 ## Current Development Scope
 
-The current goal is to build a clean backend skeleton only.
+Stage 1 (completed): a clean backend skeleton — FastAPI app setup,
+environment variable configuration, `.env.example`, health/status
+endpoints, minimal DeepSeek client module, basic tests, README setup
+instructions, clean backend directory structure.
+
+The current goal (Stage 2) is a minimal document ingestion module for
+plain text and Markdown content only.
 
 Allowed in the current stage:
-- FastAPI app setup
-- Environment variable configuration
-- `.env.example`
-- Health/status endpoints
-- Minimal DeepSeek client module
-- Basic tests
-- README setup instructions
-- Clean backend directory structure
+- Ingestion module (`backend/app/ingestion/`)
+- Character-based text chunking
+- Loading `.txt` and `.md` files from `backend/data` only
+- Minimal FastAPI routes under `/api/ingestion`
+- Tests for chunking, file loading, and the ingestion routes
+- README updates documenting the ingestion endpoints
 
 Do not implement yet:
 - RAG
+- Embeddings
 - LangGraph workflows
 - Long-term memory
 - Short-term memory
 - PostgreSQL schema
 - pgvector
-- Document ingestion
 - Frontend
 - Tauri
 - MCP
+- PDF/LaTeX parsing
+- Recursive directory scanning
+- Repository analysis
 - Multi-agent workflows
 - Email/calendar reminders
-- Automatic local file modification
+- Automatic local file modification outside `backend/data`
 
 ---
 

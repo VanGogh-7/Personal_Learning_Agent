@@ -84,6 +84,66 @@ pytest
 Tests do not require a real DeepSeek API key and do not call any
 external API.
 
+## Document Ingestion (MVP)
+
+A minimal ingestion module supporting plain text and Markdown files.
+
+- Character-based text chunking (no LangChain text splitters yet).
+- File loading restricted to `.txt` and `.md` files inside `backend/data`.
+  Paths that escape `backend/data` (e.g. `../.env`) or use unsupported
+  extensions are rejected.
+
+This stage does **not** include RAG, embeddings, vector/database storage,
+or LangGraph — only chunking and safe local file loading.
+
+### Endpoints
+
+**`POST /api/ingestion/chunk-text`**
+
+Request:
+
+```json
+{
+  "text": "...",
+  "chunk_size": 800,
+  "chunk_overlap": 100
+}
+```
+
+Response:
+
+```text
+{
+  "chunks": [ ... ],
+  "total_chunks": 3
+}
+```
+
+**`POST /api/ingestion/load-file`**
+
+Loads a `.txt` or `.md` file by path relative to `backend/data`, then
+chunks its contents.
+
+Request:
+
+```json
+{
+  "file_path": "example.md",
+  "chunk_size": 800,
+  "chunk_overlap": 100
+}
+```
+
+Response:
+
+```json
+{
+  "file_path": "example.md",
+  "chunks": [...],
+  "total_chunks": 3
+}
+```
+
 ## Roadmap (not yet implemented)
 
 - Document ingestion
