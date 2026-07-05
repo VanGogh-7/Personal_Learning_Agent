@@ -1,3 +1,4 @@
+from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
 from app.rag.retrieval import RetrievedChunkResult
 
@@ -9,11 +10,16 @@ ANSWER_SNIPPET_LENGTH = 300
 # and it is truncated defensively before being included in the answer.
 RECENT_QUESTION_SNIPPET_LENGTH = 200
 
+# Bounded: only the single most relevant long-term memory is ever
+# mentioned, and it is truncated defensively before being included.
+LONG_TERM_MEMORY_SNIPPET_LENGTH = 200
+
 
 def generate_answer(
     question: str,
     retrieved_chunks: list[RetrievedChunkResult],
     recent_turns: list[ConversationTurnResult] | None = None,
+    long_term_memories: list[LongTermMemoryResult] | None = None,
 ) -> str:
     """Build a minimal, deterministic extractive answer from retrieved chunks.
 
@@ -24,6 +30,10 @@ def generate_answer(
     app.memory.short_term.get_recent_turns), oldest first; when non-empty,
     the answer deterministically mentions only the single most recent
     prior question (truncated), never the full conversation history.
+    `long_term_memories` is the bounded list of relevant long-term
+    memories (see app.memory.long_term.search_memories); when non-empty,
+    the answer deterministically mentions only the single most relevant
+    memory (truncated), never the full memory list.
     """
     if not retrieved_chunks:
         answer = NO_RESULTS_ANSWER
@@ -43,6 +53,14 @@ def generate_answer(
         answer += (
             " I considered your recent session context, including your "
             f'previous question: "{previous_question}".'
+        )
+
+    if long_term_memories:
+        top_memory = long_term_memories[0]
+        memory_snippet = top_memory.content.strip()[:LONG_TERM_MEMORY_SNIPPET_LENGTH]
+        answer += (
+            f' I also found a relevant long-term memory ({top_memory.memory_type}): '
+            f'"{memory_snippet}".'
         )
 
     return answer

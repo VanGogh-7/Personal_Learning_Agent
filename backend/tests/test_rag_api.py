@@ -66,7 +66,11 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
     assert data["total_retrieved"] == 1
     assert len(data["retrieved_chunks"]) == 1
     assert isinstance(data["session_id"], str) and data["session_id"]
-    assert data["memory"] == {"used_recent_turns": 0, "saved_current_turn": True}
+    assert data["memory"] == {
+        "used_recent_turns": 0,
+        "saved_current_turn": True,
+        "used_long_term_memories": 0,
+    }
 
     returned_chunk = data["retrieved_chunks"][0]
     assert returned_chunk["chunk_id"] == str(chunk.chunk_id)

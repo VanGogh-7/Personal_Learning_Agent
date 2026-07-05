@@ -8,6 +8,7 @@ class RagQueryRequest(BaseModel):
     question: str
     top_k: int = 5
     session_id: str | None = None
+    include_long_term_memory: bool = False
 
     @field_validator("question")
     @classmethod
@@ -45,6 +46,7 @@ class RetrievedChunk(BaseModel):
 class MemoryMetadata(BaseModel):
     used_recent_turns: int
     saved_current_turn: bool
+    used_long_term_memories: int = 0
 
 
 class RagQueryResponse(BaseModel):

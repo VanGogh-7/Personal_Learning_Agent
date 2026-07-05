@@ -2,7 +2,14 @@ from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
 from app.embeddings.base import EMBEDDING_DIMENSION
-from app.models import AgentRun, ConversationTurn, Document, DocumentChunk, LearningSource
+from app.models import (
+    AgentRun,
+    ConversationTurn,
+    Document,
+    DocumentChunk,
+    LearningSource,
+    LongTermMemory,
+)
 
 
 def test_all_models_registered_on_metadata() -> None:
@@ -12,6 +19,7 @@ def test_all_models_registered_on_metadata() -> None:
         "document_chunks",
         "agent_runs",
         "conversation_turns",
+        "long_term_memories",
     }
 
 
@@ -94,6 +102,32 @@ def test_conversation_turn_columns_and_constraints() -> None:
 
     index_names = {index.name for index in table.indexes}
     assert "ix_conversation_turns_session_id" in index_names
+
+
+def test_long_term_memory_columns_and_constraints() -> None:
+    table = LongTermMemory.__table__
+
+    assert set(table.columns.keys()) == {
+        "id", "memory_type", "content", "importance", "source", "tags",
+        "metadata_json", "last_accessed_at", "created_at", "updated_at",
+    }
+    assert not table.c.memory_type.nullable
+    assert not table.c.content.nullable
+    assert not table.c.importance.nullable
+    assert table.c.source.nullable
+    assert table.c.tags.nullable
+    assert table.c.metadata_json.nullable
+    assert table.c.last_accessed_at.nullable
+
+    constraint_names = {c.name for c in table.constraints if c.name}
+    assert "ck_long_term_memories_memory_type_non_empty" in constraint_names
+    assert "ck_long_term_memories_content_non_empty" in constraint_names
+    assert "ck_long_term_memories_importance_range" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_long_term_memories_memory_type" in index_names
+    assert "ix_long_term_memories_importance" in index_names
+    assert "ix_long_term_memories_created_at" in index_names
 
 
 def test_agent_run_columns() -> None:

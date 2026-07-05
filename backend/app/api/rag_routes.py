@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.memory.long_term import DEFAULT_CONTEXT_MEMORY_COUNT, search_memories
 from app.memory.short_term import (
     DEFAULT_RECENT_TURNS_LIMIT,
     create_session_id,
@@ -24,13 +25,23 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    long_term_memories: list = []
     try:
         try:
             retrieved = retrieve_relevant_chunks(db_session, request.question, top_k=request.top_k)
             recent_turns = get_recent_turns(
                 db_session, session_id, limit=DEFAULT_RECENT_TURNS_LIMIT
             )
-            answer = generate_answer(request.question, retrieved, recent_turns=recent_turns)
+            if request.include_long_term_memory:
+                long_term_memories = search_memories(
+                    db_session, keyword=request.question, limit=DEFAULT_CONTEXT_MEMORY_COUNT
+                )
+            answer = generate_answer(
+                request.question,
+                retrieved,
+                recent_turns=recent_turns,
+                long_term_memories=long_term_memories,
+            )
             save_turn(db_session, session_id, request.question, answer)
             db_session.commit()
         except SQLAlchemyError as exc:
@@ -61,5 +72,6 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
         memory=MemoryMetadata(
             used_recent_turns=len(recent_turns),
             saved_current_turn=True,
+            used_long_term_memories=len(long_term_memories),
         ),
     )

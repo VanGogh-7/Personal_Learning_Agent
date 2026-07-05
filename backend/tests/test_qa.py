@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
 from app.rag.qa import NO_RESULTS_ANSWER, generate_answer
 from app.rag.retrieval import RetrievedChunkResult
@@ -26,6 +27,19 @@ def _make_turn(question: str, answer: str = "some prior answer") -> Conversation
         question=question,
         answer=answer,
         created_at=datetime.now(timezone.utc),
+    )
+
+
+def _make_long_term_memory(memory_type: str, content: str) -> LongTermMemoryResult:
+    return LongTermMemoryResult(
+        memory_id=uuid.uuid4(),
+        memory_type=memory_type,
+        content=content,
+        importance=3,
+        source="manual",
+        tags=None,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
 
@@ -108,3 +122,56 @@ def test_recent_question_is_truncated_defensively() -> None:
 
     assert very_long_question not in answer
     assert "x" * 200 in answer
+
+
+def test_answer_includes_top_long_term_memory_when_present() -> None:
+    chunk = _make_chunk("Some content.")
+    memory = _make_long_term_memory("learning_goal", "Learn algebraic topology.")
+
+    with_memory = generate_answer("question", [chunk], long_term_memories=[memory])
+    without_memory = generate_answer("question", [chunk], long_term_memories=[])
+
+    assert "long-term memory" in with_memory
+    assert "Learn algebraic topology." in with_memory
+    assert "learning_goal" in with_memory
+    assert "long-term memory" not in without_memory
+    assert without_memory in with_memory
+
+
+def test_answer_only_mentions_the_single_top_long_term_memory() -> None:
+    chunk = _make_chunk("Some content.")
+    top_memory = _make_long_term_memory("fact", "The most relevant memory.")
+    other_memory = _make_long_term_memory("fact", "A less relevant memory.")
+
+    answer = generate_answer(
+        "question", [chunk], long_term_memories=[top_memory, other_memory]
+    )
+
+    assert "The most relevant memory." in answer
+    assert "A less relevant memory." not in answer
+
+
+def test_long_term_memory_content_is_truncated_defensively() -> None:
+    chunk = _make_chunk("Some content.")
+    very_long_content = "y" * 500
+    memory = _make_long_term_memory("fact", very_long_content)
+
+    answer = generate_answer("question", [chunk], long_term_memories=[memory])
+
+    assert very_long_content not in answer
+    assert "y" * 200 in answer
+
+
+def test_answer_can_include_both_recent_turns_and_long_term_memory() -> None:
+    chunk = _make_chunk("Some content.")
+    prior_turn = _make_turn("Earlier question")
+    memory = _make_long_term_memory("fact", "A relevant fact.")
+
+    answer = generate_answer(
+        "question", [chunk], recent_turns=[prior_turn], long_term_memories=[memory]
+    )
+
+    assert "recent session context" in answer
+    assert "Earlier question" in answer
+    assert "long-term memory" in answer
+    assert "A relevant fact." in answer

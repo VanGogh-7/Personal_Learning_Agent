@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 6: Short-term Memory MVP.
+Stage 7: Long-term Memory MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -19,13 +19,17 @@ Stage 6: Short-term Memory MVP.
 - Minimal RAG Q&A: question → mock embedding → pgvector similarity search
   → simple deterministic extractive answer (Stage 5, completed)
 - Short-term memory: bounded per-session conversation turns, used as
-  simple deterministic context for the RAG answer (Stage 6, current)
+  simple deterministic context for the RAG answer (Stage 6, completed)
+- Long-term memory: manually created memories, listable and
+  keyword-searchable, optionally used as bounded deterministic RAG
+  context (Stage 7, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
-production LLM answer generation, long-term memory, LangGraph workflows,
-and the frontend (Tauri + React) are planned but **not implemented
-yet**. See [Short-term Memory (Stage 6)](#short-term-memory-stage-6)
-below for what Stage 6 actually adds.
+production LLM answer generation, semantic/vector search over long-term
+memory, LangGraph workflows, and the frontend (Tauri + React) are
+planned but **not implemented yet**. See
+[Long-term Memory (Stage 7)](#long-term-memory-stage-7) below for what
+Stage 7 actually adds.
 
 ## Setup
 
@@ -109,9 +113,11 @@ model metadata; they do not require a live PostgreSQL connection. The
 RAG tests (`test_rag_schemas.py`, `test_qa.py`, `test_retrieval.py`,
 `test_rag_api.py`) monkeypatch the vector search and database session,
 so they also run without a live PostgreSQL connection. The memory tests
-(`test_memory_service.py`, `test_rag_memory_integration.py`) exercise
-real SQLAlchemy query logic against a throwaway in-memory SQLite
-database (not the project's real PostgreSQL database).
+(`test_memory_service.py`, `test_rag_memory_integration.py`,
+`test_memory_long_term_service.py`, `test_memory_long_term_api.py`,
+`test_rag_long_term_memory_integration.py`) exercise real SQLAlchemy
+query logic against a throwaway in-memory SQLite database (not the
+project's real PostgreSQL database).
 
 ## Database (PostgreSQL) — Stage 3
 
@@ -219,21 +225,99 @@ retrieved chunks, `session_id`, and memory metadata.
   generated and returned; if provided, it is reused so the same session
   builds up conversation history over subsequent calls
 
-### Endpoint
+Stage 6 is **short-term memory only** — bounded, per-session, in
+PostgreSQL. See [Long-term Memory (Stage 7)](#long-term-memory-stage-7)
+below for the current `POST /api/rag/query` endpoint contract, which
+extends this with optional long-term memory context.
 
-**`POST /api/rag/query`**
+## Long-term Memory (Stage 7)
+
+Stage 7 adds a minimal long-term memory MVP: memories are created
+**manually only** (no automatic extraction, no promotion from
+short-term memory), stored in PostgreSQL, listable/searchable by type,
+importance, and keyword, and optionally usable as a small bounded
+deterministic context in RAG answers.
+
+- Model (`backend/app/models/long_term_memory.py`) and migration
+  (`backend/alembic/versions/4fe6d409baff_add_long_term_memories_table.py`):
+  a `long_term_memories` table (`memory_type`, `content`, `importance`
+  1–5, `source`, `tags`, `metadata_json`, `last_accessed_at`,
+  `created_at`, `updated_at`), indexed on `memory_type`, `importance`,
+  and `created_at`. No vector columns, no semantic/embedding search.
+- Memory service (`backend/app/memory/long_term.py`): `create_memory`,
+  `get_memory`, `list_memories` (filter by type/importance, bounded
+  limit), `search_memories` (simple case-insensitive `ILIKE` keyword
+  match, not vector search), and `build_long_term_memory_context`
+  (deterministic, bounded to a few memories, no LLM summarization, no
+  external API calls)
+
+### Endpoints
+
+**`POST /api/memory/long-term`** — manually create a memory
 
 Request:
 
 ```json
 {
-  "question": "What did I ask before?",
-  "top_k": 5,
-  "session_id": "optional-existing-session-id"
+  "memory_type": "learning_goal",
+  "content": "I want to learn algebraic topology after finishing point-set topology.",
+  "importance": 4,
+  "source": "manual",
+  "tags": ["math", "topology"]
 }
 ```
 
 Response:
+
+```text
+{
+  "id": "...",
+  "memory_type": "learning_goal",
+  "content": "...",
+  "importance": 4,
+  "source": "manual",
+  "tags": ["math", "topology"],
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+**`GET /api/memory/long-term`** — list memories
+
+Query params: `memory_type` (optional), `min_importance` (optional,
+1–5), `limit` (optional, default 20, 1–50).
+
+```text
+{ "memories": [ ... ], "total": 3 }
+```
+
+**`GET /api/memory/long-term/search`** — keyword search
+
+Query params: `keyword` (required, non-empty), `memory_type`
+(optional), `min_importance` (optional, 1–5), `limit` (optional,
+default 20, 1–50).
+
+```text
+{ "memories": [ ... ], "total": 2 }
+```
+
+Only create/list/search are provided — no update/delete endpoints in
+Stage 7.
+
+### RAG integration
+
+`POST /api/rag/query` gained an optional `include_long_term_memory`
+field (default `false`, so existing behavior is unchanged unless a
+caller opts in):
+
+```json
+{
+  "question": "What did I ask before?",
+  "top_k": 5,
+  "session_id": "optional-existing-session-id",
+  "include_long_term_memory": false
+}
+```
 
 ```text
 {
@@ -254,22 +338,28 @@ Response:
   "session_id": "generated-or-existing-session-id",
   "memory": {
     "used_recent_turns": 2,
-    "saved_current_turn": true
+    "saved_current_turn": true,
+    "used_long_term_memories": 1
   }
 }
 ```
 
-`score` is the raw pgvector L2 distance between the question embedding
-and the chunk embedding (lower means more similar). `memory` reports how
-many recent turns were used as context and confirms the current turn was
-saved.
+When `include_long_term_memory` is `true`, a small bounded keyword
+search (using the question text itself) runs against long-term memory
+content; if a match is found, the deterministic answer gains one short
+extra line naming the single most relevant memory (truncated) — never
+the full memory list. `score` is the raw pgvector L2 distance between
+the question embedding and the chunk embedding (lower means more
+similar). `memory` reports how many recent turns and long-term memories
+were used as context, and confirms the current turn was saved.
 
-Stage 6 is **short-term memory only** — bounded, per-session, in
-PostgreSQL. It does **not** include long-term memory, semantic memory,
-user profile memory, cross-session memory retrieval, LangGraph, agent
-planning, tool calling, real embedding providers, production LLM answer
-generation, frontend, Tauri, MCP, PDF/LaTeX/DOCX parsing, or repository
-analysis. Those remain planned for later stages.
+Stage 7 is **manual long-term memory only**. It does **not** include
+automatic memory extraction, automatic promotion from short-term
+memory, semantic memory embeddings, long-term memory vector search,
+memory decay/reflection, LangGraph, agent planning, tool calling, real
+embedding providers, production LLM answer generation, frontend, Tauri,
+MCP, PDF/LaTeX/DOCX parsing, or repository analysis. Those remain
+planned for later stages.
 
 ## Document Ingestion (MVP)
 
@@ -334,7 +424,8 @@ Response:
 ## Roadmap (not yet implemented)
 
 - Real embedding provider integration and full RAG Q&A quality
-- Long-term memory
+- Automatic memory extraction and short-term → long-term promotion
+- Semantic memory embeddings and long-term memory vector search
 - Learning progress tracking
 - Study plan generation
 - LangGraph-based agent workflows
