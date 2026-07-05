@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Default desktop window capability with no filesystem, shell, or HTTP plugin permissions.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

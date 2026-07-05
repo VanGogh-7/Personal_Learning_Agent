@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 7: Long-term Memory MVP.
+Stage 8: Tauri + React Frontend MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -22,14 +22,18 @@ Stage 7: Long-term Memory MVP.
   simple deterministic context for the RAG answer (Stage 6, completed)
 - Long-term memory: manually created memories, listable and
   keyword-searchable, optionally used as bounded deterministic RAG
-  context (Stage 7, current)
+  context (Stage 7, completed)
+- Minimal Tauri + React + TypeScript frontend shell that calls the
+  independently running local FastAPI backend for health/status, RAG
+  query, and long-term memory create/list/search (Stage 8, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
-memory, LangGraph workflows, and the frontend (Tauri + React) are
-planned but **not implemented yet**. See
-[Long-term Memory (Stage 7)](#long-term-memory-stage-7) below for what
-Stage 7 actually adds.
+memory, LangGraph workflows, MCP, backend auto-start from Tauri,
+complex Rust backend logic, document parsing UI, repository analysis,
+and production packaging are planned but **not implemented yet**. See
+[Frontend (Stage 8)](#frontend-stage-8) below for what Stage 8 actually
+adds.
 
 ## Setup
 
@@ -100,6 +104,32 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 
 - `GET /health` → `{"status": "ok"}`
 - `GET /api/status` → app name, environment, and version
+
+For Stage 8 frontend development, CORS is explicitly allowed only for
+local dev origins:
+
+- `http://localhost:1420`
+- `http://127.0.0.1:1420`
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+
+The backend remains independently started; the desktop shell does not
+auto-start FastAPI.
+
+## Running the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run tauri dev
+```
+
+Build the React frontend with:
+
+```bash
+npm run build
+```
 
 ## Running Tests
 
@@ -361,6 +391,53 @@ embedding providers, production LLM answer generation, frontend, Tauri,
 MCP, PDF/LaTeX/DOCX parsing, or repository analysis. Those remain
 planned for later stages.
 
+## Frontend (Stage 8)
+
+Stage 8 adds a minimal Tauri + React + TypeScript frontend shell in
+`frontend/`. It proves the desktop/web UI can call the existing FastAPI
+backend on `127.0.0.1:8081` while keeping the backend independently
+started.
+
+Current frontend features:
+
+- Backend health/status check using `GET /health` and `GET /api/status`
+- RAG query form using `POST /api/rag/query`
+- Long-term memory create form using `POST /api/memory/long-term`
+- Long-term memory list/search using `GET /api/memory/long-term` and
+  `GET /api/memory/long-term/search`
+- Simple React hook state, validation, loading states, and error
+  messages
+
+Backend command:
+
+```bash
+conda activate pla
+cd backend
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
+```
+
+Frontend commands:
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run tauri dev
+npm run build
+```
+
+Stage 8 limitations:
+
+- Does not auto-start the backend from Tauri
+- No MCP
+- No LangGraph
+- No real embedding provider integration
+- No complex Rust local backend logic
+- No PDF/LaTeX/DOCX parsing
+- No document ingestion UI
+- No repository analysis
+- No production packaging workflow yet
+
 ## Document Ingestion (MVP)
 
 A minimal ingestion module supporting plain text and Markdown files.
@@ -423,10 +500,13 @@ Response:
 
 ## Roadmap (not yet implemented)
 
+- Backend/frontend integration polish
+- Document ingestion UI
 - Real embedding provider integration and full RAG Q&A quality
 - Automatic memory extraction and short-term → long-term promotion
 - Semantic memory embeddings and long-term memory vector search
 - Learning progress tracking
 - Study plan generation
 - LangGraph-based agent workflows
-- Tauri + React desktop UI
+- MCP integration
+- Packaging/distribution

@@ -22,8 +22,9 @@ Stage 3: PostgreSQL schema — completed.
 Stage 4: Embedding + pgvector MVP — completed.
 Stage 5: Minimal RAG Q&A MVP — completed.
 Stage 6: Short-term Memory MVP — completed.
+Stage 7: Long-term Memory MVP — completed.
 
-Current active stage: Stage 7: Long-term Memory MVP.
+Current active stage: Stage 8: Tauri + React Frontend MVP.
 
 Do not implement the full product at once.
 
@@ -36,8 +37,8 @@ Project stage roadmap:
 4. Embedding + pgvector — completed
 5. Minimal RAG Q&A — completed
 6. Short-term memory — completed
-7. Long-term memory — current
-8. Tauri + React frontend
+7. Long-term memory — completed
+8. Tauri + React frontend — current
 
 ---
 
@@ -74,61 +75,37 @@ context was considered, the current turn is saved afterward, and the
 response includes `session_id` plus memory metadata, via
 `backend/app/memory/short_term.py`.
 
-The current goal (Stage 7) is a minimal long-term memory MVP only:
-memories are created **manually** through a small service/API, stored
-in PostgreSQL, listable/searchable by type, importance, and keyword, and
-optionally usable as a small bounded deterministic context in RAG
-answers.
+Stage 7 (completed): a minimal long-term memory MVP — memories are
+created **manually** through a small service/API, stored in PostgreSQL,
+listable/searchable by type, importance, and keyword, and optionally
+usable as small bounded deterministic context in RAG answers.
+
+The current goal (Stage 8) is a minimal Tauri + React frontend MVP only:
+add a small TypeScript/Vite UI under `frontend/` that calls the existing
+FastAPI backend on `127.0.0.1:8081` for health/status, RAG query, and
+long-term memory create/list/search. The backend remains independently
+started on port `8081`.
 
 Allowed in the current stage:
-- A `long_term_memories` table and Alembic migration (`memory_type`,
-  `content`, `importance` 1–5, `source`, `tags`, `metadata_json`,
-  `last_accessed_at`, `created_at`, `updated_at`; indexed on
-  `memory_type`, `importance`, `created_at`) — no vector columns
-- A long-term memory service (`backend/app/memory/long_term.py`):
-  `create_memory`, `get_memory`, `list_memories`, `search_memories`
-  (simple case-insensitive `ILIKE` keyword match, not vector search),
-  `build_long_term_memory_context` (deterministic, bounded to a few
-  memories, no LLM summarization, no external API calls)
-- `POST /api/memory/long-term`, `GET /api/memory/long-term`,
-  `GET /api/memory/long-term/search` — create/list/search only, no
-  update/delete endpoints
-- Optional `include_long_term_memory` (default `false`) on
-  `RagQueryRequest`; when `true`, a small bounded keyword search against
-  long-term memory content feeds into the deterministic answer;
-  `MemoryMetadata` extended with `used_long_term_memories`
-- Tests for schemas, the memory service, the API endpoints, and the
-  optional RAG integration (mocking vector search, using a throwaway
-  in-memory SQLite database instead of the real PostgreSQL database)
-- README/CLAUDE.md updates documenting Stage 7 status
+- Minimal Tauri + React + TypeScript/Vite frontend shell
+- A small fetch-based API client using `http://127.0.0.1:8081`
+- UI sections for backend health/status, RAG query, long-term memory
+  create, and long-term memory list/search
+- Simple React hook state, frontend validation, loading states, and
+  error states
+- Explicit local-development CORS origins if needed for browser/Tauri
+  frontend calls
+- README/CLAUDE.md updates documenting Stage 8 status
 
-Do not implement yet (Stage 7 must not include):
-- Automatic memory extraction
-- Automatic promotion from short-term memory to long-term memory
-- Semantic memory embeddings
-- Long-term memory vector search
-- Memory decay or memory reflection
-- User profile memory
-- Complex memory graph tables
-- LangGraph workflows
-- Agent planning or tool calling
-- Real embedding provider integration (DeepSeek, OpenAI, or otherwise)
-- Production LLM answer generation
-- Frontend
-- Tauri
+Do not implement in Stage 8:
 - MCP
-- PDF parsing
-- LaTeX parsing
-- DOCX parsing
-- Recursive directory scanning
+- LangGraph
+- Real embedding providers
+- Backend auto-start from Tauri
+- Complex Rust local backend logic
+- PDF/LaTeX/DOCX parsing
 - Repository analysis
-- Multi-agent workflows
-- Email/calendar reminders
-- Automatic local file modification outside `backend/data`
-- Background jobs, reranking, hybrid search, or complex prompt management
-- Redis or a message queue
-- Running migrations automatically from application startup
-- Destructive SQL, or dropping existing tables manually
+- Production packaging
 
 ---
 
@@ -155,11 +132,15 @@ Backend:
   only, deterministic bounded context only; no embeddings/vector search,
   no automatic extraction or promotion
 
+Frontend:
+- Tauri + React + TypeScript + Vite frontend shell (`frontend/`)
+- Fetch-based local API client for `http://127.0.0.1:8081`
+- No backend auto-start, no Rust backend API, no Tauri filesystem APIs
+
 Planned later:
 - LangGraph
 - Real embedding provider integration and production-quality RAG Q&A
 - Semantic memory embeddings and long-term memory vector search
-- Tauri + React
 - Rust local backend
 - MCP integration
 
