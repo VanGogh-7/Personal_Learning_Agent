@@ -28,8 +28,9 @@ Stage 9: Backend/Frontend Integration Polish — completed.
 Stage 10: Book Library MVP — completed.
 Stage 11: Open Local Files from Desktop App — completed.
 Stage 12: Frontend Layout Redesign MVP — completed.
+Stage 13: Library Detail Page / Panel MVP — completed.
 
-Current active stage: Stage 13: Library Detail Page / Panel MVP.
+Current active stage: Stage 14: Library Indexing MVP.
 
 Do not implement the full product at once.
 
@@ -48,7 +49,8 @@ Project stage roadmap:
 10. Book Library MVP — completed
 11. Open local files from desktop app — completed
 12. Frontend layout redesign — completed
-13. Library detail page/panel — current
+13. Library detail page/panel — completed
+14. Library indexing MVP — current
 
 ---
 
@@ -115,27 +117,30 @@ Stage 12 (completed): frontend layout redesign MVP. The single long
 page was refactored into a calm three-page desktop workspace with
 sidebar navigation for Chat, Library, and Notes.
 
-The current goal (Stage 13) is a Library detail page/panel MVP. The
-Library page should allow selecting a library item and viewing all key
-metadata in a structured detail area, with simple edit metadata support
-if it fits the existing frontend code.
+Stage 13 (completed): Library detail page/panel MVP. The Library page
+can select a library item, view all key metadata in a structured detail
+area, edit metadata, choose local files, and open local files externally.
+
+The current goal (Stage 14) is Library Indexing MVP. The user can
+manually index a registered Library item that points to a `.txt` or
+`.md` local file. The backend reads that selected local file path,
+chunks text, generates deterministic mock embeddings, persists
+document chunks with pgvector embeddings, associates the document to
+the Library item, and marks the item indexed.
 
 Allowed in the current stage:
-- Library item selection from list/search results
-- A detail panel or detail section for the selected item
-- Display of id, title, author, description, `file_path`, `file_type`,
-  topic tags, status, created_at, and updated_at
-- Existing local file open behavior from the detail panel
-- Simple edit-in-detail behavior using the existing update API
-- A small Tauri file picker for populating Library `file_path` metadata
-  in the create/edit form
-- Static placeholders for summary, indexing, related notes, and
-  book-scoped chat
-- README/CLAUDE.md updates documenting Stage 13
+- Add nullable `documents.library_item_id` relationship if needed
+- Add `POST /api/library/items/{item_id}/index`
+- Support `.txt` and `.md` files only
+- Validate missing path, nonexistent path, directory path, unsupported
+  type, and UTF-8 decoding errors
+- Reuse existing chunking, mock embedding, document chunk, and vector
+  persistence model code
+- Replace chunks on re-indexing instead of accumulating duplicates
+- Add an `Index File` button in the Library detail panel
+- README/CLAUDE.md updates documenting Stage 14
 
-Do not implement in Stage 13:
-- New backend API endpoints
-- Database migrations
+Do not implement in Stage 14:
 - PDF parsing
 - PDF preview
 - Internal PDF viewer
@@ -145,17 +150,22 @@ Do not implement in Stage 13:
 - LaTeX parsing
 - File upload
 - Drag-and-drop upload
+- Batch import
+- Folder import
+- Automatic background indexing
 - Automatic metadata extraction
 - Automatic book summary generation
-- Document ingestion from library item
-- Automatic book indexing
-- Embedding generation
-- Indexing pipeline
-- pgvector search for library items
+- Queue system
+- Redis
+- Celery/RQ
+- Real embedding provider
+- OpenAI/DeepSeek embedding calls
 - Book-scoped RAG
 - Chat with this Book actual functionality
 - Related notes actual functionality
+- Real LLM summary generation
 - Notes CRUD
+- Notes generation
 - LaTeX generation
 - LaTeX compilation
 - VS Code integration
@@ -208,8 +218,11 @@ Frontend:
   parse, upload, copy, or read file contents
 - Library file picker may populate `file_path` and infer `file_type`,
   but must not read, upload, copy, parse, ingest, or validate files
-- Stage 13 Library detail placeholders are static UI only; they do not
-  call summary, indexing, notes, or book-scoped chat APIs
+- Stage 14 indexing reads `.txt` and `.md` library item paths on the
+  backend only after the user clicks `Index File`
+- Stage 14 uses deterministic mock embeddings only; no real embedding
+  provider or LLM API calls
+- Book-scoped RAG and Library summaries remain unimplemented
 
 Planned later:
 - LangGraph

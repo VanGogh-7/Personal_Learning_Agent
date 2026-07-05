@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 DEFAULT_LIBRARY_STATUS = "registered"
 
@@ -101,3 +101,13 @@ class LibraryItemRead(BaseModel):
 class LibraryItemListResponse(BaseModel):
     items: list[LibraryItemRead]
     total: int
+
+
+class LibraryItemIndexResponse(BaseModel):
+    item_id: str
+    document_id: str | None
+    status: str
+    chunks_created: int
+    embeddings_created: int
+    message: str
+    supported_file_types: list[str] = Field(default_factory=lambda: ["txt", "md"])

@@ -1,5 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
-import type { LibraryItem, UpdateLibraryItemPayload } from "../../api/types";
+import type {
+  LibraryItem,
+  LibraryItemIndexResponse,
+  UpdateLibraryItemPayload,
+} from "../../api/types";
 
 type DetailFormState = {
   title: string;
@@ -14,15 +18,23 @@ type DetailFormState = {
 export default function LibraryItemDetail({
   item,
   opening,
+  indexing,
   saving,
+  indexResult,
+  indexError,
   onEdit,
+  onIndex,
   onOpen,
   onSave,
 }: {
   item: LibraryItem | null;
   opening: boolean;
+  indexing: boolean;
   saving: boolean;
+  indexResult: LibraryItemIndexResponse | null;
+  indexError: string | null;
   onEdit: (item: LibraryItem) => void;
+  onIndex: (item: LibraryItem) => void;
   onOpen: (item: LibraryItem) => void;
   onSave: (itemId: string, payload: UpdateLibraryItemPayload) => Promise<void>;
 }) {
@@ -199,10 +211,26 @@ export default function LibraryItemDetail({
                 <button type="button" disabled={opening} onClick={() => onOpen(item)}>
                   {opening ? "Opening..." : "Open File"}
                 </button>
+                <button type="button" disabled={indexing} onClick={() => onIndex(item)}>
+                  {indexing ? "Indexing..." : "Index File"}
+                </button>
               </div>
             ) : (
               <p className="empty-state">No local file path registered.</p>
             )}
+            <p className="field-help">Indexing currently supports .txt and .md files only.</p>
+            {isPdfLike(item) && (
+              <p className="field-help">
+                PDF files can be opened, but PDF indexing is not supported yet.
+              </p>
+            )}
+            {indexResult && indexResult.item_id === item.id && (
+              <p className="success">
+                {indexResult.message} Chunks: {indexResult.chunks_created}; embeddings:{" "}
+                {indexResult.embeddings_created}.
+              </p>
+            )}
+            {indexError && <p className="error compact-error">{indexError}</p>}
           </div>
 
           <div className="button-row">
@@ -220,7 +248,7 @@ export default function LibraryItemDetail({
         <Placeholder title="Summary" text="Coming later: automatic summary after indexing." />
         <Placeholder
           title="Indexing"
-          text="Coming later: document ingestion, chunking, embeddings, and index status."
+          text="Available for .txt and .md files. PDF parsing and background indexing come later."
         />
         <Placeholder title="Related Notes" text="Coming later: notes connected to this book." />
         <Placeholder
@@ -288,4 +316,10 @@ function emptyToNull(value: string): string | null {
 function formatDate(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function isPdfLike(item: LibraryItem): boolean {
+  const fileType = item.file_type?.trim().toLowerCase().replace(/^\./, "");
+  const path = item.file_path?.trim().toLowerCase() || "";
+  return fileType === "pdf" || path.endsWith(".pdf");
 }

@@ -43,15 +43,22 @@ def test_document_columns_and_foreign_key() -> None:
     table = Document.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "source_id", "title", "file_path", "file_type", "content_hash",
-        "created_at", "updated_at",
+        "id", "source_id", "library_item_id", "title", "file_path", "file_type",
+        "content_hash", "created_at", "updated_at",
     }
     assert not table.c.title.nullable
     assert not table.c.file_type.nullable
     assert table.c.source_id.nullable
+    assert table.c.library_item_id.nullable
 
     fk_targets = {fk.target_fullname for fk in table.c.source_id.foreign_keys}
     assert fk_targets == {"learning_sources.id"}
+
+    library_fk_targets = {fk.target_fullname for fk in table.c.library_item_id.foreign_keys}
+    assert library_fk_targets == {"library_items.id"}
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_documents_library_item_id" in index_names
 
 
 def test_document_chunk_columns_constraints_and_foreign_key() -> None:

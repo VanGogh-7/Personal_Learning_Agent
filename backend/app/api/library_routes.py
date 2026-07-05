@@ -4,7 +4,18 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
-from app.library.schemas import LibraryItemCreate, LibraryItemListResponse, LibraryItemRead, LibraryItemUpdate
+from app.library.indexing import (
+    LibraryIndexResult,
+    LibraryIndexingError,
+    index_library_item,
+)
+from app.library.schemas import (
+    LibraryItemCreate,
+    LibraryItemIndexResponse,
+    LibraryItemListResponse,
+    LibraryItemRead,
+    LibraryItemUpdate,
+)
 from app.library.service import (
     DEFAULT_LIST_LIMIT,
     MAX_LIST_LIMIT,
@@ -33,6 +44,17 @@ def _to_response(item: LibraryItemResult) -> LibraryItemRead:
         status=item.status,
         created_at=item.created_at,
         updated_at=item.updated_at,
+    )
+
+
+def _to_index_response(result: LibraryIndexResult) -> LibraryItemIndexResponse:
+    return LibraryItemIndexResponse(
+        item_id=str(result.item_id),
+        document_id=str(result.document_id) if result.document_id else None,
+        status=result.status,
+        chunks_created=result.chunks_created,
+        embeddings_created=result.embeddings_created,
+        message=result.message,
     )
 
 
@@ -66,6 +88,34 @@ def create_library_item_endpoint(request: LibraryItemCreate) -> LibraryItemRead:
         session.close()
 
     return _to_response(item)
+
+
+@router.post("/items/{item_id}/index", response_model=LibraryItemIndexResponse)
+def index_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemIndexResponse:
+    try:
+        session = get_db_session()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    try:
+        try:
+            result = index_library_item(session, item_id)
+            if result is None:
+                session.rollback()
+                raise HTTPException(status_code=404, detail="Library item not found")
+            session.commit()
+        except HTTPException:
+            raise
+        except LibraryIndexingError as exc:
+            session.commit()
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except SQLAlchemyError as exc:
+            session.rollback()
+            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+    finally:
+        session.close()
+
+    return _to_index_response(result)
 
 
 @router.get("/items", response_model=LibraryItemListResponse)

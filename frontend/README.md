@@ -1,7 +1,7 @@
 # Personal Learning Agent Frontend
 
-Stage 13 adds a focused Library item detail panel to the three-page
-desktop workspace. The FastAPI backend must be started separately on
+Stage 14 adds manually triggered Library indexing for `.txt` and `.md`
+files. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -69,6 +69,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library item selection and detail metadata panel
 - Library `Choose File` button in Tauri to fill `file_path` metadata
 - Library `Open` button in Tauri for local `file_path` values
+- Library `Index File` button for `.txt` and `.md` files
 - Notes page placeholder for a future LaTeX notes workflow
 
 ## Current Limitations
@@ -79,11 +80,15 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   copy, parse, or ingest the file
 - Opening local files is performed by Tauri, not the backend
 - Local file picking and opening should be tested with `npm run tauri dev`
-- Library detail summary, indexing, related notes, and book chat sections are placeholders only
+- `Open File` opens the file with the system default app; `Index File`
+  asks the backend to read supported text files and create chunks plus
+  deterministic mock embeddings
+- Library indexing currently supports `.txt` and `.md` only
+- PDF parsing and indexing are not supported yet
+- Library detail summary, related notes, and book chat sections are placeholders only
 - Notes page is a placeholder only; it does not create, save, compile, or export notes
 - No internal PDF preview or file upload
-- No automatic document ingestion from library items
-- No automatic book summaries, indexing pipeline, or book-scoped RAG
+- No automatic indexing, real embedding provider, automatic book summary, or book-scoped RAG
 - No MCP
 - No LangGraph
 - No real embedding provider integration

@@ -305,6 +305,18 @@ label {
   padding: 0.75rem 0.9rem;
 }
 
+.success {
+  border-left: 4px solid #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+}
+
+.compact-error {
+  margin: 0;
+}
+
 .empty-state {
   border: 1px dashed #cbd5e1;
   border-radius: 6px;

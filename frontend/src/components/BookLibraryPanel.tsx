@@ -2,12 +2,15 @@ import { FormEvent, useState } from "react";
 import {
   archiveLibraryItem,
   createLibraryItem,
+  getLibraryItem,
+  indexLibraryItem,
   listLibraryItems,
   searchLibraryItems,
   updateLibraryItem,
 } from "../api/client";
 import type {
   LibraryItem,
+  LibraryItemIndexResponse,
   LibraryItemListResponse,
   UpdateLibraryItemPayload,
 } from "../api/types";
@@ -43,6 +46,9 @@ export default function BookLibraryPanel() {
   const [loadingDetailSave, setLoadingDetailSave] = useState(false);
   const [choosingFile, setChoosingFile] = useState(false);
   const [openingItemId, setOpeningItemId] = useState<string | null>(null);
+  const [indexingItemId, setIndexingItemId] = useState<string | null>(null);
+  const [indexResult, setIndexResult] = useState<LibraryItemIndexResponse | null>(null);
+  const [indexError, setIndexError] = useState<string | null>(null);
 
   async function submitItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,6 +153,23 @@ export default function BookLibraryPanel() {
     }
   }
 
+  async function indexItemFile(item: LibraryItem) {
+    setError(null);
+    setIndexError(null);
+    setIndexResult(null);
+    setIndexingItemId(item.id);
+    try {
+      const response = await indexLibraryItem(item.id);
+      setIndexResult(response);
+      const refreshed = await getLibraryItem(item.id);
+      updateItemInState(refreshed);
+    } catch (err) {
+      setIndexError(err instanceof Error ? err.message : "Library item indexing failed.");
+    } finally {
+      setIndexingItemId(null);
+    }
+  }
+
   async function chooseFileForForm() {
     setError(null);
     setChoosingFile(true);
@@ -171,7 +194,7 @@ export default function BookLibraryPanel() {
   }
 
   function startEdit(item: LibraryItem) {
-    setSelectedItem(item);
+    selectItem(item);
     setEditingId(item.id);
     setForm({
       title: item.title,
@@ -184,20 +207,18 @@ export default function BookLibraryPanel() {
     });
   }
 
+  function selectItem(item: LibraryItem) {
+    setSelectedItem(item);
+    setIndexError(null);
+    setIndexResult(null);
+  }
+
   async function saveDetailEdit(itemId: string, payload: UpdateLibraryItemPayload) {
     setError(null);
     setLoadingDetailSave(true);
     try {
       const updated = await updateLibraryItem(itemId, payload);
-      setSelectedItem(updated);
-      setResult((current) =>
-        current
-          ? {
-              ...current,
-              items: current.items.map((item) => (item.id === updated.id ? updated : item)),
-            }
-          : current,
-      );
+      updateItemInState(updated);
       if (editingId === itemId) {
         startEdit(updated);
       }
@@ -207,6 +228,18 @@ export default function BookLibraryPanel() {
     } finally {
       setLoadingDetailSave(false);
     }
+  }
+
+  function updateItemInState(updated: LibraryItem) {
+    setSelectedItem(updated);
+    setResult((current) =>
+      current
+        ? {
+            ...current,
+            items: current.items.map((item) => (item.id === updated.id ? updated : item)),
+          }
+        : current,
+    );
   }
 
   function resetForm() {
@@ -381,7 +414,7 @@ export default function BookLibraryPanel() {
                     item={item}
                     selected={selectedItem?.id === item.id}
                     opening={openingItemId === item.id}
-                    onSelect={setSelectedItem}
+                    onSelect={selectItem}
                     onEdit={startEdit}
                     onOpen={openItemFile}
                     onArchive={archiveItem}
@@ -391,8 +424,12 @@ export default function BookLibraryPanel() {
               <LibraryItemDetail
                 item={selectedItem}
                 opening={selectedItem ? openingItemId === selectedItem.id : false}
+                indexing={selectedItem ? indexingItemId === selectedItem.id : false}
                 saving={loadingDetailSave}
+                indexResult={indexResult}
+                indexError={indexError}
                 onEdit={startEdit}
+                onIndex={indexItemFile}
                 onOpen={openItemFile}
                 onSave={saveDetailEdit}
               />

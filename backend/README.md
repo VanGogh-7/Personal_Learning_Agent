@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 13: Library Detail Page / Panel MVP.
+Stage 14: Library Indexing MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -39,14 +39,17 @@ Stage 13: Library Detail Page / Panel MVP.
   completed)
 - Library Detail Page / Panel MVP: the Library page can select a
   library item and show structured metadata plus future placeholders
-  without adding backend behavior (Stage 13, current)
+  without adding backend behavior (Stage 13, completed)
+- Library Indexing MVP: a supported `.txt` or `.md` library item can be
+  manually indexed into documents, chunks, and deterministic mock
+  embeddings (Stage 14, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-13 is frontend-focused and does not change backend behavior.
+14 supports only manually triggered `.txt` and `.md` Library indexing.
 
 ## Setup
 
@@ -611,6 +614,28 @@ backend file validation, PDF parsing, PDF preview, file upload,
 document ingestion from library items, embeddings, pgvector indexing,
 book-scoped RAG, notes CRUD, LangGraph, MCP, authentication, Docker,
 Redis/queues, or production packaging.
+
+## Library Indexing (Stage 14)
+
+Stage 14 adds `POST /api/library/items/{item_id}/index`. Indexing is
+manual from the Library detail view. It reads the selected local
+`file_path` on the backend, supports only `.txt` and `.md` files,
+chunks UTF-8 text, creates or updates a related `documents` row,
+replaces that document's chunks, generates deterministic mock
+embeddings, stores them on `document_chunks.embedding`, and marks the
+library item `indexed`.
+
+`Open File` and `Index File` are separate operations. `Open File` asks
+Tauri to open the path with the system default app. `Index File` asks
+the backend to read a supported text file and persist chunks plus mock
+embeddings.
+
+PDF parsing, DOCX parsing, LaTeX parsing, OCR, internal PDF preview,
+file upload, drag-and-drop import, batch/folder import, background
+queues, Redis, Celery/RQ, real embedding providers, OpenAI/DeepSeek
+embedding calls, LLM summaries, automatic book summaries, book-scoped
+RAG, notes generation, authentication, Docker, and production packaging
+are not implemented in Stage 14.
 
 ## Document Ingestion (MVP)
 

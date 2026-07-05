@@ -118,3 +118,13 @@ export interface LibraryItemListResponse {
   items: LibraryItem[];
   total: number;
 }
+
+export interface LibraryItemIndexResponse {
+  item_id: string;
+  document_id?: string | null;
+  status: string;
+  chunks_created: number;
+  embeddings_created: number;
+  message: string;
+  supported_file_types: string[];
+}

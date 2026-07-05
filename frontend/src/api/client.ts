@@ -2,6 +2,7 @@ import type {
   CreateLibraryItemPayload,
   HealthResponse,
   LibraryItem,
+  LibraryItemIndexResponse,
   LibraryItemListParams,
   LibraryItemListResponse,
   LongTermMemoryCreateRequest,
@@ -203,6 +204,12 @@ export function updateLibraryItem(
   return requestJson<LibraryItem>(`/api/library/items/${itemId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export function indexLibraryItem(itemId: string): Promise<LibraryItemIndexResponse> {
+  return requestJson<LibraryItemIndexResponse>(`/api/library/items/${itemId}/index`, {
+    method: "POST",
   });
 }
 
