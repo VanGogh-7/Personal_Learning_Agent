@@ -41,8 +41,9 @@ Stage 22: Better Retrieval / Citations / Chunk Metadata — completed.
 Stage 23: Book Summary + Topic Extraction — completed.
 Stage 24: Learning History / Progress Timeline — completed.
 Stage 25: Multi-Book RAG MVP — completed.
+Stage 26: Chat RAG Graph Boundary MVP — completed.
 
-Current active stage: Stage 26: Chat RAG Graph Boundary MVP.
+Current active stage: Stage 27: Agent Chat Frontend Integration MVP.
 
 Do not implement the full product at once.
 
@@ -74,7 +75,8 @@ Project stage roadmap:
 23. Book Summary + Topic Extraction — completed
 24. Learning History / Progress Timeline — completed
 25. Multi-Book RAG MVP — completed
-26. Chat RAG Graph Boundary MVP — current
+26. Chat RAG Graph Boundary MVP — completed
+27. Agent Chat Frontend Integration MVP — current
 
 ---
 
@@ -236,6 +238,14 @@ build_citations -> build_prompt -> generate_answer -> save_memory ->
 record_learning_event -> format_response. This is not an open-ended
 agent system, planner, tool-calling layer, or replacement for existing
 RAG endpoints.
+
+Stage 27 is Agent Chat Frontend Integration MVP. The frontend Chat page
+keeps the existing UI but sends questions to `POST /api/agent/chat`.
+The selected Library context maps to `scope_type`: no selected book is
+`global`, one selected indexed item is `single_book`, and two or more
+selected indexed items are `multi_book`. Citations, retrieved chunks,
+memory metadata, loading/error states, and Chat-to-Notes remain
+compatible. Existing backend RAG endpoints remain available.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -420,30 +430,23 @@ Do not implement in Stage 23:
 - Frontend API-key settings
 - Exposing API keys to the frontend
 
-Allowed in Stage 26:
-- Add `langgraph` to backend dependencies
-- Add `backend/app/graphs/chat_rag_graph.py`
-- Add a small explicit `ChatRAGState`
-- Build a mostly linear LangGraph using `StateGraph`
-- Add graph nodes for validate input, resolve scope, load memory,
-  retrieve chunks, build citations, build prompt, generate answer, save
-  memory, record learning event, and format response
-- Add `POST /api/agent/chat`
-- Add typed `AgentChatRequest` and `AgentChatResponse` schemas
-- Reuse existing global, single-book, and multi-book retrieval services
-- Reuse existing memory services
-- Reuse Stage 22 citation builder
-- Reuse existing RAG prompt helpers and Stage 21 LLM provider boundary
-- Reuse Stage 24 learning event service
-- Record one `agent_chat_question_asked` event per successful graph
-  response
-- Preserve existing RAG endpoints unchanged
-- Keep frontend unchanged unless a minimal API client is explicitly
-  needed
-- Add deterministic tests that do not require API keys or network calls
-- Update README/backend/CODEX documentation
+Allowed in Stage 27:
+- Add frontend API types for `AgentChatRequest` and `AgentChatResponse`
+- Add frontend client function for `POST /api/agent/chat`
+- Update the Chat page query path to use `/api/agent/chat`
+- Map selected Library items to `scope_type`: zero -> `global`, one ->
+  `single_book`, two or more -> `multi_book`
+- Preserve the existing Chat UI layout
+- Preserve global, single-book, and multi-book context selection
+- Preserve answer, citation/source, and retrieved chunk display
+- Preserve loading, error, empty, long-term memory, and session id
+  behavior
+- Preserve Chat-to-Notes compatibility
+- Keep old frontend RAG API functions unless clearly safe to remove
+- Keep existing backend RAG endpoints available
+- Update README/frontend/CODEX documentation
 
-Do not implement in Stage 26:
+Do not implement in Stage 27:
 - Open-ended agent planner
 - Tool calling
 - MCP
@@ -455,30 +458,17 @@ Do not implement in Stage 26:
 - Streaming responses
 - Function calling
 - Frontend settings page
-- Replacing existing RAG endpoints
-- Replacing service-layer logic with graph nodes
-- Graph-based Notes generation
-- Graph-based study sessions
-- Graph-based book summary generation
+- User system
+- Login/register
+- Theme system
+- New graph nodes
+- Graph visualization
+- New RAG algorithm
 - Real embedding provider
-- OpenAI/DeepSeek embedding calls
-- Embedding dimension changes
-- Chunking/indexing pipeline changes
+- Real embeddings
 - Reranking
 - Hybrid search
-- BM25
-- Full-text search
-- Query expansion
 - PDF parsing
-- DOCX parsing
-- LaTeX parsing
-- OCR
-- Knowledge graph
-- Background jobs
-- Redis / Celery / RQ
-- User accounts
-- Authentication
-- Cloud deployment
 - Large UI redesign
 
 ---
@@ -576,6 +566,10 @@ Frontend:
   retrieval, citation, prompt, LLM provider, memory save, and
   learning-event services; it does not add planning, tools, MCP,
   streaming, or autonomous behavior
+- Stage 27 Agent Chat Frontend Integration switches the Chat page query
+  submission to `POST /api/agent/chat` while preserving the existing
+  global, single-book, multi-book, citations, retrieved chunks,
+  long-term memory, session id, and Chat-to-Notes user experience
 
 Planned later:
 - Production-quality agent workflows

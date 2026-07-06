@@ -1,9 +1,10 @@
 # Personal Learning Agent Frontend
 
-Stage 25 adds multi-book RAG in Chat. Users can select multiple indexed
-Library items, ask one question, and receive an answer with citations
-that identify which selected book each source chunk came from. The
-FastAPI backend must be started separately on `http://127.0.0.1:8081`.
+Stage 27 routes Chat questions through the backend Agent Chat graph
+endpoint, `POST /api/agent/chat`, while preserving the existing Chat
+experience. Users can still choose global, one-book, or multi-book RAG
+contexts and receive answers with structured citations. The FastAPI
+backend must be started separately on `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -68,9 +69,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Chat page, opened by default, with global RAG, one-book RAG,
   multi-book RAG, backend status, and long-term memory tools
 - Chat context selector supports zero, one, or many indexed Library
-  items. Zero calls `POST /api/rag/query`, one calls
-  `POST /api/rag/query/library-item`, and two or more call
-  `POST /api/rag/query/library-items`
+  items. Zero sends `scope_type: "global"` to `POST /api/agent/chat`,
+  one sends `scope_type: "single_book"`, and two or more send
+  `scope_type: "multi_book"`
 - Chat page Sources section for structured RAG citations
 - Multi-book citations show source Library item metadata for each chunk
 - Chat page `Create LaTeX Note` action for the latest RAG response
@@ -136,11 +137,13 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Multi-book RAG is a retrieval-scope extension only; there is no
   reranking, hybrid search, BM25, query expansion, streaming, agent
   planner, or real LLM answer generation by default
+- Agent Chat uses the backend LangGraph boundary as orchestration only;
+  there is no tool calling, planner, graph visualization, streaming, or
+  frontend settings UI
 - RAG citations show chunk/document/library metadata only; there is no
   PDF page navigation, source highlighting, internal document preview,
   CSL/BibTeX/Zotero integration, or citation formatting engine
 - No MCP
-- No LangGraph
 - No real embedding provider integration
 - No document ingestion UI or file parsing UI
 - No repository analysis

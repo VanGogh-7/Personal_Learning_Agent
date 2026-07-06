@@ -3,18 +3,15 @@ import {
   createChatNoteDraft,
   createNote,
   listLibraryItems,
-  queryLibraryItemRag,
-  queryMultiBookRag,
-  queryRag,
+  queryAgentChat,
 } from "../api/client";
 import type {
+  AgentChatResponse,
+  AgentChatScopeType,
   ChatNoteDraftResponse,
   LibraryItem,
-  LibraryItemRagQueryResponse,
-  MultiBookRagQueryResponse,
   Note,
   RagCitation,
-  RagQueryResponse,
 } from "../api/types";
 
 export default function RagQueryPanel() {
@@ -24,9 +21,7 @@ export default function RagQueryPanel() {
   const [includeLongTermMemory, setIncludeLongTermMemory] = useState(false);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [selectedLibraryItemIds, setSelectedLibraryItemIds] = useState<string[]>([]);
-  const [result, setResult] = useState<
-    RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse | null
-  >(null);
+  const [result, setResult] = useState<AgentChatResponse | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [noteDraft, setNoteDraft] = useState<ChatNoteDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,22 +78,16 @@ export default function RagQueryPanel() {
     try {
       const payload = {
         question: question.trim(),
+        scope_type: scopeTypeForSelection(selectedLibraryItemIds),
+        library_item_id:
+          selectedLibraryItemIds.length === 1 ? selectedLibraryItemIds[0] : null,
+        library_item_ids:
+          selectedLibraryItemIds.length >= 2 ? selectedLibraryItemIds : [],
         top_k: topK,
         session_id: sessionId.trim() || undefined,
         include_long_term_memory: includeLongTermMemory,
       };
-      const response =
-        selectedLibraryItemIds.length === 0
-          ? await queryRag(payload)
-          : selectedLibraryItemIds.length === 1
-            ? await queryLibraryItemRag({
-                ...payload,
-                library_item_id: selectedLibraryItemIds[0],
-              })
-            : await queryMultiBookRag({
-                ...payload,
-                library_item_ids: selectedLibraryItemIds,
-              });
+      const response = await queryAgentChat(payload);
       setResult(response);
       setLastQuestion(payload.question);
       setSessionId(response.session_id);
@@ -131,7 +120,10 @@ export default function RagQueryPanel() {
           content: chunk.content,
           score: chunk.score,
         })),
-        library_item: isLibraryItemResult(result) ? result.library_item : null,
+        library_item:
+          result.scope_type === "single_book"
+            ? result.selected_library_items[0] || null
+            : null,
         session_id: result.session_id,
       });
       setNoteDraft(draft);
@@ -306,20 +298,22 @@ export default function RagQueryPanel() {
       {result && (
         <div className="response-block">
           <h3>Answer</h3>
-          {isLibraryItemResult(result) && (
+          {result.scope_type === "single_book" && result.selected_library_items[0] && (
             <div className="result-block">
               <h3>Selected Book</h3>
               <p>
-                {result.library_item.title}
-                {result.library_item.author ? ` by ${result.library_item.author}` : ""}
+                {result.selected_library_items[0].title}
+                {result.selected_library_items[0].author
+                  ? ` by ${result.selected_library_items[0].author}`
+                  : ""}
               </p>
               <small>
-                status {result.library_item.status} · type{" "}
-                {result.library_item.file_type || "unknown"}
+                status {result.selected_library_items[0].status} · type{" "}
+                {result.selected_library_items[0].file_type || "unknown"}
               </small>
             </div>
           )}
-          {isMultiBookResult(result) && (
+          {result.scope_type === "multi_book" && result.selected_library_items.length > 0 && (
             <div className="result-block">
               <h3>Selected Books</h3>
               <ul className="plain-list">
@@ -511,14 +505,12 @@ function contextHelp(selectedItems: LibraryItem[]): string {
   return `Multi-book RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
 }
 
-function isLibraryItemResult(
-  result: RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse,
-): result is LibraryItemRagQueryResponse {
-  return "library_item" in result;
-}
-
-function isMultiBookResult(
-  result: RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse,
-): result is MultiBookRagQueryResponse {
-  return "selected_library_items" in result;
+function scopeTypeForSelection(selectedIds: string[]): AgentChatScopeType {
+  if (selectedIds.length === 0) {
+    return "global";
+  }
+  if (selectedIds.length === 1) {
+    return "single_book";
+  }
+  return "multi_book";
 }

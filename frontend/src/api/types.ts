@@ -84,6 +84,19 @@ export interface MultiBookRagQueryResponse extends RagQueryResponse {
   selected_library_items: SelectedLibraryItem[];
 }
 
+export type AgentChatScopeType = "global" | "single_book" | "multi_book";
+
+export interface AgentChatRequest extends RagQueryRequest {
+  scope_type: AgentChatScopeType;
+  library_item_id?: string | null;
+  library_item_ids: string[];
+}
+
+export interface AgentChatResponse extends RagQueryResponse {
+  scope_type: AgentChatScopeType;
+  selected_library_items: SelectedLibraryItem[];
+}
+
 export interface LongTermMemoryCreateRequest {
   memory_type: string;
   content: string;

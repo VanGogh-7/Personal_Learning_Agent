@@ -6,18 +6,18 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 26: Chat RAG Graph Boundary MVP.
+Stage 27: Agent Chat Frontend Integration MVP.
 
-The backend now exposes a minimal LangGraph orchestration boundary for
-the existing Chat RAG workflow:
+The Chat page now sends RAG questions through the LangGraph-backed
+agent chat endpoint while preserving the existing Chat experience:
 
 ```text
-POST /api/agent/chat -> ChatRAGGraph -> existing RAG/memory/citation/LLM/event services
+Chat page -> POST /api/agent/chat -> ChatRAGGraph -> existing RAG services
 ```
 
-LangGraph orchestrates the current services; it does not replace
-retrieval, indexing, citation building, memory, learning events, or the
-LLM provider boundary.
+Global, single-book, and multi-book contexts still work, citations and
+retrieved chunks still display, and Chat-to-Notes remains compatible.
+LangGraph remains orchestration-only.
 
 ## Configuration
 
@@ -42,22 +42,18 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 26 Does
+## What Stage 27 Does
 
-- Adds the `langgraph` backend dependency.
-- Adds `backend/app/graphs/chat_rag_graph.py` with a small linear graph:
-  validate input -> resolve scope -> load memory -> retrieve chunks ->
-  build citations -> build prompt -> generate answer -> save memory ->
-  record learning event -> format response.
-- Adds `POST /api/agent/chat`.
-- Supports `scope_type` values `global`, `single_book`, and
-  `multi_book` while reusing existing retrieval services.
-- Returns an existing-RAG-compatible response with `answer`,
-  `selected_library_items`, retrieved chunks, citations, session id,
-  memory metadata, and `scope_type`.
-- Records one `agent_chat_question_asked` learning event per successful
-  graph response.
-- Keeps existing RAG endpoints available.
+- Adds frontend API types and client support for `POST /api/agent/chat`.
+- Updates Chat query submission to map selected books to
+  `scope_type`: zero selected books -> `global`, one -> `single_book`,
+  two or more -> `multi_book`.
+- Preserves the existing Chat UI, Sources/citations display, retrieved
+  chunk display, loading/error states, long-term memory option, and
+  Chat-to-Notes workflow.
+- Keeps the existing backend RAG endpoints available:
+  `POST /api/rag/query`, `POST /api/rag/query/library-item`, and
+  `POST /api/rag/query/library-items`.
 
 Example request:
 
@@ -73,16 +69,14 @@ Example request:
 }
 ```
 
-## What Stage 26 Does Not Do
+## What Stage 27 Does Not Do
 
 No open-ended agent planner, tool calling, MCP, multi-agent system,
 autonomous behavior, reflection loop, retry loop, self-critique,
-streaming, function calling, frontend settings page, replacing existing
-RAG endpoints, graph-based Notes/study/book-summary workflows, real
-embedding provider, embedding dimension changes, chunking/indexing
-changes, reranking, hybrid search, BM25, full-text search, query
-expansion, PDF/DOCX/LaTeX parsing, OCR, knowledge graph, background
-jobs, authentication, deployment, or large UI redesign.
+streaming, function calling, settings page, login/user system, theme
+system, graph visualization, new graph nodes, replacing existing RAG
+endpoints, new RAG algorithm, reranking, hybrid search, real
+embeddings, PDF parsing, or large UI redesign.
 
 ## Commands
 

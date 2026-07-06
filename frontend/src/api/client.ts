@@ -1,4 +1,6 @@
 import type {
+  AgentChatRequest,
+  AgentChatResponse,
   CreateLibraryItemPayload,
   ChatNoteDraftRequest,
   ChatNoteDraftResponse,
@@ -198,6 +200,13 @@ export function queryMultiBookRag(
   payload: MultiBookRagQueryRequest,
 ): Promise<MultiBookRagQueryResponse> {
   return requestJson<MultiBookRagQueryResponse>("/api/rag/query/library-items", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function queryAgentChat(payload: AgentChatRequest): Promise<AgentChatResponse> {
+  return requestJson<AgentChatResponse>("/api/agent/chat", {
     method: "POST",
     body: JSON.stringify(payload),
   });
