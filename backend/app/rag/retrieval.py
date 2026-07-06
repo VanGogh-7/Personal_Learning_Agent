@@ -21,6 +21,10 @@ class RetrievedChunkResult:
     char_start: int
     char_end: int
     score: float
+    document_source_path: str | None = None
+    library_item_id: uuid.UUID | None = None
+    library_title: str | None = None
+    library_author: str | None = None
 
 
 @dataclass
@@ -55,25 +59,54 @@ def retrieve_relevant_chunks(
     if not similar_chunks:
         return []
 
-    document_titles: dict[uuid.UUID, str | None] = {}
-    for chunk in similar_chunks:
-        if chunk.document_id not in document_titles:
-            document = session.get(Document, chunk.document_id)
-            document_titles[chunk.document_id] = document.title if document else None
+    document_ids = {chunk.document_id for chunk in similar_chunks}
+    documents = {
+        document.id: document
+        for document in session.execute(
+            select(Document).where(Document.id.in_(document_ids))
+        ).scalars()
+    }
 
-    return [
-        RetrievedChunkResult(
-            chunk_id=chunk.chunk_id,
-            document_id=chunk.document_id,
-            document_title=document_titles.get(chunk.document_id),
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            char_start=chunk.char_start,
-            char_end=chunk.char_end,
-            score=chunk.distance,
+    library_item_ids = {
+        document.library_item_id for document in documents.values() if document.library_item_id
+    }
+    library_items = (
+        {
+            item.id: item
+            for item in session.execute(
+                select(LibraryItem).where(LibraryItem.id.in_(library_item_ids))
+            ).scalars()
+        }
+        if library_item_ids
+        else {}
+    )
+
+    results: list[RetrievedChunkResult] = []
+    for chunk in similar_chunks:
+        document = documents.get(chunk.document_id)
+        library_item = (
+            library_items.get(document.library_item_id)
+            if document is not None and document.library_item_id
+            else None
         )
-        for chunk in similar_chunks
-    ]
+        results.append(
+            RetrievedChunkResult(
+                chunk_id=chunk.chunk_id,
+                document_id=chunk.document_id,
+                document_title=document.title if document else None,
+                document_source_path=document.file_path if document else None,
+                library_item_id=document.library_item_id if document else None,
+                library_title=library_item.title if library_item else None,
+                library_author=library_item.author if library_item else None,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                char_start=chunk.char_start,
+                char_end=chunk.char_end,
+                score=chunk.distance,
+            )
+        )
+
+    return results
 
 
 def retrieve_relevant_chunks_for_library_item(
@@ -103,7 +136,7 @@ def retrieve_relevant_chunks_for_library_item(
     if not similar_chunks:
         raise LibraryItemRagError("Library item has no indexed chunks to search.")
 
-    document_titles = {document.id: document.title for document in documents}
+    documents_by_id = {document.id: document for document in documents}
     context = LibraryItemRagContext(
         item_id=item.id,
         title=item.title,
@@ -112,16 +145,24 @@ def retrieve_relevant_chunks_for_library_item(
         status=item.status,
     )
 
-    return context, [
-        RetrievedChunkResult(
-            chunk_id=chunk.chunk_id,
-            document_id=chunk.document_id,
-            document_title=document_titles.get(chunk.document_id),
-            chunk_index=chunk.chunk_index,
-            content=chunk.content,
-            char_start=chunk.char_start,
-            char_end=chunk.char_end,
-            score=chunk.distance,
+    results: list[RetrievedChunkResult] = []
+    for chunk in similar_chunks:
+        document = documents_by_id.get(chunk.document_id)
+        results.append(
+            RetrievedChunkResult(
+                chunk_id=chunk.chunk_id,
+                document_id=chunk.document_id,
+                document_title=document.title if document else None,
+                document_source_path=document.file_path if document else None,
+                library_item_id=item.id,
+                library_title=item.title,
+                library_author=item.author,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                char_start=chunk.char_start,
+                char_end=chunk.char_end,
+                score=chunk.distance,
+            )
         )
-        for chunk in similar_chunks
-    ]
+
+    return context, results

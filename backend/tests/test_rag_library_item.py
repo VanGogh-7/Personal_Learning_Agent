@@ -108,6 +108,15 @@ def test_book_scoped_rag_returns_only_selected_library_item_chunks(
     assert response.total_retrieved == 1
     assert "Compact spaces" in response.retrieved_chunks[0].content
     assert "algebraic structures" not in response.answer
+    assert len(response.citations) == 1
+    assert response.citations[0].citation_id == "S1"
+    assert response.citations[0].library_item_id == str(selected_id)
+    assert response.citations[0].library_title == "Topology"
+    assert response.citations[0].library_author == "Author"
+    assert response.citations[0].document_title == "Topology"
+    assert response.citations[0].document_source_path == "/tmp/Topology.txt"
+    assert response.citations[0].chunk_id == response.retrieved_chunks[0].chunk_id
+    assert response.citations[0] == response.retrieved_chunks[0].citation
 
     other_document_ids = {
         str(document.id)
@@ -179,10 +188,15 @@ def test_book_scoped_rag_saves_session_metadata(monkeypatch, scoped_rag_session)
 
 
 def test_global_rag_endpoint_still_uses_global_retrieval(monkeypatch) -> None:
+    library_item_id = uuid.uuid4()
     chunk = RetrievedChunkResult(
         chunk_id=uuid.uuid4(),
         document_id=uuid.uuid4(),
         document_title="Global",
+        document_source_path="/tmp/global.md",
+        library_item_id=library_item_id,
+        library_title="Global Book",
+        library_author="Global Author",
         chunk_index=0,
         content="Global retrieval still works.",
         char_start=0,
@@ -216,3 +230,15 @@ def test_global_rag_endpoint_still_uses_global_retrieval(monkeypatch) -> None:
     assert calls["global"] == 1
     assert response.total_retrieved == 1
     assert response.retrieved_chunks[0].content == "Global retrieval still works."
+    assert response.citations[0].citation_id == "S1"
+    assert response.citations[0].chunk_id == response.retrieved_chunks[0].chunk_id
+    assert response.citations[0].document_id == response.retrieved_chunks[0].document_id
+    assert response.citations[0].library_item_id == str(library_item_id)
+    assert response.citations[0].library_title == "Global Book"
+    assert response.citations[0].library_author == "Global Author"
+    assert response.citations[0].document_title == "Global"
+    assert response.citations[0].document_source_path == "/tmp/global.md"
+    assert response.citations[0].chunk_index == 0
+    assert response.citations[0].score == 0.01
+    assert response.citations[0].excerpt == "Global retrieval still works."
+    assert response.retrieved_chunks[0].citation == response.citations[0]

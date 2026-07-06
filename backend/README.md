@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 21: Real LLM Integration Boundary.
+Stage 22: Better Retrieval / Citations / Chunk Metadata.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -63,16 +63,21 @@ Stage 21: Real LLM Integration Boundary.
 - Real LLM Integration Boundary: RAG answer generation now goes through
   a small LLM provider abstraction with deterministic mode by default
   and optional DeepSeek/OpenAI-compatible mode only when explicitly
-  configured (Stage 21, current)
+  configured (Stage 21, completed)
+- Better Retrieval / Citations / Chunk Metadata: global and book-scoped
+  RAG responses include structured citation/source metadata for each
+  retrieved chunk, and the frontend Chat page displays a compact Sources
+  section (Stage 22, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, LangGraph workflows, MCP,
 backend auto-start from Tauri, complex Rust backend logic, document
 parsing UI, repository analysis, and production packaging are planned
-but **not implemented yet**. Stage 21 adds the provider boundary for
-RAG answer generation only. It does not add agents, tool calling,
-streaming, real embeddings, prompt management infrastructure,
-automatic summaries, or real LLM Chat-to-Notes generation by default.
+but **not implemented yet**. Stage 22 improves source transparency
+without changing the retrieval algorithm. It does not add reranking,
+hybrid search, BM25, query expansion, real embeddings, PDF/DOCX/LaTeX
+parsing, OCR, citation formatting engines, agents, tool calling, or
+streaming.
 
 ## Setup
 
@@ -350,6 +355,52 @@ whole-book summarization, complex mathematical proof generation,
 streaming responses, function/tool calling, agent planning, LangGraph,
 MCP, real embedding providers, frontend provider settings, background
 jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
+
+## Better Retrieval / Citations / Chunk Metadata (Stage 22)
+
+Stage 22 adds citation/source metadata to RAG responses. The retrieval
+algorithm, pgvector search, mock embedding provider, global RAG scope,
+and book-scoped RAG filtering are unchanged.
+
+Each response keeps the existing `retrieved_chunks` list and also
+returns a top-level `citations` list. Each retrieved chunk includes a
+matching `citation` object. Citation IDs are deterministic per response:
+`S1`, `S2`, `S3`, and so on.
+
+Citation fields:
+
+```json
+{
+  "citation_id": "S1",
+  "chunk_id": "...",
+  "document_id": "...",
+  "library_item_id": "...",
+  "library_title": "Linear Algebra",
+  "library_author": "Some Author",
+  "document_title": "linear-algebra.md",
+  "document_source_path": "/path/to/linear-algebra.md",
+  "chunk_index": 0,
+  "score": 0.123,
+  "excerpt": "A vector space over a field...",
+  "content": "full retrieved chunk content"
+}
+```
+
+Book-scoped citations identify the selected Library item when available.
+Global RAG citations can include Library item metadata when the retrieved
+document is associated with a Library item. Excerpts are whitespace
+normalized, length-limited, and deterministic.
+
+The frontend Chat page displays a compact Sources section showing
+citation ID, source title, author when available, document title/path,
+chunk index, score, and excerpt.
+
+Stage 22 does not add reranking, hybrid search, full-text search, BM25,
+query expansion, multi-book reasoning, LangGraph, agents, tool calling,
+MCP, streaming, real embedding providers, embedding dimension changes,
+chunking/indexing changes, PDF page extraction, PDF/DOCX/LaTeX parsing,
+OCR, automatic summaries, citation formatting engines, CSL/BibTeX/Zotero
+integration, authentication, deployment, or a large UI redesign.
 
 ## Short-term Memory (Stage 6)
 

@@ -9,16 +9,46 @@ from app.rag.retrieval import retrieve_relevant_chunks
 
 
 class _FakeDocument:
-    def __init__(self, title: str) -> None:
+    def __init__(
+        self,
+        document_id: uuid.UUID,
+        title: str,
+        file_path: str | None = None,
+        library_item_id: uuid.UUID | None = None,
+    ) -> None:
+        self.id = document_id
         self.title = title
+        self.file_path = file_path
+        self.library_item_id = library_item_id
+
+
+class _FakeLibraryItem:
+    def __init__(self, item_id: uuid.UUID, title: str, author: str | None = None) -> None:
+        self.id = item_id
+        self.title = title
+        self.author = author
+
+
+class _FakeScalarResult:
+    def __init__(self, items: list) -> None:
+        self._items = items
+
+    def scalars(self):
+        return self._items
 
 
 class _FakeSession:
-    def __init__(self, documents: dict) -> None:
+    def __init__(self, documents: dict, library_items: dict | None = None) -> None:
         self._documents = documents
+        self._library_items = library_items or {}
 
     def get(self, model, id):
         return self._documents.get(id)
+
+    def execute(self, stmt):
+        if "library_items" in str(stmt):
+            return _FakeScalarResult(list(self._library_items.values()))
+        return _FakeScalarResult(list(self._documents.values()))
 
 
 def _make_similar_chunk(document_id, content: str = "some content", distance: float = 0.05):
@@ -69,7 +99,18 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
         retrieval_module, "search_similar_chunks", lambda session, embedding, limit: [chunk]
     )
 
-    session = _FakeSession({document_id: _FakeDocument("Optimization Notes")})
+    library_item_id = uuid.uuid4()
+    session = _FakeSession(
+        {
+            document_id: _FakeDocument(
+                document_id,
+                "Optimization Notes",
+                file_path="/tmp/optimization.md",
+                library_item_id=library_item_id,
+            )
+        },
+        {library_item_id: _FakeLibraryItem(library_item_id, "Optimization", "Author")},
+    )
     result = retrieve_relevant_chunks(session, "question", top_k=5)
 
     assert len(result) == 1
@@ -77,6 +118,10 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
     assert item.chunk_id == chunk.chunk_id
     assert item.document_id == document_id
     assert item.document_title == "Optimization Notes"
+    assert item.document_source_path == "/tmp/optimization.md"
+    assert item.library_item_id == library_item_id
+    assert item.library_title == "Optimization"
+    assert item.library_author == "Author"
     assert item.content == "Gradient descent minimizes a loss function."
     assert item.char_start == 0
     assert item.char_end == len(chunk.content)

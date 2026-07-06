@@ -36,8 +36,9 @@ Stage 17: Generate LaTeX Notes from Chat — completed.
 Stage 18: Local Notes File Export — completed.
 Stage 19: Notes Workspace MVP — completed.
 Stage 20: Open Exported Notes File — completed.
+Stage 21: Real LLM Integration Boundary — completed.
 
-Current active stage: Stage 21: Real LLM Integration Boundary.
+Current active stage: Stage 22: Better Retrieval / Citations / Chunk Metadata.
 
 Do not implement the full product at once.
 
@@ -64,7 +65,8 @@ Project stage roadmap:
 18. Local Notes File Export — completed
 19. Notes Workspace MVP — completed
 20. Open Exported Notes File — completed
-21. Real LLM Integration Boundary — current
+21. Real LLM Integration Boundary — completed
+22. Better Retrieval / Citations / Chunk Metadata — current
 
 ---
 
@@ -178,27 +180,40 @@ operation and offers `Open Exported File`. The desktop frontend opens
 only that last successful exported `.tex` path with the system default
 application through Tauri opener.
 
-The current goal (Stage 21) is Real LLM Integration Boundary. RAG
-answer generation should go through a small backend LLM provider
-interface. The deterministic/mock provider is the default for local
-development and tests. A DeepSeek/OpenAI-compatible provider may be
-selected only by explicit backend configuration such as
-`LLM_PROVIDER=deepseek`, with API key, base URL, and model read from the
-existing settings mechanism.
+Stage 21 (completed): Real LLM Integration Boundary. RAG answer
+generation goes through a small backend LLM provider interface. The
+deterministic/mock provider is the default for local development and
+tests. A DeepSeek/OpenAI-compatible provider may be selected only by
+explicit backend configuration such as `LLM_PROVIDER=deepseek`, with API
+key, base URL, and model read from the existing settings mechanism.
+
+The current goal (Stage 22) is Better Retrieval / Citations / Chunk
+Metadata. RAG responses should expose structured citation/source
+metadata for each retrieved chunk and the Chat page should display those
+sources clearly. The retrieval algorithm, pgvector search, mock
+embeddings, book-scoped filtering, memory behavior, and Chat-to-Notes
+workflow must remain unchanged.
 
 Allowed in the current stage:
-- Add a small synchronous LLM provider protocol/interface
-- Add a deterministic provider that preserves current RAG answer behavior
-- Add a DeepSeek/OpenAI-compatible real provider behind explicit config
-- Add `LLM_PROVIDER=deterministic` default configuration
-- Add a provider factory with clear configuration errors
-- Route global and book-scoped RAG answer generation through the provider boundary
-- Keep retrieval, pgvector, mock embeddings, memory behavior, and returned chunks unchanged
-- Keep Chat-to-Notes deterministic/template-based by default
+- Add structured citation/source metadata to RAG responses
+- Preserve existing `retrieved_chunks` fields and add top-level `citations`
+- Add deterministic citation IDs such as `S1`, `S2`, `S3`
+- Include chunk, document, Library item, score, excerpt, and source path metadata where available
+- Add a small citation builder/excerpt helper
+- Display compact Sources on the frontend Chat page
+- Preserve global RAG and book-scoped RAG retrieval behavior
+- Preserve LLM provider boundary and deterministic defaults
+- Preserve Chat-to-Notes compatibility
 - Add deterministic tests that do not require real API keys or network calls
 - Update README/CLAUDE.md
 
-Do not implement in Stage 21:
+Do not implement in Stage 22:
+- Reranking
+- Hybrid search
+- Full-text search
+- BM25
+- Query expansion
+- Multi-book reasoning
 - LangGraph
 - Agent planning
 - Tool calling
@@ -212,9 +227,17 @@ Do not implement in Stage 21:
 - OpenAI/DeepSeek embedding calls
 - Replacing pgvector retrieval logic
 - Changing chunking/indexing pipeline
+- Changing embedding dimensions
+- PDF page extraction
+- PDF parsing
+- DOCX parsing
+- LaTeX parsing
+- OCR
 - Automatic book summary generation
 - Whole-book summarization
 - Complex mathematical proof generation
+- Citation formatting engines
+- CSL / BibTeX / Zotero integration
 - Background jobs
 - Redis / Celery / RQ
 - Authentication or user accounts
@@ -376,6 +399,11 @@ Frontend:
   routed through that boundary; retrieval, mock embeddings, book-scoped
   filtering, memory behavior, and Chat-to-Notes remain deterministic by
   default
+- Stage 22 Better Retrieval / Citations / Chunk Metadata adds
+  structured RAG `citations`, per-chunk citation objects, deterministic
+  source IDs, citation excerpts, and a compact Chat page Sources section;
+  retrieval ranking, pgvector search, mock embeddings, and book-scoped
+  filtering remain unchanged
 
 Planned later:
 - LangGraph

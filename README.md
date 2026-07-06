@@ -6,19 +6,19 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 21: Real LLM Integration Boundary.
+Stage 22: Better Retrieval / Citations / Chunk Metadata.
 
-RAG answer generation now goes through a small backend LLM provider
-abstraction:
+RAG responses now include structured citation/source metadata for each
+retrieved chunk:
 
 ```text
-RAG caller -> LLM provider interface -> deterministic provider by default
+RAG retrieval -> retrieved chunks -> citations -> Chat page Sources
 ```
 
-The default provider is deterministic/mock, so local development and
-tests do not require real API keys or network calls. A DeepSeek
-OpenAI-compatible provider is optional and must be explicitly enabled
-with backend environment/config values.
+The retrieval algorithm is unchanged. Global RAG and book-scoped RAG
+still use the existing pgvector/mock-embedding retrieval path, but each
+response now exposes a top-level `citations` list and maps each
+`retrieved_chunks` item to a citation.
 
 ## Configuration
 
@@ -43,21 +43,24 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 21 Does
+## What Stage 22 Does
 
-- Adds a backend LLM provider interface.
-- Keeps deterministic RAG answer behavior as the default.
-- Adds a DeepSeek/OpenAI-compatible provider behind explicit config.
-- Keeps global RAG retrieval and book-scoped RAG retrieval unchanged.
+- Adds structured RAG citation metadata: `citation_id`, `chunk_id`,
+  `document_id`, optional Library metadata, document title/source path,
+  chunk index, score, excerpt, and content.
+- Keeps existing `retrieved_chunks` fields for compatibility.
+- Displays a compact Sources section on the Chat page.
 - Keeps Chat-to-Notes deterministic/template-based by default.
-- Adds tests that do not require real API calls or real API keys.
+- Keeps the Stage 21 deterministic/mock LLM provider default.
+- Adds tests that do not require real API calls or network access.
 
-## What Stage 21 Does Not Do
+## What Stage 22 Does Not Do
 
-No LangGraph, agents, tool calling, MCP, streaming, function calling,
-real embedding provider, retrieval rewrite, automatic book summaries,
-whole-book summarization, frontend settings page, background jobs,
-authentication, Docker changes, or cloud deployment.
+No reranking, hybrid search, BM25, query expansion, multi-book
+reasoning, LangGraph, agents, tool calling, MCP, streaming, real
+embedding provider, parser changes, PDF/DOCX/LaTeX/OCR extraction,
+citation formatting engines, BibTeX/Zotero integration, authentication,
+cloud deployment, or large UI redesign.
 
 ## Commands
 

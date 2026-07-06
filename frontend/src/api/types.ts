@@ -19,15 +19,32 @@ export interface LibraryItemRagQueryRequest extends RagQueryRequest {
   library_item_id: string;
 }
 
+export interface RagCitation {
+  citation_id: string;
+  chunk_id: string;
+  document_id: string;
+  library_item_id: string | null;
+  library_title: string | null;
+  library_author: string | null;
+  document_title: string | null;
+  document_source_path: string | null;
+  chunk_index: number;
+  score: number;
+  excerpt: string;
+  content: string;
+}
+
 export interface RetrievedChunk {
   chunk_id: string;
   document_id: string;
   document_title: string | null;
+  document_source_path: string | null;
   chunk_index: number;
   content: string;
   char_start: number;
   char_end: number;
   score: number;
+  citation: RagCitation;
 }
 
 export interface RagMemoryMetadata {
@@ -39,6 +56,7 @@ export interface RagMemoryMetadata {
 export interface RagQueryResponse {
   answer: string;
   retrieved_chunks: RetrievedChunk[];
+  citations: RagCitation[];
   total_retrieved: number;
   session_id: string;
   memory: RagMemoryMetadata;

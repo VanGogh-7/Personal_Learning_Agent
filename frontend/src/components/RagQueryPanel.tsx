@@ -11,6 +11,7 @@ import type {
   LibraryItem,
   LibraryItemRagQueryResponse,
   Note,
+  RagCitation,
   RagQueryResponse,
 } from "../api/types";
 
@@ -364,6 +365,33 @@ export default function RagQueryPanel() {
             )}
           </div>
 
+          {result.citations.length > 0 && (
+            <div className="result-block">
+              <h3>Sources</h3>
+              <ul className="citation-list">
+                {result.citations.map((citation) => (
+                  <li key={citation.citation_id}>
+                    <div className="item-title">
+                      <span>
+                        [{citation.citation_id}] {sourceTitle(citation)}
+                      </span>
+                      <span>score {citation.score.toFixed(4)}</span>
+                    </div>
+                    <small>
+                      {citation.library_author ? `Author: ${citation.library_author} · ` : ""}
+                      chunk {citation.chunk_index}
+                      {citation.document_title ? ` · document ${citation.document_title}` : ""}
+                      {citation.document_source_path
+                        ? ` · path ${citation.document_source_path}`
+                        : ""}
+                    </small>
+                    <p>{citation.excerpt || "No excerpt available."}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <h3>Retrieved Chunks</h3>
           {result.retrieved_chunks.length === 0 ? (
             <p className="empty-state">No retrieved chunks returned for this query.</p>
@@ -391,6 +419,15 @@ export default function RagQueryPanel() {
 
 function preview(content: string): string {
   return content.length > 260 ? `${content.slice(0, 260)}...` : content;
+}
+
+function sourceTitle(citation: RagCitation): string {
+  return (
+    citation.library_title ||
+    citation.document_title ||
+    citation.document_source_path ||
+    "Unknown source"
+  );
 }
 
 function isLibraryItemResult(

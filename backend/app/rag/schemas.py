@@ -36,15 +36,32 @@ class LibraryItemRagQueryRequest(RagQueryRequest):
     library_item_id: str
 
 
+class RagCitation(BaseModel):
+    citation_id: str
+    chunk_id: str
+    document_id: str
+    library_item_id: str | None = None
+    library_title: str | None = None
+    library_author: str | None = None
+    document_title: str | None = None
+    document_source_path: str | None = None
+    chunk_index: int
+    score: float
+    excerpt: str
+    content: str
+
+
 class RetrievedChunk(BaseModel):
     chunk_id: str
     document_id: str
     document_title: str | None = None
+    document_source_path: str | None = None
     chunk_index: int
     content: str
     char_start: int
     char_end: int
     score: float
+    citation: RagCitation
 
 
 class MemoryMetadata(BaseModel):
@@ -56,6 +73,7 @@ class MemoryMetadata(BaseModel):
 class RagQueryResponse(BaseModel):
     answer: str
     retrieved_chunks: list[RetrievedChunk]
+    citations: list[RagCitation]
     total_retrieved: int
     session_id: str
     memory: MemoryMetadata

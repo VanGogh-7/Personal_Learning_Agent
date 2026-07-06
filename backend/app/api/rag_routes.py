@@ -12,9 +12,11 @@ from app.memory.short_term import (
     get_recent_turns,
     save_turn,
 )
+from app.rag.citations import ChunkCitationResult, build_chunk_citations
 from app.rag.qa import generate_answer
 from app.rag.retrieval import (
     LibraryItemRagError,
+    RetrievedChunkResult,
     retrieve_relevant_chunks,
     retrieve_relevant_chunks_for_library_item,
 )
@@ -22,6 +24,7 @@ from app.rag.schemas import (
     LibraryItemRagQueryRequest,
     LibraryItemRagQueryResponse,
     MemoryMetadata,
+    RagCitation,
     RagLibraryItemMetadata,
     RagQueryRequest,
     RagQueryResponse,
@@ -68,23 +71,14 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
     finally:
         db_session.close()
 
-    retrieved_chunks = [
-        RetrievedChunk(
-            chunk_id=str(item.chunk_id),
-            document_id=str(item.document_id),
-            document_title=item.document_title,
-            chunk_index=item.chunk_index,
-            content=item.content,
-            char_start=item.char_start,
-            char_end=item.char_end,
-            score=item.score,
-        )
-        for item in retrieved
-    ]
+    citation_results = build_chunk_citations(retrieved)
+    citations = [_citation_response(citation) for citation in citation_results]
+    retrieved_chunks = _retrieved_chunk_responses(retrieved, citations)
 
     return RagQueryResponse(
         answer=answer,
         retrieved_chunks=retrieved_chunks,
+        citations=citations,
         total_retrieved=len(retrieved_chunks),
         session_id=session_id,
         memory=MemoryMetadata(
@@ -163,19 +157,9 @@ def rag_query_library_item_endpoint(
     finally:
         db_session.close()
 
-    retrieved_chunks = [
-        RetrievedChunk(
-            chunk_id=str(item.chunk_id),
-            document_id=str(item.document_id),
-            document_title=item.document_title,
-            chunk_index=item.chunk_index,
-            content=item.content,
-            char_start=item.char_start,
-            char_end=item.char_end,
-            score=item.score,
-        )
-        for item in retrieved
-    ]
+    citation_results = build_chunk_citations(retrieved)
+    citations = [_citation_response(citation) for citation in citation_results]
+    retrieved_chunks = _retrieved_chunk_responses(retrieved, citations)
 
     return LibraryItemRagQueryResponse(
         answer=answer,
@@ -187,6 +171,7 @@ def rag_query_library_item_endpoint(
             status=library_item.status,
         ),
         retrieved_chunks=retrieved_chunks,
+        citations=citations,
         total_retrieved=len(retrieved_chunks),
         session_id=session_id,
         memory=MemoryMetadata(
@@ -206,3 +191,41 @@ def _build_library_item_context(
     if file_type:
         lines.append(f"File type: {file_type}")
     return "\n".join(lines)
+
+
+def _citation_response(citation: ChunkCitationResult) -> RagCitation:
+    return RagCitation(
+        citation_id=citation.citation_id,
+        chunk_id=citation.chunk_id,
+        document_id=citation.document_id,
+        library_item_id=citation.library_item_id,
+        library_title=citation.library_title,
+        library_author=citation.library_author,
+        document_title=citation.document_title,
+        document_source_path=citation.document_source_path,
+        chunk_index=citation.chunk_index,
+        score=citation.score,
+        excerpt=citation.excerpt,
+        content=citation.content,
+    )
+
+
+def _retrieved_chunk_responses(
+    retrieved: list[RetrievedChunkResult],
+    citations: list[RagCitation],
+) -> list[RetrievedChunk]:
+    return [
+        RetrievedChunk(
+            chunk_id=str(item.chunk_id),
+            document_id=str(item.document_id),
+            document_title=item.document_title,
+            document_source_path=item.document_source_path,
+            chunk_index=item.chunk_index,
+            content=item.content,
+            char_start=item.char_start,
+            char_end=item.char_end,
+            score=item.score,
+            citation=citation,
+        )
+        for item, citation in zip(retrieved, citations)
+    ]
