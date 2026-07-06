@@ -35,8 +35,9 @@ Stage 16: Notes MVP — completed.
 Stage 17: Generate LaTeX Notes from Chat — completed.
 Stage 18: Local Notes File Export — completed.
 Stage 19: Notes Workspace MVP — completed.
+Stage 20: Open Exported Notes File — completed.
 
-Current active stage: Stage 20: Open Exported Notes File.
+Current active stage: Stage 21: Real LLM Integration Boundary.
 
 Do not implement the full product at once.
 
@@ -62,7 +63,8 @@ Project stage roadmap:
 17. Generate LaTeX Notes from Chat — completed
 18. Local Notes File Export — completed
 19. Notes Workspace MVP — completed
-20. Open Exported Notes File — current
+20. Open Exported Notes File — completed
+21. Real LLM Integration Boundary — current
 
 ---
 
@@ -169,24 +171,58 @@ remembered locally, and export the selected database-backed note into
 that workspace with a sanitized unique `.tex` filename. The workspace
 path is local machine configuration, not PostgreSQL data.
 
-The current goal (Stage 20) is Open Exported Notes File. After a
-successful manual `Export as .tex` or workspace `Export to Workspace`,
-the Notes page remembers the actual final `.tex` path returned by that
-export operation and offers `Open Exported File`. The desktop frontend
-opens only that last successful exported `.tex` path with the system
-default application through Tauri opener.
+Stage 20 (completed): Open Exported Notes File. After a successful
+manual `Export as .tex` or workspace `Export to Workspace`, the Notes
+page remembers the actual final `.tex` path returned by that export
+operation and offers `Open Exported File`. The desktop frontend opens
+only that last successful exported `.tex` path with the system default
+application through Tauri opener.
+
+The current goal (Stage 21) is Real LLM Integration Boundary. RAG
+answer generation should go through a small backend LLM provider
+interface. The deterministic/mock provider is the default for local
+development and tests. A DeepSeek/OpenAI-compatible provider may be
+selected only by explicit backend configuration such as
+`LLM_PROVIDER=deepseek`, with API key, base URL, and model read from the
+existing settings mechanism.
 
 Allowed in the current stage:
-- Add `Open Exported File` to the Notes page
-- Store the final path returned by successful manual and workspace export helpers
-- Validate that the remembered path is non-empty and ends with `.tex` before opening
-- Reuse the existing Tauri opener/local file opening pattern
-- Preserve existing manual `Export as .tex`
-- Preserve existing workspace `Export to Workspace`
-- Keep Notes CRUD, Chat-to-Notes, and backend APIs unchanged
+- Add a small synchronous LLM provider protocol/interface
+- Add a deterministic provider that preserves current RAG answer behavior
+- Add a DeepSeek/OpenAI-compatible real provider behind explicit config
+- Add `LLM_PROVIDER=deterministic` default configuration
+- Add a provider factory with clear configuration errors
+- Route global and book-scoped RAG answer generation through the provider boundary
+- Keep retrieval, pgvector, mock embeddings, memory behavior, and returned chunks unchanged
+- Keep Chat-to-Notes deterministic/template-based by default
+- Add deterministic tests that do not require real API keys or network calls
 - Update README/CLAUDE.md
 
-Do not implement in Stage 20:
+Do not implement in Stage 21:
+- LangGraph
+- Agent planning
+- Tool calling
+- MCP
+- Multi-agent systems
+- Streaming responses
+- Function calling
+- Advanced prompt management
+- Prompt template database
+- Real embedding provider
+- OpenAI/DeepSeek embedding calls
+- Replacing pgvector retrieval logic
+- Changing chunking/indexing pipeline
+- Automatic book summary generation
+- Whole-book summarization
+- Complex mathematical proof generation
+- Background jobs
+- Redis / Celery / RQ
+- Authentication or user accounts
+- Production-grade secret management
+- Cloud deployment
+- Docker changes
+- Frontend settings page
+- Large UI redesign
 - LaTeX compilation
 - PDF generation
 - PDF preview
@@ -213,11 +249,8 @@ Do not implement in Stage 20:
 - Changing the existing Notes CRUD architecture
 - Changing the existing Chat-to-Notes architecture
 - Backend arbitrary-path file writing
-- Real LLM calls
-- OpenAI/DeepSeek calls
 - Real AI note generation
 - Real summarization
-- Real mathematical proof generation
 - Real embedding calls
 - Markdown editor
 - Rich text editor
@@ -337,18 +370,25 @@ Frontend:
   file with the system default application through Tauri opener; it does
   not add VS Code-specific integration, LaTeX compilation, PDF
   generation, file sync, watchers, or backend file-opening endpoints
+- Stage 21 Real LLM Integration Boundary adds `backend/app/llm/providers.py`
+  with a deterministic default provider, optional DeepSeek-compatible
+  provider selected by `LLM_PROVIDER=deepseek`, and RAG answer generation
+  routed through that boundary; retrieval, mock embeddings, book-scoped
+  filtering, memory behavior, and Chat-to-Notes remain deterministic by
+  default
 
 Planned later:
 - LangGraph
-- Real embedding provider integration and production-quality RAG Q&A
+- Real embedding provider integration and production-quality agent workflows
 - Semantic memory embeddings and long-term memory vector search
 - Rust local backend
 - MCP integration
 
 LLM provider:
-- DeepSeek API
-- API key is stored in `.env`
-- Use environment variables only
+- `LLM_PROVIDER=deterministic` is the default and requires no API key
+- `LLM_PROVIDER=deepseek` is optional and must be explicitly configured
+- DeepSeek API key, base URL, and model are read from environment/config only
+- API keys must never be hard-coded, printed, logged, committed, or exposed to frontend code
 
 ---
 
@@ -368,3 +408,4 @@ Allowed example:
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+LLM_PROVIDER=deterministic

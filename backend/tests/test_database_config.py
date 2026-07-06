@@ -21,6 +21,11 @@ def test_settings_has_database_url_field() -> None:
     assert hasattr(settings, "database_url")
 
 
+def test_settings_has_llm_provider_field() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.llm_provider == "deterministic"
+
+
 def test_root_env_file_points_to_project_root() -> None:
     assert ROOT_ENV_FILE.name == ".env"
     assert ROOT_ENV_FILE.parent == BACKEND_DIR.parent

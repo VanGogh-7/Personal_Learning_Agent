@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 
 from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
-from app.rag.qa import NO_RESULTS_ANSWER, generate_answer
+from app.llm.providers import DeterministicLLMProvider
+from app.rag.qa import NO_RESULTS_ANSWER, build_rag_prompt, generate_answer
 from app.rag.retrieval import RetrievedChunkResult
 
 
@@ -175,3 +176,51 @@ def test_answer_can_include_both_recent_turns_and_long_term_memory() -> None:
     assert "Earlier question" in answer
     assert "long-term memory" in answer
     assert "A relevant fact." in answer
+
+
+def test_generate_answer_uses_provider_boundary() -> None:
+    class FakeProvider:
+        def __init__(self) -> None:
+            self.prompt = ""
+
+        def generate(self, prompt: str) -> str:
+            self.prompt = prompt
+            return "provider answer"
+
+    provider = FakeProvider()
+    chunk = _make_chunk("Boundary content.")
+
+    answer = generate_answer("question", [chunk], llm_provider=provider)
+
+    assert answer == "provider answer"
+    assert "Boundary content." in provider.prompt
+
+
+def test_deterministic_provider_preserves_existing_answer_behavior() -> None:
+    chunk = _make_chunk("Gradient descent is an iterative optimization algorithm.")
+
+    answer = generate_answer(
+        "What is gradient descent?",
+        [chunk],
+        llm_provider=DeterministicLLMProvider(),
+    )
+
+    assert "minimal MVP answer" in answer
+    assert "Gradient descent is an iterative optimization algorithm." in answer
+
+
+def test_rag_prompt_includes_question_chunks_and_book_context() -> None:
+    chunk = _make_chunk("Compact spaces have finite subcovers.")
+
+    prompt = build_rag_prompt(
+        "What is compactness?",
+        [chunk],
+        library_item_context="Title: Topology\nAuthor: Munkres",
+        deterministic_answer="reference answer",
+    )
+
+    assert "What is compactness?" in prompt
+    assert "Compact spaces have finite subcovers." in prompt
+    assert "Title: Topology" in prompt
+    assert "Author: Munkres" in prompt
+    assert "reference answer" in prompt

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 20: Open Exported Notes File.
+Stage 21: Real LLM Integration Boundary.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -59,17 +59,20 @@ Stage 20: Open Exported Notes File.
   filenames (Stage 19, completed)
 - Open Exported Notes File: after manual or workspace Notes export, the
   Tauri desktop app can open the last successfully exported `.tex` file
-  with the system default application (Stage 20, current)
+  with the system default application (Stage 20, completed)
+- Real LLM Integration Boundary: RAG answer generation now goes through
+  a small LLM provider abstraction with deterministic mode by default
+  and optional DeepSeek/OpenAI-compatible mode only when explicitly
+  configured (Stage 21, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
-production LLM answer generation, semantic/vector search over long-term
-memory, LangGraph workflows, MCP, backend auto-start from Tauri,
-complex Rust backend logic, document parsing UI, repository analysis,
-and production packaging are planned but **not implemented yet**. Stage
-20 adds desktop-side opening for the last successfully exported `.tex`
-note only; it does not add VS Code-specific integration, compile
-LaTeX, generate PDFs, preview PDFs, sync local files, scan folders,
-watch files, or add backend arbitrary-path file opening.
+semantic/vector search over long-term memory, LangGraph workflows, MCP,
+backend auto-start from Tauri, complex Rust backend logic, document
+parsing UI, repository analysis, and production packaging are planned
+but **not implemented yet**. Stage 21 adds the provider boundary for
+RAG answer generation only. It does not add agents, tool calling,
+streaming, real embeddings, prompt management infrastructure,
+automatic summaries, or real LLM Chat-to-Notes generation by default.
 
 ## Setup
 
@@ -127,6 +130,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 | `APP_NAME`          | Application display name                  | `Personal Learning Agent`      |
 | `APP_ENV`           | Environment name (development/production)| `development`                   |
 | `APP_VERSION`       | Application version                       | `0.1.0`                         |
+| `LLM_PROVIDER`      | RAG answer provider: `deterministic` or `deepseek` | `deterministic`        |
 | `DEEPSEEK_API_KEY`  | DeepSeek API key                          | *(none — set in `.env`)*        |
 | `DEEPSEEK_BASE_URL` | DeepSeek API base URL                     | `https://api.deepseek.com`      |
 | `DEEPSEEK_MODEL`    | DeepSeek model name                       | `deepseek-chat`                 |
@@ -137,6 +141,17 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 
 `.env` lives at the project root and is never committed. Only
 `backend/.env.example` (placeholders) is tracked.
+
+LLM provider selection is backend-only. The frontend never sends API
+keys or provider settings. Local development and tests use
+`LLM_PROVIDER=deterministic`; real DeepSeek mode is opt-in:
+
+```env
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+```
 
 ## Running the API
 
@@ -200,9 +215,11 @@ pytest
 ```
 
 Tests do not require a real DeepSeek API key and do not call any
-external API. The database-related tests validate configuration and
-model metadata; they do not require a live PostgreSQL connection. The
-RAG tests (`test_rag_schemas.py`, `test_qa.py`, `test_retrieval.py`,
+external API. The LLM provider tests use deterministic mode by default
+and mock real-provider calls without network access. The
+database-related tests validate configuration and model metadata; they
+do not require a live PostgreSQL connection. The RAG tests
+(`test_rag_schemas.py`, `test_qa.py`, `test_retrieval.py`,
 `test_rag_api.py`) monkeypatch the vector search and database session,
 so they also run without a live PostgreSQL connection. The memory tests
 (`test_memory_service.py`, `test_rag_memory_integration.py`,
@@ -277,25 +294,62 @@ real embedding provider remains planned for later stages.
 Stage 5 proves a minimal end-to-end pipeline: user question →
 deterministic mock embedding → pgvector similarity search over
 `document_chunks` → simple deterministic (extractive) answer → answer
-plus retrieved chunks and source metadata.
+plus retrieved chunks and source metadata. Stage 21 keeps that default
+behavior but routes answer generation through a small LLM provider
+boundary.
 
 - Retrieval service (`backend/app/rag/retrieval.py`): embeds the
   question with the Stage 4 mock embedding provider and reuses the
   Stage 4 `search_similar_chunks` pgvector search — no new tables, no
   new migration
 - QA service (`backend/app/rag/qa.py`): builds a deterministic,
-  non-LLM answer from the top retrieved chunk, or a clear fallback
-  message when nothing relevant is found
+  non-LLM answer from the top retrieved chunk by default, or a clear
+  fallback message when nothing relevant is found; when
+  `LLM_PROVIDER=deepseek` is explicitly configured, the same retrieved
+  context is sent through the LLM provider boundary
 - Schemas (`backend/app/rag/schemas.py`): validates `question`
   (required, non-empty after stripping) and `top_k` (default 5, must be
   between 1 and 20)
 
-Stage 5 uses **deterministic mock embeddings and a simple deterministic
-extractive answer generator only** — no real embedding provider
-(DeepSeek, OpenAI, or otherwise) and no production LLM answer
-generation. See [Short-term Memory (Stage 6)](#short-term-memory-stage-6)
-below for the current endpoint contract, which extends this with
-`session_id` and memory metadata.
+By default, RAG still uses **deterministic mock embeddings and a simple
+deterministic extractive answer generator**. Stage 21 adds an optional
+real LLM provider boundary for answer text only; it does not add a real
+embedding provider (DeepSeek, OpenAI, or otherwise). See
+[Short-term Memory (Stage 6)](#short-term-memory-stage-6) below for the
+current endpoint contract, which extends this with `session_id` and
+memory metadata.
+
+## Real LLM Integration Boundary (Stage 21)
+
+Stage 21 adds a small backend LLM provider abstraction:
+
+```text
+RAG caller -> LLM provider interface -> deterministic provider by default
+```
+
+Provider code lives in `backend/app/llm/providers.py`.
+
+- `DeterministicLLMProvider` is the default and preserves current RAG
+  answer text for tests and local development.
+- `DeepSeekLLMProvider` is an OpenAI-compatible chat-completions
+  provider selected only when `LLM_PROVIDER=deepseek`.
+- `get_llm_provider(settings)` validates provider selection and fails
+  clearly for unsupported providers or missing DeepSeek config.
+- RAG prompt construction lives in `backend/app/rag/qa.py` and includes
+  the user question, retrieved chunks, optional short-term memory,
+  optional long-term memory, and book context for book-scoped RAG.
+
+Retrieval remains unchanged: global RAG still searches the global
+document chunk index, book-scoped RAG still searches only chunks for the
+selected indexed Library item, and pgvector/mock embedding behavior is
+unchanged. Retrieved chunks are still returned in API responses.
+
+Chat-to-Notes remains deterministic/template-based in Stage 21. This
+stage does not add real LLM note generation, automatic book summaries,
+whole-book summarization, complex mathematical proof generation,
+streaming responses, function/tool calling, agent planning, LangGraph,
+MCP, real embedding providers, frontend provider settings, background
+jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
 
 ## Short-term Memory (Stage 6)
 
@@ -908,7 +962,7 @@ Response:
 ## Roadmap (not yet implemented)
 
 - Document ingestion UI
-- Real embedding provider integration and full RAG Q&A quality
+- Real embedding provider integration and production-quality agent workflows
 - Automatic memory extraction and short-term → long-term promotion
 - Semantic memory embeddings and long-term memory vector search
 - Learning progress tracking

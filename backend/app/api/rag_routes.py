@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.llm.providers import LLMConfigurationError, LLMProviderError
 from app.memory.long_term import DEFAULT_CONTEXT_MEMORY_COUNT, search_memories
 from app.memory.short_term import (
     DEFAULT_RECENT_TURNS_LIMIT,
@@ -61,6 +62,9 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
         except SQLAlchemyError as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+        except (LLMConfigurationError, LLMProviderError) as exc:
+            db_session.rollback()
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
     finally:
         db_session.close()
 
@@ -127,6 +131,12 @@ def rag_query_library_item_endpoint(
                 retrieved,
                 recent_turns=recent_turns,
                 long_term_memories=long_term_memories,
+                library_item_context=_build_library_item_context(
+                    title=library_item.title,
+                    author=library_item.author,
+                    file_type=library_item.file_type,
+                    status=library_item.status,
+                ),
             )
             save_turn(
                 db_session,
@@ -147,6 +157,9 @@ def rag_query_library_item_endpoint(
         except SQLAlchemyError as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+        except (LLMConfigurationError, LLMProviderError) as exc:
+            db_session.rollback()
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
     finally:
         db_session.close()
 
@@ -182,3 +195,14 @@ def rag_query_library_item_endpoint(
             used_long_term_memories=len(long_term_memories),
         ),
     )
+
+
+def _build_library_item_context(
+    *, title: str, author: str | None, file_type: str | None, status: str
+) -> str:
+    lines = [f"Title: {title}", f"Status: {status}"]
+    if author:
+        lines.append(f"Author: {author}")
+    if file_type:
+        lines.append(f"File type: {file_type}")
+    return "\n".join(lines)

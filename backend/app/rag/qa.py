@@ -1,5 +1,10 @@
 from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
+from app.llm.providers import (
+    DETERMINISTIC_ANSWER_MARKER,
+    LLMProvider,
+    get_llm_provider,
+)
 from app.rag.retrieval import RetrievedChunkResult
 
 NO_RESULTS_ANSWER = "I could not find relevant information in the current knowledge base."
@@ -20,21 +25,40 @@ def generate_answer(
     retrieved_chunks: list[RetrievedChunkResult],
     recent_turns: list[ConversationTurnResult] | None = None,
     long_term_memories: list[LongTermMemoryResult] | None = None,
+    library_item_context: str | None = None,
+    llm_provider: LLMProvider | None = None,
 ) -> str:
-    """Build a minimal, deterministic extractive answer from retrieved chunks.
+    """Build a RAG answer through the configured LLM provider boundary.
 
-    This is an MVP answer generator, not a full LLM-generated answer: it
-    simply surfaces the most relevant retrieved excerpt. It does not call
-    any external API. `recent_turns` is the bounded list of recent
-    short-term-memory turns for the session (see
-    app.memory.short_term.get_recent_turns), oldest first; when non-empty,
-    the answer deterministically mentions only the single most recent
-    prior question (truncated), never the full conversation history.
-    `long_term_memories` is the bounded list of relevant long-term
-    memories (see app.memory.long_term.search_memories); when non-empty,
-    the answer deterministically mentions only the single most relevant
-    memory (truncated), never the full memory list.
+    The default provider is deterministic and preserves the original MVP
+    extractive answer text. Real providers are selected only through
+    explicit configuration.
     """
+    deterministic_answer = build_deterministic_answer(
+        question,
+        retrieved_chunks,
+        recent_turns=recent_turns,
+        long_term_memories=long_term_memories,
+    )
+    prompt = build_rag_prompt(
+        question,
+        retrieved_chunks,
+        recent_turns=recent_turns,
+        long_term_memories=long_term_memories,
+        library_item_context=library_item_context,
+        deterministic_answer=deterministic_answer,
+    )
+    provider = llm_provider or get_llm_provider()
+    return provider.generate(prompt)
+
+
+def build_deterministic_answer(
+    question: str,
+    retrieved_chunks: list[RetrievedChunkResult],
+    recent_turns: list[ConversationTurnResult] | None = None,
+    long_term_memories: list[LongTermMemoryResult] | None = None,
+) -> str:
+    """Build the deterministic extractive answer used by default."""
     if not retrieved_chunks:
         answer = NO_RESULTS_ANSWER
     else:
@@ -64,3 +88,55 @@ def generate_answer(
         )
 
     return answer
+
+
+def build_rag_prompt(
+    question: str,
+    retrieved_chunks: list[RetrievedChunkResult],
+    recent_turns: list[ConversationTurnResult] | None = None,
+    long_term_memories: list[LongTermMemoryResult] | None = None,
+    library_item_context: str | None = None,
+    deterministic_answer: str | None = None,
+) -> str:
+    """Build a small prompt for RAG answer generation.
+
+    This is intentionally plain text, not a prompt framework. The final
+    deterministic reference section lets the default provider preserve
+    exact historical behavior without reaching external services.
+    """
+
+    lines = [
+        "Answer the learning question using the retrieved context.",
+        "If the retrieved context is insufficient, say so clearly.",
+        "",
+        "Question:",
+        question.strip(),
+    ]
+
+    if library_item_context and library_item_context.strip():
+        lines.extend(["", "Book context:", library_item_context.strip()])
+
+    if retrieved_chunks:
+        lines.extend(["", "Retrieved chunks:"])
+        for index, chunk in enumerate(retrieved_chunks, start=1):
+            source = chunk.document_title or str(chunk.document_id)
+            excerpt = chunk.content.strip()
+            lines.append(f"{index}. Source: {source}")
+            lines.append(f"   Excerpt: {excerpt}")
+    else:
+        lines.extend(["", "Retrieved chunks:", "No relevant chunks were retrieved."])
+
+    if recent_turns:
+        lines.extend(["", "Recent session context:"])
+        for turn in recent_turns:
+            lines.append(f"- Previous question: {turn.question.strip()}")
+
+    if long_term_memories:
+        lines.extend(["", "Relevant long-term memories:"])
+        for memory in long_term_memories:
+            lines.append(f"- {memory.memory_type}: {memory.content.strip()}")
+
+    if deterministic_answer is not None:
+        lines.extend(["", DETERMINISTIC_ANSWER_MARKER, deterministic_answer])
+
+    return "\n".join(lines)
