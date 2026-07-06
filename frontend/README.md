@@ -1,10 +1,11 @@
 # Personal Learning Agent Frontend
 
-Stage 27 routes Chat questions through the backend Agent Chat graph
-endpoint, `POST /api/agent/chat`, while preserving the existing Chat
-experience. Users can still choose global, one-book, or multi-book RAG
-contexts and receive answers with structured citations. The FastAPI
-backend must be started separately on `http://127.0.0.1:8081`.
+Stage 28 polishes the Agent Chat frontend after the switch to
+`POST /api/agent/chat`. Chat still supports global, one-book, and
+multi-book RAG contexts, now with clearer scope display, citation
+source details, empty retrieval messages, and safer common error
+messages. The FastAPI backend must be started separately on
+`http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -72,8 +73,11 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   items. Zero sends `scope_type: "global"` to `POST /api/agent/chat`,
   one sends `scope_type: "single_book"`, and two or more send
   `scope_type: "multi_book"`
+- Chat response scope summary shows Global RAG, Single Book, or
+  Multi-Book with compact selected book titles
 - Chat page Sources section for structured RAG citations
 - Multi-book citations show source Library item metadata for each chunk
+- Empty citation/retrieval results show a clear no relevant chunks message
 - Chat page `Create LaTeX Note` action for the latest RAG response
 - Inline note draft review/edit/save panel in Chat
 - Library page with Book Library metadata create/list/search/edit/archive

@@ -42,8 +42,9 @@ Stage 23: Book Summary + Topic Extraction — completed.
 Stage 24: Learning History / Progress Timeline — completed.
 Stage 25: Multi-Book RAG MVP — completed.
 Stage 26: Chat RAG Graph Boundary MVP — completed.
+Stage 27: Agent Chat Frontend Integration MVP — completed.
 
-Current active stage: Stage 27: Agent Chat Frontend Integration MVP.
+Current active stage: Stage 28: Agent Chat Stabilization / Regression Polish.
 
 Do not implement the full product at once.
 
@@ -76,7 +77,8 @@ Project stage roadmap:
 24. Learning History / Progress Timeline — completed
 25. Multi-Book RAG MVP — completed
 26. Chat RAG Graph Boundary MVP — completed
-27. Agent Chat Frontend Integration MVP — current
+27. Agent Chat Frontend Integration MVP — completed
+28. Agent Chat Stabilization / Regression Polish — current
 
 ---
 
@@ -246,6 +248,14 @@ The selected Library context maps to `scope_type`: no selected book is
 selected indexed items are `multi_book`. Citations, retrieved chunks,
 memory metadata, loading/error states, and Chat-to-Notes remain
 compatible. Existing backend RAG endpoints remain available.
+
+Stage 28 is Agent Chat Stabilization / Regression Polish. It keeps the
+Stage 27 `/api/agent/chat` integration and adds small frontend polish
+for scope display, citation/source readability, empty retrieval states,
+common error messages, loading/disabled states, and Chat-to-Notes
+compatibility. It does not add planner behavior, tools, streaming,
+graph visualization, settings, auth, themes, new graph nodes, or a new
+RAG algorithm.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -430,23 +440,23 @@ Do not implement in Stage 23:
 - Frontend API-key settings
 - Exposing API keys to the frontend
 
-Allowed in Stage 27:
-- Add frontend API types for `AgentChatRequest` and `AgentChatResponse`
-- Add frontend client function for `POST /api/agent/chat`
-- Update the Chat page query path to use `/api/agent/chat`
-- Map selected Library items to `scope_type`: zero -> `global`, one ->
-  `single_book`, two or more -> `multi_book`
-- Preserve the existing Chat UI layout
-- Preserve global, single-book, and multi-book context selection
-- Preserve answer, citation/source, and retrieved chunk display
-- Preserve loading, error, empty, long-term memory, and session id
-  behavior
-- Preserve Chat-to-Notes compatibility
-- Keep old frontend RAG API functions unless clearly safe to remove
-- Keep existing backend RAG endpoints available
+Allowed in Stage 28:
+- Keep Chat using `POST /api/agent/chat`
+- Polish active scope display for Global RAG, Single Book, and
+  Multi-Book states
+- Show compact selected book titles for multi-book scope
+- Improve citation/source readability using existing citation fields
+- Show clear empty retrieval/citation states
+- Normalize common user-facing error messages
+- Disable duplicate submit and unstable context actions while a Chat
+  request is running
+- Preserve input text if a request fails
+- Verify and minimally fix Chat-to-Notes compatibility for agent chat
+  responses
+- Clean up rough frontend TypeScript types without broad refactors
 - Update README/frontend/CODEX documentation
 
-Do not implement in Stage 27:
+Do not implement in Stage 28:
 - Open-ended agent planner
 - Tool calling
 - MCP
@@ -570,6 +580,10 @@ Frontend:
   submission to `POST /api/agent/chat` while preserving the existing
   global, single-book, multi-book, citations, retrieved chunks,
   long-term memory, session id, and Chat-to-Notes user experience
+- Stage 28 Agent Chat Stabilization / Regression Polish improves Chat
+  scope labels, selected-book summaries, citation/source readability,
+  empty retrieval states, common error messages, and disabled/loading
+  states without adding new backend graph behavior or redesigning Chat
 
 Planned later:
 - Production-quality agent workflows

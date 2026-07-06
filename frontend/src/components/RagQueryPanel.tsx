@@ -6,6 +6,7 @@ import {
   queryAgentChat,
 } from "../api/client";
 import type {
+  AgentChatRequest,
   AgentChatResponse,
   AgentChatScopeType,
   ChatNoteDraftResponse,
@@ -37,6 +38,7 @@ export default function RagQueryPanel() {
     () => libraryItems.filter((item) => selectedLibraryItemIds.includes(item.id)),
     [libraryItems, selectedLibraryItemIds],
   );
+  const activeScope = scopeTypeForSelection(selectedLibraryItemIds);
 
   useEffect(() => {
     void loadLibraryContexts();
@@ -76,9 +78,9 @@ export default function RagQueryPanel() {
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: AgentChatRequest = {
         question: question.trim(),
-        scope_type: scopeTypeForSelection(selectedLibraryItemIds),
+        scope_type: activeScope,
         library_item_id:
           selectedLibraryItemIds.length === 1 ? selectedLibraryItemIds[0] : null,
         library_item_ids:
@@ -94,7 +96,7 @@ export default function RagQueryPanel() {
       clearNoteDraft();
     } catch (err) {
       setResult(null);
-      setError(err instanceof Error ? err.message : "RAG query failed.");
+      setError(formatAgentChatError(err));
     } finally {
       setLoading(false);
     }
@@ -193,13 +195,13 @@ export default function RagQueryPanel() {
           <div className="context-selector">
             <div className="context-selector-header">
               <div>
-                <strong>{contextLabel(selectedLibraryItems.length)}</strong>
+                <strong>{scopeDisplayLabel(activeScope, selectedLibraryItems)}</strong>
                 <span>{contextHelp(selectedLibraryItems)}</span>
               </div>
               <button
                 type="button"
                 className="secondary-button"
-                disabled={selectedLibraryItemIds.length === 0}
+                disabled={loading || selectedLibraryItemIds.length === 0}
                 onClick={() => {
                   setSelectedLibraryItemIds([]);
                   setResult(null);
@@ -224,6 +226,7 @@ export default function RagQueryPanel() {
                     <input
                       type="checkbox"
                       checked={selectedLibraryItemIds.includes(item.id)}
+                      disabled={loading}
                       onChange={() => toggleLibraryItem(item.id)}
                     />
                     <span>
@@ -240,7 +243,7 @@ export default function RagQueryPanel() {
             <button
               type="button"
               className="secondary-button"
-              disabled={loadingContexts}
+              disabled={loading || loadingContexts}
               onClick={loadLibraryContexts}
             >
               {loadingContexts ? "Loading..." : "Reload books"}
@@ -288,7 +291,7 @@ export default function RagQueryPanel() {
         </label>
 
         <button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit query"}
+          {loading ? "Asking agent..." : "Submit query"}
         </button>
       </form>
 
@@ -298,6 +301,18 @@ export default function RagQueryPanel() {
       {result && (
         <div className="response-block">
           <h3>Answer</h3>
+          <div className="scope-summary">
+            <strong>{scopeDisplayLabel(result.scope_type, result.selected_library_items)}</strong>
+            {result.scope_type === "multi_book" && result.selected_library_items.length > 0 && (
+              <div className="scope-chip-row">
+                {compactSelectedTitles(result.selected_library_items).map((title) => (
+                  <span key={title} className="tag-badge">
+                    {title}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           {result.scope_type === "single_book" && result.selected_library_items[0] && (
             <div className="result-block">
               <h3>Selected Book</h3>
@@ -419,9 +434,13 @@ export default function RagQueryPanel() {
             )}
           </div>
 
-          {result.citations.length > 0 && (
-            <div className="result-block">
-              <h3>Sources</h3>
+          <div className="result-block">
+            <h3>Sources</h3>
+            {result.citations.length === 0 ? (
+              <p className="empty-state">
+                No relevant indexed chunks were retrieved for this question.
+              </p>
+            ) : (
               <ul className="citation-list">
                 {result.citations.map((citation) => (
                   <li key={citation.citation_id}>
@@ -431,24 +450,19 @@ export default function RagQueryPanel() {
                       </span>
                       <span>score {citation.score.toFixed(4)}</span>
                     </div>
-                    <small>
-                      {citation.library_author ? `Author: ${citation.library_author} · ` : ""}
-                      chunk {citation.chunk_index}
-                      {citation.document_title ? ` · document ${citation.document_title}` : ""}
-                      {citation.document_source_path
-                        ? ` · path ${citation.document_source_path}`
-                        : ""}
-                    </small>
+                    <small className="citation-meta">{citationMetadata(citation)}</small>
                     <p>{citation.excerpt || "No excerpt available."}</p>
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+            )}
+          </div>
 
           <h3>Retrieved Chunks</h3>
           {result.retrieved_chunks.length === 0 ? (
-            <p className="empty-state">No retrieved chunks returned for this query.</p>
+            <p className="empty-state">
+              No relevant indexed chunks were retrieved for this question.
+            </p>
           ) : (
             <ul className="item-list">
               {result.retrieved_chunks.map((chunk) => (
@@ -485,14 +499,14 @@ function sourceTitle(citation: RagCitation): string {
   );
 }
 
-function contextLabel(selectedCount: number): string {
-  if (selectedCount === 0) {
+function scopeDisplayLabel(scopeType: AgentChatScopeType, selectedItems: Pick<LibraryItem, "title">[]): string {
+  if (scopeType === "global") {
     return "Global RAG";
   }
-  if (selectedCount === 1) {
-    return "1 selected book";
+  if (scopeType === "single_book") {
+    return `Single Book: ${selectedItems[0]?.title || "selected book"}`;
   }
-  return `${selectedCount} selected books`;
+  return `Multi-Book: ${selectedItems.length} selected books`;
 }
 
 function contextHelp(selectedItems: LibraryItem[]): string {
@@ -505,6 +519,24 @@ function contextHelp(selectedItems: LibraryItem[]): string {
   return `Multi-book RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
 }
 
+function compactSelectedTitles(selectedItems: Pick<LibraryItem, "title">[]): string[] {
+  const titles = selectedItems.map((item) => item.title);
+  if (titles.length <= 3) {
+    return titles;
+  }
+  return [...titles.slice(0, 3), `+${titles.length - 3} more`];
+}
+
+function citationMetadata(citation: RagCitation): string {
+  const parts = [
+    citation.library_author ? `Author: ${citation.library_author}` : null,
+    citation.document_title ? `Document: ${citation.document_title}` : null,
+    citation.document_source_path ? `Path: ${citation.document_source_path}` : null,
+    `Chunk: ${citation.chunk_index}`,
+  ];
+  return parts.filter(Boolean).join(" · ");
+}
+
 function scopeTypeForSelection(selectedIds: string[]): AgentChatScopeType {
   if (selectedIds.length === 0) {
     return "global";
@@ -513,4 +545,30 @@ function scopeTypeForSelection(selectedIds: string[]): AgentChatScopeType {
     return "single_book";
   }
   return "multi_book";
+}
+
+function formatAgentChatError(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("network request failed")) {
+    return "Backend unavailable. Make sure the FastAPI backend is running at http://127.0.0.1:8081.";
+  }
+  if (normalized.includes("scope_type")) {
+    return "The selected chat scope is invalid. Reload the page and try again.";
+  }
+  if (
+    normalized.includes("not been indexed") ||
+    normalized.includes("no indexed chunks")
+  ) {
+    return "The selected book is not indexed or has no searchable chunks.";
+  }
+  if (normalized.includes("library_item_ids must not be empty")) {
+    return "Select at least one indexed book for multi-book chat.";
+  }
+  if (normalized.includes("library item not found")) {
+    return "One selected book could not be found. Reload the book list and try again.";
+  }
+
+  return message || "Agent chat request failed.";
 }

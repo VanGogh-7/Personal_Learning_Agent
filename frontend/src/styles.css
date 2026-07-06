@@ -405,6 +405,21 @@ label {
   padding-top: 18px;
 }
 
+.scope-summary {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  background: #f8fbff;
+  padding: 10px;
+}
+
+.scope-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .metadata-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -653,6 +668,11 @@ label {
 
 .citation-list p {
   margin: 0.45rem 0 0;
+}
+
+.citation-meta {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .compact-note {

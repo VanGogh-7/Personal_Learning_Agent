@@ -6,10 +6,11 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 27: Agent Chat Frontend Integration MVP.
+Stage 28: Agent Chat Stabilization / Regression Polish.
 
-The Chat page now sends RAG questions through the LangGraph-backed
-agent chat endpoint while preserving the existing Chat experience:
+The Chat page uses the LangGraph-backed agent chat endpoint and now has
+small reliability and clarity polish around scope display, citations,
+empty states, errors, and Chat-to-Notes compatibility:
 
 ```text
 Chat page -> POST /api/agent/chat -> ChatRAGGraph -> existing RAG services
@@ -42,18 +43,22 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 27 Does
+## What Stage 28 Does
 
-- Adds frontend API types and client support for `POST /api/agent/chat`.
-- Updates Chat query submission to map selected books to
-  `scope_type`: zero selected books -> `global`, one -> `single_book`,
-  two or more -> `multi_book`.
-- Preserves the existing Chat UI, Sources/citations display, retrieved
-  chunk display, loading/error states, long-term memory option, and
-  Chat-to-Notes workflow.
-- Keeps the existing backend RAG endpoints available:
-  `POST /api/rag/query`, `POST /api/rag/query/library-item`, and
-  `POST /api/rag/query/library-items`.
+- Makes the active Chat scope explicit: Global RAG, Single Book, or
+  Multi-Book with selected titles.
+- Improves citation/source readability for book title, author, document
+  path, chunk index, excerpt, and score.
+- Shows a clear empty retrieval message when no chunks or citations are
+  returned.
+- Normalizes common user-facing agent chat errors without exposing
+  internals.
+- Keeps submit/context controls stable while an agent chat request is
+  running.
+- Preserves Chat-to-Notes behavior for global, single-book, and
+  multi-book responses.
+- Keeps LangGraph orchestration-only and existing backend RAG endpoints
+  available.
 
 Example request:
 
@@ -69,14 +74,14 @@ Example request:
 }
 ```
 
-## What Stage 27 Does Not Do
+## What Stage 28 Does Not Do
 
 No open-ended agent planner, tool calling, MCP, multi-agent system,
 autonomous behavior, reflection loop, retry loop, self-critique,
 streaming, function calling, settings page, login/user system, theme
-system, graph visualization, new graph nodes, replacing existing RAG
-endpoints, new RAG algorithm, reranking, hybrid search, real
-embeddings, PDF parsing, or large UI redesign.
+system, graph visualization, new graph nodes, new RAG algorithm,
+reranking, hybrid search, real embeddings, PDF parsing, or large UI
+redesign.
 
 ## Commands
 
