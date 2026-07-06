@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 19: Notes Workspace MVP.
+Stage 20: Open Exported Notes File.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -56,17 +56,20 @@ Stage 19: Notes Workspace MVP.
   completed)
 - Notes Workspace MVP: the Tauri desktop app can remember a local Notes
   workspace folder and export selected notes into it with unique `.tex`
-  filenames (Stage 19,
-  current)
+  filenames (Stage 19, completed)
+- Open Exported Notes File: after manual or workspace Notes export, the
+  Tauri desktop app can open the last successfully exported `.tex` file
+  with the system default application (Stage 20, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 production LLM answer generation, semantic/vector search over long-term
 memory, LangGraph workflows, MCP, backend auto-start from Tauri,
 complex Rust backend logic, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-19 adds local Notes workspace export from the desktop app only; it does
-not compile LaTeX, generate PDFs, preview PDFs, sync local files, scan
-folders, or add backend arbitrary-path file writing.
+20 adds desktop-side opening for the last successfully exported `.tex`
+note only; it does not add VS Code-specific integration, compile
+LaTeX, generate PDFs, preview PDFs, sync local files, scan folders,
+watch files, or add backend arbitrary-path file opening.
 
 ## Setup
 
@@ -823,6 +826,24 @@ automatic synchronization, bidirectional editing, `.tex` import,
 workspace scanning, multi-file LaTeX projects, attachments, folder or
 batch export, background jobs, real LLM calls, AI note generation, or
 changes to the Notes CRUD or Chat-to-Notes architectures.
+
+## Open Exported Notes File (Stage 20)
+
+Stage 20 adds desktop-side opening for the last successfully exported
+Notes `.tex` file. After either manual `Export as .tex` or workspace
+`Export to Workspace`, the Notes page stores the actual final path
+returned by the export helper. `Open Exported File` opens that remembered
+`.tex` path with the system default application through Tauri opener.
+
+The opened path is not typed by the user into an opener field; it must
+come from a successful export action and must be non-empty with a `.tex`
+extension before the frontend opens it.
+
+The FastAPI backend remains unchanged. Stage 20 does not add backend
+file-opening endpoints, backend arbitrary-path handling, database
+migrations, PostgreSQL export tracking, VS Code-specific integration,
+forcing files to open in VS Code, LaTeX compilation, PDF generation, PDF
+preview, file sync, file watchers, `.tex` import, or workspace browsing.
 
 ## Document Ingestion (MVP)
 

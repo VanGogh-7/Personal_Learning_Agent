@@ -1,9 +1,10 @@
 # Personal Learning Agent Frontend
 
-Stage 19 adds a local Notes workspace in the Tauri desktop Notes page.
-The app can remember a user-selected workspace folder locally and export
-selected notes into that folder as `.tex` files. The FastAPI backend must be started separately on
-`http://127.0.0.1:8081`.
+Stage 20 adds `Open Exported File` in the Tauri desktop Notes page. The
+app remembers the actual final path from the latest successful manual or
+workspace `.tex` export and opens that file with the system default
+application through Tauri opener. The FastAPI backend must be started
+separately on `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -78,6 +79,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Optional Notes association with an existing Library item
 - Notes page `Export as .tex` action in the Tauri desktop app
 - Notes Workspace section with local folder selection and `Export to Workspace`
+- Notes page `Open Exported File` action for the latest successfully exported `.tex`
 
 ## Current Limitations
 
@@ -102,9 +104,14 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   `pla.notesWorkspacePath`; it is not stored in PostgreSQL
 - Workspace export writes a sanitized `.tex` filename inside the
   workspace and creates `name-2.tex`, `name-3.tex`, etc. for duplicates
+- `Open Exported File` works after either `Export as .tex` or
+  `Export to Workspace`; it opens only the last successful exported
+  `.tex` path with the system default application through Tauri opener
 - Notes use a plain textarea; there is no rich editor, compiler, PDF preview, or PDF export
 - Notes export requires the Tauri runtime and should be tested with `npm run tauri dev`
-- No workspace scanning, file sync, `.tex` import, VS Code integration, or Git sync
+- No VS Code-specific integration, forced VS Code opening, LaTeX
+  compilation, PDF generation, workspace scanning, file sync, file
+  watcher, `.tex` import, recent exports list, workspace browser, or Git sync
 - No internal PDF preview or file upload
 - No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
 - Book-scoped RAG supports one selected indexed Library item at a time;
