@@ -4,12 +4,14 @@ import {
   createNote,
   listLibraryItems,
   queryLibraryItemRag,
+  queryMultiBookRag,
   queryRag,
 } from "../api/client";
 import type {
   ChatNoteDraftResponse,
   LibraryItem,
   LibraryItemRagQueryResponse,
+  MultiBookRagQueryResponse,
   Note,
   RagCitation,
   RagQueryResponse,
@@ -21,10 +23,10 @@ export default function RagQueryPanel() {
   const [sessionId, setSessionId] = useState("");
   const [includeLongTermMemory, setIncludeLongTermMemory] = useState(false);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
-  const [selectedLibraryItemId, setSelectedLibraryItemId] = useState("");
-  const [result, setResult] = useState<RagQueryResponse | LibraryItemRagQueryResponse | null>(
-    null,
-  );
+  const [selectedLibraryItemIds, setSelectedLibraryItemIds] = useState<string[]>([]);
+  const [result, setResult] = useState<
+    RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse | null
+  >(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [noteDraft, setNoteDraft] = useState<ChatNoteDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,9 +38,9 @@ export default function RagQueryPanel() {
   const [generatingNote, setGeneratingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
 
-  const selectedLibraryItem = useMemo(
-    () => libraryItems.find((item) => item.id === selectedLibraryItemId) || null,
-    [libraryItems, selectedLibraryItemId],
+  const selectedLibraryItems = useMemo(
+    () => libraryItems.filter((item) => selectedLibraryItemIds.includes(item.id)),
+    [libraryItems, selectedLibraryItemIds],
   );
 
   useEffect(() => {
@@ -51,8 +53,8 @@ export default function RagQueryPanel() {
     try {
       const response = await listLibraryItems({ status: "indexed", limit: 100 });
       setLibraryItems(response.items);
-      setSelectedLibraryItemId((current) =>
-        current && response.items.some((item) => item.id === current) ? current : "",
+      setSelectedLibraryItemIds((current) =>
+        current.filter((itemId) => response.items.some((item) => item.id === itemId)),
       );
     } catch (err) {
       setLibraryItems([]);
@@ -85,12 +87,18 @@ export default function RagQueryPanel() {
         session_id: sessionId.trim() || undefined,
         include_long_term_memory: includeLongTermMemory,
       };
-      const response = selectedLibraryItemId
-        ? await queryLibraryItemRag({
-            ...payload,
-            library_item_id: selectedLibraryItemId,
-          })
-        : await queryRag(payload);
+      const response =
+        selectedLibraryItemIds.length === 0
+          ? await queryRag(payload)
+          : selectedLibraryItemIds.length === 1
+            ? await queryLibraryItemRag({
+                ...payload,
+                library_item_id: selectedLibraryItemIds[0],
+              })
+            : await queryMultiBookRag({
+                ...payload,
+                library_item_ids: selectedLibraryItemIds,
+              });
       setResult(response);
       setLastQuestion(payload.question);
       setSessionId(response.session_id);
@@ -166,6 +174,18 @@ export default function RagQueryPanel() {
     setNoteSuccess(null);
   }
 
+  function toggleLibraryItem(itemId: string) {
+    setSelectedLibraryItemIds((current) =>
+      current.includes(itemId)
+        ? current.filter((selectedId) => selectedId !== itemId)
+        : [...current, itemId],
+    );
+    setResult(null);
+    setError(null);
+    setLastQuestion("");
+    clearNoteDraft();
+  }
+
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -176,27 +196,55 @@ export default function RagQueryPanel() {
       </div>
 
       <form className="form-grid" onSubmit={submitQuery}>
-        <label className="full-width">
-          Context
-          <div className="input-with-action">
-            <select
-              value={selectedLibraryItemId}
-              onChange={(event) => {
-                setSelectedLibraryItemId(event.target.value);
-                setResult(null);
-                setError(null);
-                setLastQuestion("");
-                clearNoteDraft();
-              }}
-            >
-              <option value="">Global RAG</option>
-              {libraryItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                  {item.author ? ` — ${item.author}` : ""}
-                </option>
-              ))}
-            </select>
+        <div className="field-group full-width">
+          <span className="field-label">Context</span>
+          <div className="context-selector">
+            <div className="context-selector-header">
+              <div>
+                <strong>{contextLabel(selectedLibraryItems.length)}</strong>
+                <span>{contextHelp(selectedLibraryItems)}</span>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={selectedLibraryItemIds.length === 0}
+                onClick={() => {
+                  setSelectedLibraryItemIds([]);
+                  setResult(null);
+                  setError(null);
+                  setLastQuestion("");
+                  clearNoteDraft();
+                }}
+              >
+                Global RAG
+              </button>
+            </div>
+            <div className="context-book-list">
+              {libraryItems.length === 0 ? (
+                <p className="empty-state">
+                  {loadingContexts
+                    ? "Loading indexed Library items..."
+                    : "No indexed Library items are available."}
+                </p>
+              ) : (
+                libraryItems.map((item) => (
+                  <label key={item.id} className="context-book-option">
+                    <input
+                      type="checkbox"
+                      checked={selectedLibraryItemIds.includes(item.id)}
+                      onChange={() => toggleLibraryItem(item.id)}
+                    />
+                    <span>
+                      <strong>{item.title}</strong>
+                      <small>
+                        {item.author ? `${item.author} · ` : ""}
+                        status {item.status} · type {item.file_type || "unknown"}
+                      </small>
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
             <button
               type="button"
               className="secondary-button"
@@ -206,12 +254,7 @@ export default function RagQueryPanel() {
               {loadingContexts ? "Loading..." : "Reload books"}
             </button>
           </div>
-          <span className="field-help">
-            {selectedLibraryItem
-              ? `Book-scoped RAG: ${selectedLibraryItem.title}`
-              : "No specific book selected. Queries use the global indexed knowledge base."}
-          </span>
-        </label>
+        </div>
 
         <label className="full-width">
           Question
@@ -274,6 +317,23 @@ export default function RagQueryPanel() {
                 status {result.library_item.status} · type{" "}
                 {result.library_item.file_type || "unknown"}
               </small>
+            </div>
+          )}
+          {isMultiBookResult(result) && (
+            <div className="result-block">
+              <h3>Selected Books</h3>
+              <ul className="plain-list">
+                {result.selected_library_items.map((item) => (
+                  <li key={item.id}>
+                    {item.title}
+                    {item.author ? ` by ${item.author}` : ""}
+                    <small>
+                      {" "}
+                      status {item.status} · type {item.file_type || "unknown"}
+                    </small>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           <p>{result.answer}</p>
@@ -405,6 +465,7 @@ export default function RagQueryPanel() {
                   </div>
                   <p>{preview(chunk.content)}</p>
                   <small>
+                    {chunk.citation.library_title ? `${chunk.citation.library_title} · ` : ""}
                     chunk {chunk.chunk_index} · chars {chunk.char_start}-{chunk.char_end}
                   </small>
                 </li>
@@ -430,8 +491,34 @@ function sourceTitle(citation: RagCitation): string {
   );
 }
 
+function contextLabel(selectedCount: number): string {
+  if (selectedCount === 0) {
+    return "Global RAG";
+  }
+  if (selectedCount === 1) {
+    return "1 selected book";
+  }
+  return `${selectedCount} selected books`;
+}
+
+function contextHelp(selectedItems: LibraryItem[]): string {
+  if (selectedItems.length === 0) {
+    return "Queries use the global indexed knowledge base.";
+  }
+  if (selectedItems.length === 1) {
+    return `Book-scoped RAG: ${selectedItems[0].title}`;
+  }
+  return `Multi-book RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
+}
+
 function isLibraryItemResult(
-  result: RagQueryResponse | LibraryItemRagQueryResponse,
+  result: RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse,
 ): result is LibraryItemRagQueryResponse {
   return "library_item" in result;
+}
+
+function isMultiBookResult(
+  result: RagQueryResponse | LibraryItemRagQueryResponse | MultiBookRagQueryResponse,
+): result is MultiBookRagQueryResponse {
+  return "selected_library_items" in result;
 }

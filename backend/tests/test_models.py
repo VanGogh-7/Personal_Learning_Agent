@@ -8,6 +8,7 @@ from app.models import (
     Document,
     DocumentChunk,
     LearningSource,
+    LearningEvent,
     LibraryItem,
     LongTermMemory,
     Note,
@@ -24,6 +25,7 @@ def test_all_models_registered_on_metadata() -> None:
         "long_term_memories",
         "library_items",
         "notes",
+        "learning_events",
     }
 
 
@@ -193,6 +195,54 @@ def test_note_columns_constraints_indexes_and_foreign_key() -> None:
     assert "ix_notes_library_item_id" in index_names
     assert "ix_notes_status" in index_names
     assert "ix_notes_created_at" in index_names
+
+
+def test_learning_event_columns_constraints_indexes_and_foreign_keys() -> None:
+    table = LearningEvent.__table__
+
+    assert set(table.columns.keys()) == {
+        "id",
+        "event_type",
+        "title",
+        "description",
+        "source_type",
+        "source_id",
+        "library_item_id",
+        "note_id",
+        "session_id",
+        "metadata_json",
+        "created_at",
+    }
+    assert not table.c.event_type.nullable
+    assert not table.c.title.nullable
+    assert table.c.description.nullable
+    assert table.c.source_type.nullable
+    assert table.c.source_id.nullable
+    assert table.c.library_item_id.nullable
+    assert table.c.note_id.nullable
+    assert table.c.session_id.nullable
+    assert table.c.metadata_json.nullable
+    assert not table.c.created_at.nullable
+
+    library_fk_targets = {
+        fk.target_fullname for fk in table.c.library_item_id.foreign_keys
+    }
+    assert library_fk_targets == {"library_items.id"}
+    note_fk_targets = {fk.target_fullname for fk in table.c.note_id.foreign_keys}
+    assert note_fk_targets == {"notes.id"}
+
+    constraint_names = {c.name for c in table.constraints if c.name}
+    assert "ck_learning_events_event_type_non_empty" in constraint_names
+    assert "ck_learning_events_title_non_empty" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "ix_learning_events_event_type" in index_names
+    assert "ix_learning_events_source_type" in index_names
+    assert "ix_learning_events_source_id" in index_names
+    assert "ix_learning_events_library_item_id" in index_names
+    assert "ix_learning_events_note_id" in index_names
+    assert "ix_learning_events_session_id" in index_names
+    assert "ix_learning_events_created_at" in index_names
 
 
 def test_agent_run_columns() -> None:

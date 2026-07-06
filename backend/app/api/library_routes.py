@@ -4,6 +4,12 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.learning_events.constants import (
+    EVENT_LIBRARY_INDEXED,
+    EVENT_METADATA_DRAFT_GENERATED,
+    SOURCE_LIBRARY,
+)
+from app.learning_events.service import create_learning_event
 from app.library.indexing import (
     LibraryIndexResult,
     LibraryIndexingError,
@@ -122,6 +128,23 @@ def index_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemIndexResponse:
             if result is None:
                 session.rollback()
                 raise HTTPException(status_code=404, detail="Library item not found")
+            item = get_library_item(session, item_id)
+            if item is not None:
+                create_learning_event(
+                    session,
+                    event_type=EVENT_LIBRARY_INDEXED,
+                    title=f"Indexed library item: {item.title}",
+                    source_type=SOURCE_LIBRARY,
+                    source_id=item.item_id,
+                    library_item_id=item.item_id,
+                    metadata_json={
+                        "chunks_created": result.chunks_created,
+                        "embeddings_created": result.embeddings_created,
+                        "document_id": str(result.document_id)
+                        if result.document_id
+                        else None,
+                    },
+                )
             session.commit()
         except HTTPException:
             raise
@@ -153,12 +176,29 @@ def generate_library_metadata_draft_endpoint(
                 item_id,
             )
             if result is None:
+                session.rollback()
                 raise HTTPException(status_code=404, detail="Library item not found")
+            create_learning_event(
+                session,
+                event_type=EVENT_METADATA_DRAFT_GENERATED,
+                title=f"Generated metadata draft: {result.title}",
+                source_type=SOURCE_LIBRARY,
+                source_id=result.library_item_id,
+                library_item_id=result.library_item_id,
+                metadata_json={
+                    "chunks_used": result.chunks_used,
+                    "topic_tags_count": len(result.topic_tags),
+                    "mode": result.mode,
+                },
+            )
+            session.commit()
         except HTTPException:
             raise
         except LibraryMetadataGenerationError as exc:
+            session.rollback()
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
+            session.rollback()
             raise HTTPException(status_code=503, detail="Database is unavailable") from exc
     finally:
         session.close()

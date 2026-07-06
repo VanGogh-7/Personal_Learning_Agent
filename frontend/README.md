@@ -1,10 +1,9 @@
 # Personal Learning Agent Frontend
 
-Stage 23 adds Library metadata draft generation. For indexed Library
-items, the detail panel can request a deterministic summary and topic
-tag draft from the backend, let the user review/edit it, and save the
-reviewed values through the existing Library update API. The FastAPI
-backend must be started separately on `http://127.0.0.1:8081`.
+Stage 25 adds multi-book RAG in Chat. Users can select multiple indexed
+Library items, ask one question, and receive an answer with citations
+that identify which selected book each source chunk came from. The
+FastAPI backend must be started separately on `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -65,10 +64,15 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 ## Current Features
 
-- Sidebar navigation for Chat, Library, and Notes
-- Chat page, opened by default, with global RAG, book-scoped RAG,
-  backend status, and long-term memory tools
+- Sidebar navigation for Chat, Library, Notes, and Progress
+- Chat page, opened by default, with global RAG, one-book RAG,
+  multi-book RAG, backend status, and long-term memory tools
+- Chat context selector supports zero, one, or many indexed Library
+  items. Zero calls `POST /api/rag/query`, one calls
+  `POST /api/rag/query/library-item`, and two or more call
+  `POST /api/rag/query/library-items`
 - Chat page Sources section for structured RAG citations
+- Multi-book citations show source Library item metadata for each chunk
 - Chat page `Create LaTeX Note` action for the latest RAG response
 - Inline note draft review/edit/save panel in Chat
 - Library page with Book Library metadata create/list/search/edit/archive
@@ -83,6 +87,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Notes page `Export as .tex` action in the Tauri desktop app
 - Notes Workspace section with local folder selection and `Export to Workspace`
 - Notes page `Open Exported File` action for the latest successfully exported `.tex`
+- Progress page with recent learning events and simple event/source filters
 
 ## Current Limitations
 
@@ -120,13 +125,17 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   compilation, PDF generation, workspace scanning, file sync, file
   watcher, `.tex` import, recent exports list, workspace browser, or Git sync
 - No internal PDF preview or file upload
+- Progress is an event timeline only; there are no charts, analytics
+  dashboard, calendar, goals, spaced repetition, reminders, or AI
+  progress evaluation
 - No automatic indexing, real embedding provider, automatic book summary
-  jobs, whole-book deep summarization, or multi-book RAG
+  jobs, whole-book deep summarization, or automatic cross-book
+  comparison engine
 - No real LLM summary/tag generation by default; metadata drafts are
   deterministic unless the backend adds an explicit provider path later
-- Book-scoped RAG supports one selected indexed Library item at a time;
-  no multi-book RAG, reranking, hybrid search, BM25, query expansion, or
-  real LLM answer generation by default
+- Multi-book RAG is a retrieval-scope extension only; there is no
+  reranking, hybrid search, BM25, query expansion, streaming, agent
+  planner, or real LLM answer generation by default
 - RAG citations show chunk/document/library metadata only; there is no
   PDF page navigation, source highlighting, internal document preview,
   CSL/BibTeX/Zotero integration, or citation formatting engine

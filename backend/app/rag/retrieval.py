@@ -8,6 +8,7 @@ from app.db.vector_search import search_similar_chunks, search_similar_chunks_fo
 from app.embeddings.base import EmbeddingProvider
 from app.embeddings.mock import MockEmbeddingProvider
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
 
 
@@ -166,3 +167,110 @@ def retrieve_relevant_chunks_for_library_item(
         )
 
     return context, results
+
+
+def retrieve_relevant_chunks_for_library_items(
+    session: Session,
+    library_item_ids: list[uuid.UUID],
+    question: str,
+    top_k: int = 5,
+    embedding_provider: EmbeddingProvider | None = None,
+) -> tuple[list[LibraryItemRagContext], list[RetrievedChunkResult]]:
+    """Retrieve chunks only from documents associated with selected Library items."""
+    deduped_item_ids = list(dict.fromkeys(library_item_ids))
+    if not deduped_item_ids:
+        raise LibraryItemRagError("library_item_ids must not be empty")
+
+    items = session.execute(
+        select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+    ).scalars().all()
+    items_by_id = {item.id: item for item in items}
+
+    for item_id in deduped_item_ids:
+        if item_id not in items_by_id:
+            raise LibraryItemRagError("Library item not found")
+
+    documents = session.execute(
+        select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+    ).scalars().all()
+    documents_by_item_id: dict[uuid.UUID, list[Document]] = {
+        item_id: [] for item_id in deduped_item_ids
+    }
+    for document in documents:
+        if document.library_item_id in documents_by_item_id:
+            documents_by_item_id[document.library_item_id].append(document)
+
+    for item_id in deduped_item_ids:
+        if not documents_by_item_id[item_id]:
+            item = items_by_id[item_id]
+            raise LibraryItemRagError(
+                f"Library item has not been indexed yet: {item.title}"
+            )
+
+    document_ids = [document.id for document in documents]
+    document_ids_with_embeddings = set(
+        session.execute(
+            select(DocumentChunk.document_id)
+            .where(DocumentChunk.document_id.in_(document_ids))
+            .where(DocumentChunk.embedding.is_not(None))
+        )
+        .scalars()
+        .all()
+    )
+
+    for item_id in deduped_item_ids:
+        if not any(
+            document.id in document_ids_with_embeddings
+            for document in documents_by_item_id[item_id]
+        ):
+            item = items_by_id[item_id]
+            raise LibraryItemRagError(
+                f"Library item has no indexed chunks to search: {item.title}"
+            )
+
+    provider = embedding_provider or MockEmbeddingProvider()
+    query_embedding = provider.embed_text(question)
+    similar_chunks = search_similar_chunks_for_documents(
+        session, query_embedding, document_ids=document_ids, limit=top_k
+    )
+    if not similar_chunks:
+        raise LibraryItemRagError("Selected library items have no indexed chunks to search.")
+
+    documents_by_id = {document.id: document for document in documents}
+    contexts = [
+        LibraryItemRagContext(
+            item_id=item.id,
+            title=item.title,
+            author=item.author,
+            file_type=item.file_type,
+            status=item.status,
+        )
+        for item in (items_by_id[item_id] for item_id in deduped_item_ids)
+    ]
+
+    results: list[RetrievedChunkResult] = []
+    for chunk in similar_chunks:
+        document = documents_by_id.get(chunk.document_id)
+        item = (
+            items_by_id.get(document.library_item_id)
+            if document is not None and document.library_item_id is not None
+            else None
+        )
+        results.append(
+            RetrievedChunkResult(
+                chunk_id=chunk.chunk_id,
+                document_id=chunk.document_id,
+                document_title=document.title if document else None,
+                document_source_path=document.file_path if document else None,
+                library_item_id=item.id if item else None,
+                library_title=item.title if item else None,
+                library_author=item.author if item else None,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                char_start=chunk.char_start,
+                char_end=chunk.char_end,
+                score=chunk.distance,
+            )
+        )
+
+    return contexts, results

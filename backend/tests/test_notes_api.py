@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.api.notes_routes as notes_routes_module
 from app.models.library_item import LibraryItem
+from app.models.learning_event import LearningEvent
 from app.models.note import Note
 from app.notes.schemas import ChatNoteDraftRequest, NoteCreate, NoteUpdate
 
@@ -20,7 +21,10 @@ def notes_session(monkeypatch):
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    LibraryItem.metadata.create_all(engine, tables=[LibraryItem.__table__, Note.__table__])
+    LibraryItem.metadata.create_all(
+        engine,
+        tables=[LibraryItem.__table__, Note.__table__, LearningEvent.__table__],
+    )
     session = Session(engine, expire_on_commit=False)
     close_session = session.close
     session.close = lambda: None  # type: ignore[method-assign]

@@ -1,4 +1,4 @@
-# CLAUDE.md
+# CODEX.md
 
 ## Project Overview
 
@@ -38,8 +38,10 @@ Stage 19: Notes Workspace MVP — completed.
 Stage 20: Open Exported Notes File — completed.
 Stage 21: Real LLM Integration Boundary — completed.
 Stage 22: Better Retrieval / Citations / Chunk Metadata — completed.
+Stage 23: Book Summary + Topic Extraction — completed.
+Stage 24: Learning History / Progress Timeline — completed.
 
-Current active stage: Stage 23: Book Summary + Topic Extraction.
+Current active stage: Stage 25: Multi-Book RAG MVP.
 
 Do not implement the full product at once.
 
@@ -68,7 +70,9 @@ Project stage roadmap:
 20. Open Exported Notes File — completed
 21. Real LLM Integration Boundary — completed
 22. Better Retrieval / Citations / Chunk Metadata — completed
-23. Book Summary + Topic Extraction — current
+23. Book Summary + Topic Extraction — completed
+24. Learning History / Progress Timeline — completed
+25. Multi-Book RAG MVP — current
 
 ---
 
@@ -206,6 +210,21 @@ them through the existing `PATCH /api/library/items/{item_id}` flow.
 Summary uses `library_items.description`; topic tags use
 `library_items.topic_tags`. No database migration is needed.
 
+Stage 24 is Learning History / Progress Timeline. The backend records a
+small event log in `learning_events`, exposes simple create/list/filter
+APIs, and the frontend adds a Progress page with a recent-event
+timeline. This is an event-log foundation only, not analytics,
+dashboards, planning, spaced repetition, or AI progress evaluation.
+
+Stage 25 is Multi-Book RAG MVP. The Chat page can select multiple
+indexed Library items and send questions to
+`POST /api/rag/query/library-items`. The backend validates the selected
+items, retrieves only chunks whose documents have
+`documents.library_item_id` in the selected IDs, returns selected
+Library item metadata plus structured citations, preserves session and
+long-term memory behavior, and records
+`multi_book_rag_question_asked` only after successful responses.
+
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
 - Preserve existing `retrieved_chunks` fields and add top-level `citations`
@@ -217,7 +236,7 @@ Allowed in Stage 22:
 - Preserve LLM provider boundary and deterministic defaults
 - Preserve Chat-to-Notes compatibility
 - Add deterministic tests that do not require real API keys or network calls
-- Update README/CLAUDE.md
+- Update README/CODEX.md
 
 Do not implement in Stage 22:
 - Reranking
@@ -353,7 +372,7 @@ Allowed in Stage 23:
 - Reuse existing Library PATCH endpoint for saves
 - Add minimal Library detail UI for generate/review/edit/save/cancel
 - Add deterministic tests requiring no real API keys or network calls
-- Update README/backend/frontend/CLAUDE documentation
+- Update README/backend/frontend/CODEX documentation
 
 Do not implement in Stage 23:
 - LangGraph
@@ -388,6 +407,58 @@ Do not implement in Stage 23:
 - Large UI redesign
 - Frontend API-key settings
 - Exposing API keys to the frontend
+
+Allowed in Stage 25:
+- Add `POST /api/rag/query/library-items`
+- Add typed multi-book RAG request/response schemas
+- Validate non-empty selected Library item IDs, blank questions, `top_k`,
+  missing items, and unindexed items
+- Deduplicate duplicate selected IDs consistently
+- Retrieve with a backend document/library-item filter, not frontend
+  filtering
+- Reuse deterministic mock embeddings, existing pgvector similarity
+  helpers, the LLM provider boundary, Stage 22 citation builder, memory
+  services, and Stage 24 learning event service
+- Return selected Library item metadata and citations that identify the
+  source Library item for each chunk
+- Update Chat so zero selected books uses global RAG, one selected book
+  uses the existing single-book endpoint, and two or more selected books
+  use the new endpoint
+- Keep Chat-to-Notes compatible by leaving `library_item_id` null for
+  multi-book note drafts
+- Add deterministic tests that do not require API keys or network calls
+- Update README/backend/frontend/CODEX documentation
+
+Do not implement in Stage 25:
+- LangGraph
+- Graph design
+- Agent planning
+- Tool calling
+- MCP
+- Multi-agent systems
+- Streaming responses
+- Reranking
+- Hybrid search
+- BM25
+- Full-text search
+- Query expansion
+- Real embedding provider
+- OpenAI/DeepSeek embedding calls
+- Embedding dimension changes
+- Chunking/indexing pipeline changes
+- PDF parsing
+- DOCX parsing
+- LaTeX parsing
+- OCR
+- Knowledge graph
+- Whole-book synthesis
+- Automatic cross-book comparison engine
+- Background jobs
+- Redis / Celery / RQ
+- User accounts
+- Authentication
+- Cloud deployment
+- Large UI redesign
 
 ---
 
@@ -466,6 +537,16 @@ Frontend:
   metadata drafts for indexed items using representative chunks; drafts
   do not auto-save, reviewed summaries use `description`, reviewed tags
   use `topic_tags`, and real LLM summary/tag generation is not default
+- Stage 24 Learning History / Progress Timeline adds a small
+  `learning_events` table, event APIs, targeted event hooks, and a
+  Progress page timeline; it does not add dashboards, charts, planning,
+  reminders, or AI progress evaluation
+- Stage 25 Multi-Book RAG MVP adds
+  `POST /api/rag/query/library-items` and a Chat multi-select context
+  for indexed Library items; retrieval is scoped in the backend through
+  selected `documents.library_item_id` values, citations identify the
+  source book, and no reranking, hybrid search, graph workflow, or
+  agent planning is added
 
 Planned later:
 - LangGraph

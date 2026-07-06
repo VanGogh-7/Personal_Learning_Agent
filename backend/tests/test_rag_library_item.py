@@ -8,14 +8,22 @@ from sqlalchemy.pool import StaticPool
 
 import app.api.rag_routes as rag_routes_module
 from app.api.rag_routes import rag_query_endpoint, rag_query_library_item_endpoint
+from app.api.rag_routes import rag_query_library_items_endpoint
 from app.embeddings.mock import MockEmbeddingProvider
+from app.learning_events.constants import EVENT_MULTI_BOOK_RAG_QUESTION_ASKED
 from app.library.service import create_library_item
 from app.models.conversation_turn import ConversationTurn
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
+from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
+from app.models.note import Note
 from app.rag.retrieval import RetrievedChunkResult
-from app.rag.schemas import LibraryItemRagQueryRequest, RagQueryRequest
+from app.rag.schemas import (
+    LibraryItemRagQueryRequest,
+    MultiBookRagQueryRequest,
+    RagQueryRequest,
+)
 
 
 @pytest.fixture
@@ -29,9 +37,11 @@ def scoped_rag_session():
         engine,
         tables=[
             LibraryItem.__table__,
+            Note.__table__,
             Document.__table__,
             DocumentChunk.__table__,
             ConversationTurn.__table__,
+            LearningEvent.__table__,
         ],
     )
     session = Session(engine)
@@ -242,3 +252,222 @@ def test_global_rag_endpoint_still_uses_global_retrieval(monkeypatch) -> None:
     assert response.citations[0].score == 0.01
     assert response.citations[0].excerpt == "Global retrieval still works."
     assert response.retrieved_chunks[0].citation == response.citations[0]
+
+
+def test_multi_book_rag_returns_chunks_only_from_selected_library_items(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected_a = _create_indexed_item(
+        scoped_rag_session,
+        "Linear Algebra",
+        "Vector spaces have bases and linear maps.",
+    )
+    selected_b = _create_indexed_item(
+        scoped_rag_session,
+        "Functional Analysis",
+        "Normed spaces and operators extend linear algebra.",
+    )
+    unselected = _create_indexed_item(
+        scoped_rag_session,
+        "Botany",
+        "Plants convert sunlight into chemical energy.",
+    )
+    selected_a_id = selected_a.id
+    selected_b_id = selected_b.id
+    unselected_id = unselected.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    response = rag_query_library_items_endpoint(
+        MultiBookRagQueryRequest(
+            library_item_ids=[str(selected_a_id), str(selected_b_id)],
+            question="What do these materials say about spaces?",
+            top_k=5,
+            session_id="multi-session",
+        )
+    )
+
+    returned_library_ids = {
+        chunk.citation.library_item_id for chunk in response.retrieved_chunks
+    }
+    assert returned_library_ids == {str(selected_a_id), str(selected_b_id)}
+    assert str(unselected_id) not in returned_library_ids
+    assert response.total_retrieved == 2
+    assert [item.id for item in response.selected_library_items] == [
+        str(selected_a_id),
+        str(selected_b_id),
+    ]
+    assert [item.title for item in response.selected_library_items] == [
+        "Linear Algebra",
+        "Functional Analysis",
+    ]
+    assert response.selected_library_items[0].author == "Author"
+    assert response.selected_library_items[0].file_type == "txt"
+    assert response.selected_library_items[0].status == "indexed"
+
+
+def test_multi_book_rag_citations_include_library_and_chunk_metadata(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected_a = _create_indexed_item(
+        scoped_rag_session,
+        "Topology",
+        "Open sets define topological spaces.",
+    )
+    selected_b = _create_indexed_item(
+        scoped_rag_session,
+        "Analysis",
+        "Limits define continuity in analysis.",
+    )
+    selected_a_id = selected_a.id
+    selected_b_id = selected_b.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    response = rag_query_library_items_endpoint(
+        MultiBookRagQueryRequest(
+            library_item_ids=[str(selected_a_id), str(selected_b_id)],
+            question="What is a space?",
+            top_k=2,
+        )
+    )
+
+    assert [citation.citation_id for citation in response.citations] == ["S1", "S2"]
+    selected_ids = {str(selected_a_id), str(selected_b_id)}
+    for citation, chunk in zip(response.citations, response.retrieved_chunks):
+        assert citation == chunk.citation
+        assert citation.library_item_id in selected_ids
+        assert citation.library_title in {"Topology", "Analysis"}
+        assert citation.library_author == "Author"
+        assert citation.document_title in {"Topology", "Analysis"}
+        assert citation.document_source_path in {"/tmp/Topology.txt", "/tmp/Analysis.txt"}
+        assert citation.chunk_id == chunk.chunk_id
+        assert citation.document_id == chunk.document_id
+        assert citation.chunk_index == chunk.chunk_index
+        assert citation.excerpt
+
+
+def test_multi_book_rag_deduplicates_library_item_ids(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected_a = _create_indexed_item(scoped_rag_session, "Algebra", "Groups have operations.")
+    selected_b = _create_indexed_item(
+        scoped_rag_session, "Geometry", "Triangles have angles."
+    )
+    selected_a_id = selected_a.id
+    selected_b_id = selected_b.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    response = rag_query_library_items_endpoint(
+        MultiBookRagQueryRequest(
+            library_item_ids=[str(selected_a_id), str(selected_a_id), str(selected_b_id)],
+            question="What is covered?",
+            top_k=5,
+        )
+    )
+
+    assert [item.id for item in response.selected_library_items] == [
+        str(selected_a_id),
+        str(selected_b_id),
+    ]
+
+
+def test_multi_book_rag_missing_library_item_returns_404(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected = _create_indexed_item(scoped_rag_session, "Analysis", "Limits converge.")
+    selected_id = selected.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        rag_query_library_items_endpoint(
+            MultiBookRagQueryRequest(
+                library_item_ids=[str(selected_id), str(uuid.uuid4())],
+                question="What is this?",
+            )
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "Library item not found"
+
+
+def test_multi_book_rag_unindexed_library_item_returns_400(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected = _create_indexed_item(scoped_rag_session, "Analysis", "Limits converge.")
+    unindexed = create_library_item(scoped_rag_session, title="Draft")
+    selected_id = selected.id
+    unindexed_id = unindexed.item_id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    with pytest.raises(HTTPException) as exc_info:
+        rag_query_library_items_endpoint(
+            MultiBookRagQueryRequest(
+                library_item_ids=[str(selected_id), str(unindexed_id)],
+                question="What is this?",
+            )
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "not been indexed" in exc_info.value.detail
+    assert "Draft" in exc_info.value.detail
+
+
+def test_multi_book_rag_saves_memory_metadata_and_learning_event(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected_a = _create_indexed_item(scoped_rag_session, "Algebra", "Groups have operations.")
+    selected_b = _create_indexed_item(
+        scoped_rag_session, "Geometry", "Triangles have angles."
+    )
+    selected_a_id = selected_a.id
+    selected_b_id = selected_b.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    response = rag_query_library_items_endpoint(
+        MultiBookRagQueryRequest(
+            library_item_ids=[str(selected_a_id), str(selected_b_id)],
+            question="Compare the materials.",
+            session_id="session-multi",
+        )
+    )
+
+    turn = scoped_rag_session.execute(select(ConversationTurn)).scalar_one()
+    assert turn.metadata_json == {
+        "query_type": "multi_book_rag",
+        "scope": "library_items",
+        "library_item_ids": [str(selected_a_id), str(selected_b_id)],
+        "retrieved_chunk_ids": [chunk.chunk_id for chunk in response.retrieved_chunks],
+        "citation_count": len(response.citations),
+    }
+
+    event = scoped_rag_session.execute(select(LearningEvent)).scalar_one()
+    assert event.event_type == EVENT_MULTI_BOOK_RAG_QUESTION_ASKED
+    assert event.source_type == "rag"
+    assert event.library_item_id is None
+    assert event.session_id == "session-multi"
+    assert event.title == "Asked question across selected books"
+    assert event.metadata_json == {
+        "question": "Compare the materials.",
+        "library_item_ids": [str(selected_a_id), str(selected_b_id)],
+        "library_titles": ["Algebra", "Geometry"],
+        "total_retrieved": response.total_retrieved,
+        "citation_count": len(response.citations),
+    }
+
+
+def test_failed_multi_book_rag_does_not_create_success_event(
+    monkeypatch, scoped_rag_session
+) -> None:
+    selected = _create_indexed_item(scoped_rag_session, "Analysis", "Limits converge.")
+    selected_id = selected.id
+    _patch_db(monkeypatch, scoped_rag_session)
+
+    with pytest.raises(HTTPException):
+        rag_query_library_items_endpoint(
+            MultiBookRagQueryRequest(
+                library_item_ids=[str(selected_id), str(uuid.uuid4())],
+                question="What is this?",
+            )
+        )
+
+    events = scoped_rag_session.execute(select(LearningEvent)).scalars().all()
+    assert events == []

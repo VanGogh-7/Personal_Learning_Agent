@@ -11,7 +11,9 @@ from app.api.library_routes import index_library_item_endpoint
 from app.library.service import create_library_item
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
+from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
+from app.models.note import Note
 
 
 @pytest.fixture
@@ -23,7 +25,13 @@ def indexing_api_session():
     )
     LibraryItem.metadata.create_all(
         engine,
-        tables=[LibraryItem.__table__, Document.__table__, DocumentChunk.__table__],
+        tables=[
+            LibraryItem.__table__,
+            Note.__table__,
+            Document.__table__,
+            DocumentChunk.__table__,
+            LearningEvent.__table__,
+        ],
     )
     session = Session(engine)
     try:

@@ -6,20 +6,19 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 23: Book Summary + Topic Extraction.
+Stage 25: Multi-Book RAG MVP.
 
-Indexed Library items can now generate a deterministic summary draft
-and topic tag draft from their indexed chunks:
+The Chat page can now scope a RAG question to multiple selected indexed
+Library items:
 
 ```text
-indexed Library item -> representative chunks -> summary/tag draft -> review/edit -> PATCH metadata
+indexed Library item A + indexed Library item B -> selected Chat context -> scoped RAG
 ```
 
-The draft endpoint does not save automatically. The user reviews or
-edits the generated summary and tags in the Library detail panel, then
-saves them through the existing Library item update flow. Summary drafts
-use `library_items.description`; topic tag drafts use
-`library_items.topic_tags`.
+The backend retrieves only chunks attached to the selected books,
+returns structured citations that identify the source book, preserves
+session memory behavior, and records a learning event for successful
+multi-book questions.
 
 ## Configuration
 
@@ -44,28 +43,42 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 23 Does
+## What Stage 25 Does
 
-- Adds `POST /api/library/items/{item_id}/metadata-draft`.
-- Works only for indexed Library items with associated document chunks.
-- Selects representative chunks deterministically from indexed chunks.
-- Generates a deterministic template-based summary draft.
-- Extracts deterministic topic tag drafts with simple token frequency.
-- Adds Library detail UI to generate, review, edit, cancel, and save
-  summary/tags.
-- Saves reviewed metadata through existing `PATCH /api/library/items/{item_id}`.
-- Adds tests that do not require real API calls or network access.
+- Adds `POST /api/rag/query/library-items`.
+- Accepts `library_item_ids`, `question`, `top_k`, optional
+  `session_id`, and `include_long_term_memory`.
+- Filters retrieval in the backend to documents whose
+  `documents.library_item_id` is one of the selected IDs.
+- Returns `selected_library_items`, retrieved chunks, and structured
+  citations with `library_item_id`, title, author, document, chunk, and
+  score metadata.
+- Updates Chat so users can select zero, one, or many indexed Library
+  items. Zero uses global RAG, one uses the existing single-book
+  endpoint, and two or more use the new multi-book endpoint.
+- Records `multi_book_rag_question_asked` after successful multi-book
+  RAG responses.
 
-## What Stage 23 Does Not Do
+Example request:
 
-No LangGraph, agents, tool calling, MCP, streaming, background jobs,
-automatic indexing-triggered summary jobs, queues, real embedding
-providers, OpenAI/DeepSeek embedding calls, embedding dimension changes,
-retrieval replacement, parser changes, PDF/DOCX/LaTeX/OCR extraction,
-whole-book deep summarization, multi-book synthesis, knowledge graph,
-prompt template database, citation formatting engines, authentication,
-cloud deployment, or large UI redesign. Real LLM summary/tag generation
-is not required and is not the default.
+```json
+{
+  "library_item_ids": ["00000000-0000-0000-0000-000000000000"],
+  "question": "Compare the definitions in these selected books.",
+  "top_k": 5,
+  "include_long_term_memory": false
+}
+```
+
+## What Stage 25 Does Not Do
+
+No LangGraph, graph design, agent planning, tool calling, MCP,
+multi-agent systems, streaming, reranking, hybrid search, BM25,
+full-text search, query expansion, real embedding providers, embedding
+dimension changes, chunking/indexing changes, PDF/DOCX/LaTeX parsing,
+OCR, knowledge graph, whole-book synthesis, automatic cross-book
+comparison engine, background jobs, authentication, deployment, or
+large UI redesign.
 
 ## Commands
 

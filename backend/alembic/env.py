@@ -12,6 +12,7 @@ from app.models import (  # noqa: F401
     ConversationTurn,
     Document,
     DocumentChunk,
+    LearningEvent,
     LearningSource,
     LibraryItem,
     LongTermMemory,

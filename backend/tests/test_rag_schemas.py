@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.rag.schemas import RagQueryRequest
+from app.rag.schemas import MultiBookRagQueryRequest, RagQueryRequest
 
 
 def test_question_is_required() -> None:
@@ -65,3 +65,17 @@ def test_empty_session_id_is_rejected() -> None:
 def test_whitespace_only_session_id_is_rejected() -> None:
     with pytest.raises(ValidationError):
         RagQueryRequest(question="valid question", session_id="   ")
+
+
+def test_multi_book_request_deduplicates_library_item_ids() -> None:
+    request = MultiBookRagQueryRequest(
+        question="valid question",
+        library_item_ids=[" item-a ", "item-a", "item-b"],
+    )
+
+    assert request.library_item_ids == ["item-a", "item-b"]
+
+
+def test_multi_book_request_rejects_empty_library_item_ids() -> None:
+    with pytest.raises(ValidationError):
+        MultiBookRagQueryRequest(question="valid question", library_item_ids=[])

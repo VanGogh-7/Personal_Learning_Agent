@@ -19,6 +19,10 @@ export interface LibraryItemRagQueryRequest extends RagQueryRequest {
   library_item_id: string;
 }
 
+export interface MultiBookRagQueryRequest extends RagQueryRequest {
+  library_item_ids: string[];
+}
+
 export interface RagCitation {
   citation_id: string;
   chunk_id: string;
@@ -72,6 +76,12 @@ export interface RagLibraryItemMetadata {
 
 export interface LibraryItemRagQueryResponse extends RagQueryResponse {
   library_item: RagLibraryItemMetadata;
+}
+
+export interface SelectedLibraryItem extends RagLibraryItemMetadata {}
+
+export interface MultiBookRagQueryResponse extends RagQueryResponse {
+  selected_library_items: SelectedLibraryItem[];
 }
 
 export interface LongTermMemoryCreateRequest {
@@ -254,4 +264,45 @@ export interface ChatNoteDraftResponse {
   library_item_id?: string | null;
   source_session_id?: string | null;
   topic_tags?: string[] | null;
+}
+
+export interface LearningEvent {
+  id: string;
+  event_type: string;
+  title: string;
+  description: string | null;
+  source_type: string | null;
+  source_id: string | null;
+  library_item_id: string | null;
+  note_id: string | null;
+  session_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface LearningEventListResponse {
+  events: LearningEvent[];
+  total: number;
+}
+
+export interface LearningEventFilters {
+  event_type?: string;
+  source_type?: string;
+  library_item_id?: string;
+  note_id?: string;
+  session_id?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface LearningEventCreateRequest {
+  event_type: string;
+  title: string;
+  description?: string | null;
+  source_type?: string | null;
+  source_id?: string | null;
+  library_item_id?: string | null;
+  note_id?: string | null;
+  session_id?: string | null;
+  metadata_json?: Record<string, unknown> | null;
 }

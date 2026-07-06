@@ -36,6 +36,28 @@ class LibraryItemRagQueryRequest(RagQueryRequest):
     library_item_id: str
 
 
+class MultiBookRagQueryRequest(RagQueryRequest):
+    library_item_ids: list[str]
+
+    @field_validator("library_item_ids")
+    @classmethod
+    def library_item_ids_must_not_be_empty(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("library_item_ids must not be empty")
+
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item_id in value:
+            stripped = item_id.strip()
+            if not stripped:
+                raise ValueError("library_item_ids must not contain empty values")
+            if stripped not in seen:
+                normalized.append(stripped)
+                seen.add(stripped)
+
+        return normalized
+
+
 class RagCitation(BaseModel):
     citation_id: str
     chunk_id: str
@@ -89,3 +111,11 @@ class RagLibraryItemMetadata(BaseModel):
 
 class LibraryItemRagQueryResponse(RagQueryResponse):
     library_item: RagLibraryItemMetadata
+
+
+class SelectedLibraryItemRead(RagLibraryItemMetadata):
+    pass
+
+
+class MultiBookRagQueryResponse(RagQueryResponse):
+    selected_library_items: list[SelectedLibraryItemRead]

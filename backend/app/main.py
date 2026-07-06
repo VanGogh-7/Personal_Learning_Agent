@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.ingestion_routes import router as ingestion_router
+from app.api.learning_event_routes import router as learning_event_router
 from app.api.library_routes import router as library_router
 from app.api.memory_routes import router as memory_router
 from app.api.notes_routes import router as notes_router
@@ -32,3 +33,4 @@ app.include_router(rag_router)
 app.include_router(memory_router)
 app.include_router(library_router)
 app.include_router(notes_router)
+app.include_router(learning_event_router)

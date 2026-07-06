@@ -10,11 +10,17 @@ import type {
   LibraryItemRagQueryResponse,
   LibraryItemListParams,
   LibraryItemListResponse,
+  LearningEvent,
+  LearningEventCreateRequest,
+  LearningEventFilters,
+  LearningEventListResponse,
   LongTermMemoryCreateRequest,
   LongTermMemory,
   LongTermMemoryListParams,
   LongTermMemoryListResponse,
   LongTermMemorySearchParams,
+  MultiBookRagQueryRequest,
+  MultiBookRagQueryResponse,
   Note,
   NoteCreateRequest,
   NoteListParams,
@@ -151,6 +157,19 @@ function toNoteQueryString(params: NoteListParams | NoteSearchParams): string {
   return query ? `?${query}` : "";
 }
 
+function toLearningEventQueryString(params: LearningEventFilters): string {
+  const searchParams = new URLSearchParams();
+  appendOptionalParam(searchParams, "event_type", params.event_type?.trim());
+  appendOptionalParam(searchParams, "source_type", params.source_type?.trim());
+  appendOptionalParam(searchParams, "library_item_id", params.library_item_id?.trim());
+  appendOptionalParam(searchParams, "note_id", params.note_id?.trim());
+  appendOptionalParam(searchParams, "session_id", params.session_id?.trim());
+  appendOptionalParam(searchParams, "limit", params.limit);
+  appendOptionalParam(searchParams, "offset", params.offset);
+  const query = searchParams.toString();
+  return query ? `?${query}` : "";
+}
+
 export function getHealth(): Promise<HealthResponse> {
   return requestJson<HealthResponse>("/health");
 }
@@ -170,6 +189,15 @@ export function queryLibraryItemRag(
   payload: LibraryItemRagQueryRequest,
 ): Promise<LibraryItemRagQueryResponse> {
   return requestJson<LibraryItemRagQueryResponse>("/api/rag/query/library-item", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function queryMultiBookRag(
+  payload: MultiBookRagQueryRequest,
+): Promise<MultiBookRagQueryResponse> {
+  return requestJson<MultiBookRagQueryResponse>("/api/rag/query/library-items", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -299,5 +327,30 @@ export function updateNote(noteId: string, payload: NoteUpdateRequest): Promise<
 export function archiveNote(noteId: string): Promise<Note> {
   return requestJson<Note>(`/api/notes/${noteId}`, {
     method: "DELETE",
+  });
+}
+
+export function listLearningEvents(
+  params: LearningEventFilters = {},
+): Promise<LearningEventListResponse> {
+  return requestJson<LearningEventListResponse>(
+    `/api/learning-events${toLearningEventQueryString(params)}`,
+  );
+}
+
+export function getRecentLearningEvents(
+  limit = 20,
+): Promise<LearningEventListResponse> {
+  return requestJson<LearningEventListResponse>(
+    `/api/learning-events/recent${toLearningEventQueryString({ limit })}`,
+  );
+}
+
+export function createLearningEvent(
+  payload: LearningEventCreateRequest,
+): Promise<LearningEvent> {
+  return requestJson<LearningEvent>("/api/learning-events", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

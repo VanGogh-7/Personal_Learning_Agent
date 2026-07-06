@@ -4,6 +4,12 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.learning_events.constants import (
+    EVENT_BOOK_RAG_QUESTION_ASKED,
+    EVENT_MULTI_BOOK_RAG_QUESTION_ASKED,
+    SOURCE_RAG,
+)
+from app.learning_events.service import create_learning_event
 from app.llm.providers import LLMConfigurationError, LLMProviderError
 from app.memory.long_term import DEFAULT_CONTEXT_MEMORY_COUNT, search_memories
 from app.memory.short_term import (
@@ -19,16 +25,20 @@ from app.rag.retrieval import (
     RetrievedChunkResult,
     retrieve_relevant_chunks,
     retrieve_relevant_chunks_for_library_item,
+    retrieve_relevant_chunks_for_library_items,
 )
 from app.rag.schemas import (
     LibraryItemRagQueryRequest,
     LibraryItemRagQueryResponse,
     MemoryMetadata,
+    MultiBookRagQueryRequest,
+    MultiBookRagQueryResponse,
     RagCitation,
     RagLibraryItemMetadata,
     RagQueryRequest,
     RagQueryResponse,
     RetrievedChunk,
+    SelectedLibraryItemRead,
 )
 
 router = APIRouter(prefix="/api/rag", tags=["rag"])
@@ -142,6 +152,20 @@ def rag_query_library_item_endpoint(
                     "library_item_id": str(library_item.item_id),
                 },
             )
+            create_learning_event(
+                db_session,
+                event_type=EVENT_BOOK_RAG_QUESTION_ASKED,
+                title=f"Asked question about: {library_item.title}",
+                source_type=SOURCE_RAG,
+                source_id=library_item.item_id,
+                library_item_id=library_item.item_id,
+                session_id=session_id,
+                metadata_json={
+                    "question": request.question,
+                    "total_retrieved": len(retrieved),
+                    "citation_count": len(retrieved),
+                },
+            )
             db_session.commit()
         except LibraryItemRagError as exc:
             db_session.rollback()
@@ -182,6 +206,116 @@ def rag_query_library_item_endpoint(
     )
 
 
+@router.post("/query/library-items", response_model=MultiBookRagQueryResponse)
+def rag_query_library_items_endpoint(
+    request: MultiBookRagQueryRequest,
+) -> MultiBookRagQueryResponse:
+    session_id = request.session_id or create_session_id()
+    try:
+        library_item_ids = [uuid.UUID(item_id) for item_id in request.library_item_ids]
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="library_item_ids must contain valid UUIDs"
+        ) from exc
+
+    try:
+        db_session = get_db_session()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    long_term_memories: list = []
+    try:
+        try:
+            selected_items, retrieved = retrieve_relevant_chunks_for_library_items(
+                db_session,
+                library_item_ids=library_item_ids,
+                question=request.question,
+                top_k=request.top_k,
+            )
+            recent_turns = get_recent_turns(
+                db_session, session_id, limit=DEFAULT_RECENT_TURNS_LIMIT
+            )
+            if request.include_long_term_memory:
+                long_term_memories = search_memories(
+                    db_session, keyword=request.question, limit=DEFAULT_CONTEXT_MEMORY_COUNT
+                )
+            answer = generate_answer(
+                request.question,
+                retrieved,
+                recent_turns=recent_turns,
+                long_term_memories=long_term_memories,
+                library_item_context=_build_library_items_context(selected_items),
+            )
+            save_turn(
+                db_session,
+                session_id,
+                request.question,
+                answer,
+                metadata={
+                    "query_type": "multi_book_rag",
+                    "scope": "library_items",
+                    "library_item_ids": [str(item.item_id) for item in selected_items],
+                    "retrieved_chunk_ids": [str(chunk.chunk_id) for chunk in retrieved],
+                    "citation_count": len(retrieved),
+                },
+            )
+            create_learning_event(
+                db_session,
+                event_type=EVENT_MULTI_BOOK_RAG_QUESTION_ASKED,
+                title="Asked question across selected books",
+                source_type=SOURCE_RAG,
+                session_id=session_id,
+                metadata_json={
+                    "question": request.question,
+                    "library_item_ids": [str(item.item_id) for item in selected_items],
+                    "library_titles": [item.title for item in selected_items],
+                    "total_retrieved": len(retrieved),
+                    "citation_count": len(retrieved),
+                },
+            )
+            db_session.commit()
+        except LibraryItemRagError as exc:
+            db_session.rollback()
+            detail = str(exc)
+            status_code = 404 if detail == "Library item not found" else 400
+            raise HTTPException(status_code=status_code, detail=detail) from exc
+        except SQLAlchemyError as exc:
+            db_session.rollback()
+            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+        except (LLMConfigurationError, LLMProviderError) as exc:
+            db_session.rollback()
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+    finally:
+        db_session.close()
+
+    citation_results = build_chunk_citations(retrieved)
+    citations = [_citation_response(citation) for citation in citation_results]
+    retrieved_chunks = _retrieved_chunk_responses(retrieved, citations)
+
+    return MultiBookRagQueryResponse(
+        answer=answer,
+        selected_library_items=[
+            SelectedLibraryItemRead(
+                id=str(item.item_id),
+                title=item.title,
+                author=item.author,
+                file_type=item.file_type,
+                status=item.status,
+            )
+            for item in selected_items
+        ],
+        retrieved_chunks=retrieved_chunks,
+        citations=citations,
+        total_retrieved=len(retrieved_chunks),
+        session_id=session_id,
+        memory=MemoryMetadata(
+            used_recent_turns=len(recent_turns),
+            saved_current_turn=True,
+            used_long_term_memories=len(long_term_memories),
+        ),
+    )
+
+
 def _build_library_item_context(
     *, title: str, author: str | None, file_type: str | None, status: str
 ) -> str:
@@ -190,6 +324,18 @@ def _build_library_item_context(
         lines.append(f"Author: {author}")
     if file_type:
         lines.append(f"File type: {file_type}")
+    return "\n".join(lines)
+
+
+def _build_library_items_context(selected_items: list) -> str:
+    lines = ["Selected books:"]
+    for index, item in enumerate(selected_items, start=1):
+        parts = [f"{index}. {item.title}", f"status: {item.status}"]
+        if item.author:
+            parts.append(f"author: {item.author}")
+        if item.file_type:
+            parts.append(f"file type: {item.file_type}")
+        lines.append("; ".join(parts))
     return "\n".join(lines)
 
 

@@ -4,6 +4,12 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.learning_events.constants import (
+    EVENT_NOTE_CREATED,
+    EVENT_NOTE_FROM_CHAT_CREATED,
+    SOURCE_NOTES,
+)
+from app.learning_events.service import create_learning_event
 from app.notes.generation import generate_chat_note_draft
 from app.notes.schemas import (
     ChatNoteDraftRequest,
@@ -62,6 +68,30 @@ def create_note_endpoint(request: NoteCreate) -> NoteRead:
                 source_session_id=request.source_session_id,
                 topic_tags=request.topic_tags,
                 status=request.status,
+            )
+            event_type = (
+                EVENT_NOTE_FROM_CHAT_CREATED
+                if note.source_session_id
+                else EVENT_NOTE_CREATED
+            )
+            title_prefix = (
+                "Created note from chat"
+                if event_type == EVENT_NOTE_FROM_CHAT_CREATED
+                else "Created note"
+            )
+            create_learning_event(
+                session,
+                event_type=event_type,
+                title=f"{title_prefix}: {note.title}",
+                source_type=SOURCE_NOTES,
+                source_id=note.note_id,
+                library_item_id=note.library_item_id,
+                note_id=note.note_id,
+                session_id=note.source_session_id,
+                metadata_json={
+                    "status": note.status,
+                    "topic_tags": note.topic_tags,
+                },
             )
             session.commit()
         except ValueError as exc:

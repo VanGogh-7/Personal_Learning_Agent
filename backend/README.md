@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 23: Book Summary + Topic Extraction.
+Stage 25: Multi-Book RAG MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -71,18 +71,26 @@ Stage 23: Book Summary + Topic Extraction.
 - Book Summary + Topic Extraction: indexed Library items can generate
   deterministic summary and topic tag drafts from representative indexed
   chunks, then save reviewed metadata through the existing Library
-  update endpoint (Stage 23, current)
+  update endpoint (Stage 23, completed)
+- Learning History / Progress Timeline: selected Library, RAG, and
+  Notes actions are recorded in a small `learning_events` table and
+  exposed through list/filter APIs for the frontend Progress page
+  (Stage 24, completed)
+- Multi-Book RAG MVP: `POST /api/rag/query/library-items` retrieves
+  only from multiple selected indexed Library items, returns selected
+  item metadata plus structured citations, preserves memory behavior,
+  and records `multi_book_rag_question_asked` events (Stage 25, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, LangGraph workflows, MCP,
 backend auto-start from Tauri, complex Rust backend logic, document
 parsing UI, repository analysis, and production packaging are planned
-but **not implemented yet**. Stage 23 enriches Library metadata without
-changing retrieval, indexing, embeddings, chunking, or parser behavior.
-It does not add reranking, hybrid search, BM25, query expansion, real
-embeddings, PDF/DOCX/LaTeX parsing, OCR, citation formatting engines,
-agents, tool calling, streaming, background jobs, queues, or automatic
-indexing-triggered summary jobs.
+but **not implemented yet**. Stage 25 is a retrieval-scope extension
+only. It does not add LangGraph, agent planning, tool calling, MCP,
+multi-agent systems, streaming, reranking, hybrid search, BM25,
+full-text search, query expansion, real embedding providers, parser
+changes, whole-book synthesis, background jobs, authentication, or
+deployment.
 
 ## Setup
 
@@ -462,6 +470,55 @@ default, automatic summary jobs, background queues, parser changes,
 real embeddings, retrieval changes, whole-book deep summarization,
 multi-book synthesis, knowledge graphs, prompt template storage,
 LangGraph, agents, tool calling, MCP, authentication, or deployment.
+
+## Learning History / Progress Timeline (Stage 24)
+
+Stage 24 adds a minimal append-only event log for learning-related
+actions. The new `learning_events` table includes:
+
+- `event_type`, `title`, optional `description`
+- optional `source_type` and `source_id`
+- optional `library_item_id` foreign key to `library_items.id`
+- optional `note_id` foreign key to `notes.id`
+- optional `session_id`
+- optional `metadata_json`
+- indexed `created_at`
+
+Current event types:
+
+- `library_indexed`
+- `metadata_draft_generated`
+- `book_rag_question_asked`
+- `multi_book_rag_question_asked`
+- `note_created`
+- `note_from_chat_created`
+- `note_exported`
+- `note_workspace_exported`
+
+API endpoints:
+
+- `POST /api/learning-events` creates a manual event.
+- `GET /api/learning-events` lists events newest-first, with optional
+  filters for `event_type`, `source_type`, `library_item_id`, `note_id`,
+  `session_id`, `limit`, and `offset`.
+- `GET /api/learning-events/recent` returns the latest events.
+- `GET /api/learning-events/{event_id}` returns one event or 404.
+
+The backend currently records these events automatically:
+
+- successful Library indexing: `library_indexed`
+- successful metadata draft generation: `metadata_draft_generated`
+- successful book-scoped RAG question: `book_rag_question_asked`
+- successful multi-book RAG question: `multi_book_rag_question_asked`
+- successful note creation: `note_created`, or
+  `note_from_chat_created` when the saved note carries a chat session id
+
+Stage 24 does not add learning analytics, charts, calendar views, goal
+management, spaced repetition, flashcards, reminders, notifications,
+pomodoro timers, AI progress evaluation, weakness diagnosis, real
+LLM-based progress analysis, background jobs, Redis/Celery/RQ, event
+streaming, sync, user accounts, authentication, deployment, LangGraph,
+agents, tool calling, MCP, or a large UI redesign.
 
 ## Short-term Memory (Stage 6)
 
@@ -849,6 +906,98 @@ Stage 15 does not add real LLM calls, real embedding providers,
 advanced reranking, multi-book RAG, PDF/DOCX/LaTeX parsing, OCR,
 notes generation, LangGraph, MCP, authentication, Docker, Redis, or
 production packaging.
+
+## Multi-Book RAG (Stage 25)
+
+Stage 25 adds `POST /api/rag/query/library-items`. It accepts multiple
+Library item IDs and retrieves only chunks whose document is connected
+through `documents.library_item_id IN selected_ids`.
+
+Request:
+
+```json
+{
+  "library_item_ids": [
+    "00000000-0000-0000-0000-000000000000",
+    "11111111-1111-1111-1111-111111111111"
+  ],
+  "question": "Compare the definition of vector spaces in these materials.",
+  "top_k": 5,
+  "session_id": "optional-session-id",
+  "include_long_term_memory": false
+}
+```
+
+Response shape follows the existing RAG responses and adds selected
+Library item metadata:
+
+```json
+{
+  "answer": "...",
+  "selected_library_items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "title": "Linear Algebra",
+      "author": "Some Author",
+      "file_type": "md",
+      "status": "indexed"
+    }
+  ],
+  "retrieved_chunks": [
+    {
+      "chunk_id": "...",
+      "document_id": "...",
+      "chunk_index": 0,
+      "content": "...",
+      "score": 0.123,
+      "citation": {
+        "citation_id": "S1",
+        "chunk_id": "...",
+        "document_id": "...",
+        "library_item_id": "00000000-0000-0000-0000-000000000000",
+        "library_title": "Linear Algebra",
+        "library_author": "Some Author",
+        "document_title": "linear-algebra.md",
+        "document_source_path": "/path/linear-algebra.md",
+        "chunk_index": 0,
+        "score": 0.123,
+        "excerpt": "..."
+      }
+    }
+  ],
+  "citations": [],
+  "total_retrieved": 1,
+  "session_id": "optional-session-id",
+  "memory": {
+    "used_recent_turns": 0,
+    "saved_current_turn": true,
+    "used_long_term_memories": 0
+  }
+}
+```
+
+Validation rejects blank questions, invalid `top_k`, empty
+`library_item_ids`, nonexistent Library items, and selected items that
+have not been indexed or have no embedded chunks. Duplicate IDs are
+deduplicated in request order.
+
+Successful multi-book RAG saves the short-term conversation turn with
+`query_type: "multi_book_rag"` metadata and records the learning event
+`multi_book_rag_question_asked` with selected IDs, titles, retrieved
+count, and citation count. Failed queries do not create the success
+event.
+
+The existing `POST /api/rag/query` and
+`POST /api/rag/query/library-item` endpoints remain unchanged.
+
+Stage 25 does not add LangGraph, graph design, agent planning, tool
+calling, MCP, multi-agent systems, streaming responses, reranking,
+hybrid search, BM25, full-text search, query expansion, real embedding
+providers, embedding dimension changes, chunking/indexing changes,
+PDF/DOCX/LaTeX parsing, OCR, knowledge graphs, whole-book synthesis,
+automatic cross-book comparison engines, background jobs,
+Redis/Celery/RQ, authentication, user accounts, cloud deployment, or a
+large UI redesign.
 
 ## Notes MVP (Stage 16)
 
