@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import type {
   LibraryItem,
   LibraryItemIndexResponse,
+  LibraryMetadataDraft,
   UpdateLibraryItemPayload,
 } from "../../api/types";
 
@@ -23,6 +24,7 @@ export default function LibraryItemDetail({
   indexResult,
   indexError,
   onEdit,
+  onGenerateMetadataDraft,
   onIndex,
   onOpen,
   onSave,
@@ -34,6 +36,7 @@ export default function LibraryItemDetail({
   indexResult: LibraryItemIndexResponse | null;
   indexError: string | null;
   onEdit: (item: LibraryItem) => void;
+  onGenerateMetadataDraft: (itemId: string) => Promise<LibraryMetadataDraft>;
   onIndex: (item: LibraryItem) => void;
   onOpen: (item: LibraryItem) => void;
   onSave: (itemId: string, payload: UpdateLibraryItemPayload) => Promise<void>;
@@ -41,10 +44,20 @@ export default function LibraryItemDetail({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<DetailFormState>(() => createFormState(item));
   const [localError, setLocalError] = useState<string | null>(null);
+  const [metadataGenerating, setMetadataGenerating] = useState(false);
+  const [metadataSaving, setMetadataSaving] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [metadataDraft, setMetadataDraft] = useState<LibraryMetadataDraft | null>(null);
+  const [draftSummary, setDraftSummary] = useState("");
+  const [draftTags, setDraftTags] = useState("");
 
   useEffect(() => {
     setEditing(false);
     setLocalError(null);
+    setMetadataError(null);
+    setMetadataDraft(null);
+    setDraftSummary("");
+    setDraftTags("");
     setForm(createFormState(item));
   }, [item]);
 
@@ -87,6 +100,54 @@ export default function LibraryItemDetail({
       return;
     }
     setEditing(false);
+  }
+
+  async function generateMetadataDraft() {
+    if (!item || item.status !== "indexed") {
+      return;
+    }
+
+    setMetadataError(null);
+    setMetadataGenerating(true);
+    try {
+      const draft = await onGenerateMetadataDraft(item.id);
+      setMetadataDraft(draft);
+      setDraftSummary(draft.summary);
+      setDraftTags(draft.topic_tags.join(", "));
+    } catch (error) {
+      setMetadataError(
+        error instanceof Error ? error.message : "Metadata draft generation failed.",
+      );
+    } finally {
+      setMetadataGenerating(false);
+    }
+  }
+
+  async function saveMetadataDraft() {
+    if (!item || !metadataDraft) {
+      return;
+    }
+
+    setMetadataError(null);
+    setMetadataSaving(true);
+    try {
+      await onSave(item.id, {
+        description: emptyToNull(draftSummary),
+        topic_tags: parseTags(draftTags),
+      });
+    } catch (error) {
+      setMetadataError(error instanceof Error ? error.message : "Metadata save failed.");
+      return;
+    } finally {
+      setMetadataSaving(false);
+    }
+  }
+
+  function cancelMetadataDraft() {
+    setMetadataError(null);
+    setMetadataDraft(null);
+    setDraftSummary("");
+    setDraftTags("");
   }
 
   return (
@@ -233,6 +294,70 @@ export default function LibraryItemDetail({
             {indexError && <p className="error compact-error">{indexError}</p>}
           </div>
 
+          <div className="detail-section metadata-draft-section">
+            <div className="section-heading-row">
+              <h4>Generated Metadata</h4>
+              {metadataDraft && (
+                <span className="metadata-mode">
+                  {metadataDraft.mode}; {metadataDraft.chunks_used} chunks
+                </span>
+              )}
+            </div>
+            {item.status !== "indexed" ? (
+              <p className="empty-state">Index this item before generating summary and tags.</p>
+            ) : (
+              <>
+                <div className="button-row">
+                  <button
+                    type="button"
+                    disabled={metadataGenerating || metadataSaving}
+                    onClick={generateMetadataDraft}
+                  >
+                    {metadataGenerating ? "Generating..." : "Generate Summary & Tags"}
+                  </button>
+                </div>
+                {metadataDraft && (
+                  <div className="metadata-draft-form">
+                    <label>
+                      Summary draft
+                      <textarea
+                        rows={5}
+                        value={draftSummary}
+                        onChange={(event) => setDraftSummary(event.target.value)}
+                      />
+                    </label>
+                    <label>
+                      Topic tags draft
+                      <input
+                        value={draftTags}
+                        onChange={(event) => setDraftTags(event.target.value)}
+                        placeholder="linear, vector, basis"
+                      />
+                    </label>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        disabled={metadataSaving}
+                        onClick={saveMetadataDraft}
+                      >
+                        {metadataSaving ? "Saving..." : "Save to Library Item"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        disabled={metadataSaving}
+                        onClick={cancelMetadataDraft}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            {metadataError && <p className="error compact-error">{metadataError}</p>}
+          </div>
+
           <div className="button-row">
             <button type="button" onClick={() => setEditing(true)}>
               Edit Metadata
@@ -245,7 +370,6 @@ export default function LibraryItemDetail({
       )}
 
       <div className="future-grid">
-        <Placeholder title="Summary" text="Coming later: automatic summary after indexing." />
         <Placeholder
           title="Indexing"
           text="Available for .txt and .md files. PDF parsing and background indexing come later."

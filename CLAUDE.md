@@ -37,8 +37,9 @@ Stage 18: Local Notes File Export — completed.
 Stage 19: Notes Workspace MVP — completed.
 Stage 20: Open Exported Notes File — completed.
 Stage 21: Real LLM Integration Boundary — completed.
+Stage 22: Better Retrieval / Citations / Chunk Metadata — completed.
 
-Current active stage: Stage 22: Better Retrieval / Citations / Chunk Metadata.
+Current active stage: Stage 23: Book Summary + Topic Extraction.
 
 Do not implement the full product at once.
 
@@ -66,7 +67,8 @@ Project stage roadmap:
 19. Notes Workspace MVP — completed
 20. Open Exported Notes File — completed
 21. Real LLM Integration Boundary — completed
-22. Better Retrieval / Citations / Chunk Metadata — current
+22. Better Retrieval / Citations / Chunk Metadata — completed
+23. Book Summary + Topic Extraction — current
 
 ---
 
@@ -187,14 +189,24 @@ tests. A DeepSeek/OpenAI-compatible provider may be selected only by
 explicit backend configuration such as `LLM_PROVIDER=deepseek`, with API
 key, base URL, and model read from the existing settings mechanism.
 
-The current goal (Stage 22) is Better Retrieval / Citations / Chunk
-Metadata. RAG responses should expose structured citation/source
-metadata for each retrieved chunk and the Chat page should display those
-sources clearly. The retrieval algorithm, pgvector search, mock
-embeddings, book-scoped filtering, memory behavior, and Chat-to-Notes
-workflow must remain unchanged.
+Stage 22 added Better Retrieval / Citations / Chunk Metadata. RAG
+responses expose structured citation/source metadata for each retrieved
+chunk and the Chat page displays those sources clearly. The retrieval
+algorithm, pgvector search, mock embeddings, book-scoped filtering,
+memory behavior, and Chat-to-Notes workflow remain unchanged.
 
-Allowed in the current stage:
+Stage 23 is Book Summary + Topic Extraction. The user can request a
+deterministic summary draft and topic tag draft for an indexed Library
+item. The backend collects representative indexed chunks through
+`documents.library_item_id`, generates a draft without mutating the
+Library item, and returns it from
+`POST /api/library/items/{item_id}/metadata-draft`. The frontend Library
+detail panel lets the user review/edit the summary and tags, then saves
+them through the existing `PATCH /api/library/items/{item_id}` flow.
+Summary uses `library_items.description`; topic tags use
+`library_items.topic_tags`. No database migration is needed.
+
+Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
 - Preserve existing `retrieved_chunks` fields and add top-level `citations`
 - Add deterministic citation IDs such as `S1`, `S2`, `S3`
@@ -331,6 +343,52 @@ Do not implement in Stage 22:
 - Redis or queues
 - Major CSS framework migration
 
+Allowed in Stage 23:
+- Add deterministic Library metadata draft generation for indexed items
+- Use existing `description` and `topic_tags` fields
+- Select a small deterministic set of representative chunks
+- Add Pydantic response schemas for metadata drafts
+- Add `POST /api/library/items/{item_id}/metadata-draft`
+- Keep draft generation non-mutating
+- Reuse existing Library PATCH endpoint for saves
+- Add minimal Library detail UI for generate/review/edit/save/cancel
+- Add deterministic tests requiring no real API keys or network calls
+- Update README/backend/frontend/CLAUDE documentation
+
+Do not implement in Stage 23:
+- LangGraph
+- Agent planning
+- Tool calling
+- MCP
+- Multi-agent systems
+- Streaming responses
+- Background jobs
+- Redis / Celery / RQ
+- Automatic indexing-triggered summary jobs
+- Queue system
+- Real embedding provider
+- OpenAI/DeepSeek embedding calls
+- Changing embedding dimensions
+- Replacing pgvector retrieval
+- Changing chunking/indexing pipeline
+- PDF parsing
+- DOCX parsing
+- LaTeX parsing
+- OCR
+- Whole-book deep summarization
+- Multi-book synthesis
+- Knowledge graph
+- Complex prompt framework
+- Prompt template database
+- Citation formatting engines
+- BibTeX / Zotero integration
+- Authentication
+- User accounts
+- Cloud deployment
+- Large UI redesign
+- Frontend API-key settings
+- Exposing API keys to the frontend
+
 ---
 
 ## Tech Stack
@@ -372,7 +430,7 @@ Frontend:
 - Stage 14 uses deterministic mock embeddings only; no real embedding
   provider or LLM API calls
 - Stage 15 book-scoped RAG retrieves from one selected indexed Library
-  item only; Library summaries remain unimplemented
+  item only
 - Stage 16 Notes MVP stores LaTeX notes in PostgreSQL, optionally
   associates notes with Library items, and archives notes through soft
   status updates; it does not compile, preview, export, or generate
@@ -404,6 +462,10 @@ Frontend:
   source IDs, citation excerpts, and a compact Chat page Sources section;
   retrieval ranking, pgvector search, mock embeddings, and book-scoped
   filtering remain unchanged
+- Stage 23 Book Summary + Topic Extraction adds deterministic Library
+  metadata drafts for indexed items using representative chunks; drafts
+  do not auto-save, reviewed summaries use `description`, reviewed tags
+  use `topic_tags`, and real LLM summary/tag generation is not default
 
 Planned later:
 - LangGraph

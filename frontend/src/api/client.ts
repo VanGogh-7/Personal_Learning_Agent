@@ -5,6 +5,7 @@ import type {
   HealthResponse,
   LibraryItem,
   LibraryItemIndexResponse,
+  LibraryMetadataDraft,
   LibraryItemRagQueryRequest,
   LibraryItemRagQueryResponse,
   LibraryItemListParams,
@@ -243,6 +244,15 @@ export function indexLibraryItem(itemId: string): Promise<LibraryItemIndexRespon
   return requestJson<LibraryItemIndexResponse>(`/api/library/items/${itemId}/index`, {
     method: "POST",
   });
+}
+
+export function generateLibraryMetadataDraft(itemId: string): Promise<LibraryMetadataDraft> {
+  return requestJson<LibraryMetadataDraft>(
+    `/api/library/items/${itemId}/metadata-draft`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export function archiveLibraryItem(itemId: string): Promise<LibraryItem> {

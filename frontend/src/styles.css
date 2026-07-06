@@ -473,6 +473,13 @@ label {
   gap: 8px;
 }
 
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .detail-section h4,
 .future-placeholder h4 {
   margin: 0;
@@ -492,6 +499,22 @@ label {
   font-size: 0.78rem;
   font-weight: 700;
   padding: 0.28rem 0.55rem;
+}
+
+.metadata-draft-section {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.metadata-draft-form {
+  display: grid;
+  gap: 12px;
+}
+
+.metadata-mode {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .future-grid {

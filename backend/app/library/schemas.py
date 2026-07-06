@@ -111,3 +111,12 @@ class LibraryItemIndexResponse(BaseModel):
     embeddings_created: int
     message: str
     supported_file_types: list[str] = Field(default_factory=lambda: ["txt", "md"])
+
+
+class LibraryMetadataDraftResponse(BaseModel):
+    library_item_id: str
+    title: str
+    summary: str
+    topic_tags: list[str]
+    chunks_used: int
+    mode: str

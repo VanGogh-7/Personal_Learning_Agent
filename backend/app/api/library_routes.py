@@ -9,12 +9,18 @@ from app.library.indexing import (
     LibraryIndexingError,
     index_library_item,
 )
+from app.library.metadata_generation import (
+    LibraryMetadataDraftResult,
+    LibraryMetadataGenerationError,
+    generate_library_metadata_draft,
+)
 from app.library.schemas import (
     LibraryItemCreate,
     LibraryItemIndexResponse,
     LibraryItemListResponse,
     LibraryItemRead,
     LibraryItemUpdate,
+    LibraryMetadataDraftResponse,
 )
 from app.library.service import (
     DEFAULT_LIST_LIMIT,
@@ -55,6 +61,19 @@ def _to_index_response(result: LibraryIndexResult) -> LibraryItemIndexResponse:
         chunks_created=result.chunks_created,
         embeddings_created=result.embeddings_created,
         message=result.message,
+    )
+
+
+def _to_metadata_draft_response(
+    result: LibraryMetadataDraftResult,
+) -> LibraryMetadataDraftResponse:
+    return LibraryMetadataDraftResponse(
+        library_item_id=str(result.library_item_id),
+        title=result.title,
+        summary=result.summary,
+        topic_tags=result.topic_tags,
+        chunks_used=result.chunks_used,
+        mode=result.mode,
     )
 
 
@@ -116,6 +135,35 @@ def index_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemIndexResponse:
         session.close()
 
     return _to_index_response(result)
+
+
+@router.post("/items/{item_id}/metadata-draft", response_model=LibraryMetadataDraftResponse)
+def generate_library_metadata_draft_endpoint(
+    item_id: uuid.UUID,
+) -> LibraryMetadataDraftResponse:
+    try:
+        session = get_db_session()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    try:
+        try:
+            result = generate_library_metadata_draft(
+                session,
+                item_id,
+            )
+            if result is None:
+                raise HTTPException(status_code=404, detail="Library item not found")
+        except HTTPException:
+            raise
+        except LibraryMetadataGenerationError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except SQLAlchemyError as exc:
+            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+    finally:
+        session.close()
+
+    return _to_metadata_draft_response(result)
 
 
 @router.get("/items", response_model=LibraryItemListResponse)

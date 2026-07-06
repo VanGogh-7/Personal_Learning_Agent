@@ -1,11 +1,10 @@
 # Personal Learning Agent Frontend
 
-Stage 22 adds clearer RAG sources in the Chat page. Global and
-book-scoped RAG responses include structured citations from the backend,
-and the frontend displays a compact Sources section with citation IDs,
-source title, author when available, document title/path, chunk index,
-score, and excerpt. The FastAPI backend must be started separately on
-`http://127.0.0.1:8081`.
+Stage 23 adds Library metadata draft generation. For indexed Library
+items, the detail panel can request a deterministic summary and topic
+tag draft from the backend, let the user review/edit it, and save the
+reviewed values through the existing Library update API. The FastAPI
+backend must be started separately on `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -77,6 +76,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library `Choose File` button in Tauri to fill `file_path` metadata
 - Library `Open` button in Tauri for local `file_path` values
 - Library `Index File` button for `.txt` and `.md` files
+- Library detail `Generate Summary & Tags` action for indexed items
+- Editable generated summary/topic tag draft with save-through-metadata update
 - Notes page with LaTeX note create/list/view/edit/archive workflow
 - Optional Notes association with an existing Library item
 - Notes page `Export as .tex` action in the Tauri desktop app
@@ -96,7 +97,11 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   deterministic mock embeddings
 - Library indexing currently supports `.txt` and `.md` only
 - PDF parsing and indexing are not supported yet
-- Library detail summary, related notes, and book chat sections are placeholders only
+- Generated Library metadata works only after indexing and does not
+  auto-save; reviewed summaries are stored in `description`, and
+  reviewed tags are stored in `topic_tags`
+- Related notes and book chat sections are still placeholders in the
+  Library detail panel
 - Notes are stored in PostgreSQL through the backend API
 - Chat-to-Notes generation is deterministic and template-based; it does
   not call a real LLM or create mathematical proofs
@@ -115,7 +120,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   compilation, PDF generation, workspace scanning, file sync, file
   watcher, `.tex` import, recent exports list, workspace browser, or Git sync
 - No internal PDF preview or file upload
-- No automatic indexing, real embedding provider, automatic book summary, or multi-book RAG
+- No automatic indexing, real embedding provider, automatic book summary
+  jobs, whole-book deep summarization, or multi-book RAG
+- No real LLM summary/tag generation by default; metadata drafts are
+  deterministic unless the backend adds an explicit provider path later
 - Book-scoped RAG supports one selected indexed Library item at a time;
   no multi-book RAG, reranking, hybrid search, BM25, query expansion, or
   real LLM answer generation by default

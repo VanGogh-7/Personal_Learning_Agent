@@ -163,6 +163,15 @@ export interface LibraryItemIndexResponse {
   supported_file_types: string[];
 }
 
+export interface LibraryMetadataDraft {
+  library_item_id: string;
+  title: string;
+  summary: string;
+  topic_tags: string[];
+  chunks_used: number;
+  mode: string;
+}
+
 export interface Note {
   id: string;
   title: string;

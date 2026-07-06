@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import {
   archiveLibraryItem,
   createLibraryItem,
+  generateLibraryMetadataDraft,
   getLibraryItem,
   indexLibraryItem,
   listLibraryItems,
@@ -12,6 +13,7 @@ import type {
   LibraryItem,
   LibraryItemIndexResponse,
   LibraryItemListResponse,
+  LibraryMetadataDraft,
   UpdateLibraryItemPayload,
 } from "../api/types";
 import LibraryItemDetail from "./library/LibraryItemDetail";
@@ -230,6 +232,10 @@ export default function BookLibraryPanel() {
     }
   }
 
+  function generateMetadataDraft(itemId: string): Promise<LibraryMetadataDraft> {
+    return generateLibraryMetadataDraft(itemId);
+  }
+
   function updateItemInState(updated: LibraryItem) {
     setSelectedItem(updated);
     setResult((current) =>
@@ -431,6 +437,7 @@ export default function BookLibraryPanel() {
                 onEdit={startEdit}
                 onIndex={indexItemFile}
                 onOpen={openItemFile}
+                onGenerateMetadataDraft={generateMetadataDraft}
                 onSave={saveDetailEdit}
               />
             </div>

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 22: Better Retrieval / Citations / Chunk Metadata.
+Stage 23: Book Summary + Topic Extraction.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -67,17 +67,22 @@ Stage 22: Better Retrieval / Citations / Chunk Metadata.
 - Better Retrieval / Citations / Chunk Metadata: global and book-scoped
   RAG responses include structured citation/source metadata for each
   retrieved chunk, and the frontend Chat page displays a compact Sources
-  section (Stage 22, current)
+  section (Stage 22, completed)
+- Book Summary + Topic Extraction: indexed Library items can generate
+  deterministic summary and topic tag drafts from representative indexed
+  chunks, then save reviewed metadata through the existing Library
+  update endpoint (Stage 23, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, LangGraph workflows, MCP,
 backend auto-start from Tauri, complex Rust backend logic, document
 parsing UI, repository analysis, and production packaging are planned
-but **not implemented yet**. Stage 22 improves source transparency
-without changing the retrieval algorithm. It does not add reranking,
-hybrid search, BM25, query expansion, real embeddings, PDF/DOCX/LaTeX
-parsing, OCR, citation formatting engines, agents, tool calling, or
-streaming.
+but **not implemented yet**. Stage 23 enriches Library metadata without
+changing retrieval, indexing, embeddings, chunking, or parser behavior.
+It does not add reranking, hybrid search, BM25, query expansion, real
+embeddings, PDF/DOCX/LaTeX parsing, OCR, citation formatting engines,
+agents, tool calling, streaming, background jobs, queues, or automatic
+indexing-triggered summary jobs.
 
 ## Setup
 
@@ -401,6 +406,62 @@ MCP, streaming, real embedding providers, embedding dimension changes,
 chunking/indexing changes, PDF page extraction, PDF/DOCX/LaTeX parsing,
 OCR, automatic summaries, citation formatting engines, CSL/BibTeX/Zotero
 integration, authentication, deployment, or a large UI redesign.
+
+## Book Summary + Topic Extraction (Stage 23)
+
+Stage 23 adds deterministic Library metadata draft generation for
+already indexed Library items. It reuses existing fields:
+`library_items.description` stores the reviewed summary, and
+`library_items.topic_tags` stores reviewed tags. No migration is needed.
+
+**`POST /api/library/items/{item_id}/metadata-draft`** generates a draft
+and does not mutate the Library item.
+
+Response:
+
+```json
+{
+  "library_item_id": "...",
+  "title": "Linear Algebra",
+  "summary": "This TXT material appears to cover topics related to linear, vector, maps, algebra, and spaces. It is based on 3 indexed chunks from Linear Algebra.",
+  "topic_tags": ["linear", "vector", "maps", "algebra", "spaces"],
+  "chunks_used": 3,
+  "mode": "deterministic"
+}
+```
+
+The endpoint validates that the Library item exists and has
+`status == "indexed"`, then loads associated chunks through
+`documents.library_item_id`. If the item does not exist it returns 404.
+If the item is not indexed or has no chunks, it returns a clear 409
+state error.
+
+Representative chunk selection is intentionally simple: the first few
+chunks by document/chunk order. Summary generation is a stable template
+using title, file type, chunks used, and extracted tags.
+Topic tag extraction lowercases/tokenizes representative chunk text,
+removes a small stopword set and short tokens, counts frequencies, and
+returns stable top terms.
+
+Reviewed metadata is saved through the existing update endpoint:
+
+```http
+PATCH /api/library/items/{item_id}
+```
+
+```json
+{
+  "description": "Reviewed summary...",
+  "topic_tags": ["linear", "vector", "basis"]
+}
+```
+
+Stage 23 remains deterministic by default and does not require API keys
+or network calls. It does not add real LLM summary/tag generation by
+default, automatic summary jobs, background queues, parser changes,
+real embeddings, retrieval changes, whole-book deep summarization,
+multi-book synthesis, knowledge graphs, prompt template storage,
+LangGraph, agents, tool calling, MCP, authentication, or deployment.
 
 ## Short-term Memory (Stage 6)
 
