@@ -41,6 +41,111 @@ class LibraryItemRagError(ValueError):
     """Raised when a library-scoped RAG query cannot be served."""
 
 
+def resolve_library_item_rag_context(
+    session: Session,
+    library_item_id: uuid.UUID,
+) -> LibraryItemRagContext:
+    """Validate that one Library item is searchable for RAG."""
+    item = session.get(LibraryItem, library_item_id)
+    if item is None:
+        raise LibraryItemRagError("Library item not found")
+
+    documents = session.execute(
+        select(Document).where(Document.library_item_id == item.id)
+    ).scalars().all()
+    if not documents:
+        raise LibraryItemRagError("Library item has not been indexed yet.")
+
+    document_ids = [document.id for document in documents]
+    document_ids_with_embeddings = set(
+        session.execute(
+            select(DocumentChunk.document_id)
+            .where(DocumentChunk.document_id.in_(document_ids))
+            .where(DocumentChunk.embedding.is_not(None))
+        )
+        .scalars()
+        .all()
+    )
+    if not document_ids_with_embeddings:
+        raise LibraryItemRagError("Library item has no indexed chunks to search.")
+
+    return LibraryItemRagContext(
+        item_id=item.id,
+        title=item.title,
+        author=item.author,
+        file_type=item.file_type,
+        status=item.status,
+    )
+
+
+def resolve_library_items_rag_context(
+    session: Session,
+    library_item_ids: list[uuid.UUID],
+) -> list[LibraryItemRagContext]:
+    """Validate that selected Library items are searchable for RAG."""
+    deduped_item_ids = list(dict.fromkeys(library_item_ids))
+    if not deduped_item_ids:
+        raise LibraryItemRagError("library_item_ids must not be empty")
+
+    items = session.execute(
+        select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+    ).scalars().all()
+    items_by_id = {item.id: item for item in items}
+
+    for item_id in deduped_item_ids:
+        if item_id not in items_by_id:
+            raise LibraryItemRagError("Library item not found")
+
+    documents = session.execute(
+        select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+    ).scalars().all()
+    documents_by_item_id: dict[uuid.UUID, list[Document]] = {
+        item_id: [] for item_id in deduped_item_ids
+    }
+    for document in documents:
+        if document.library_item_id in documents_by_item_id:
+            documents_by_item_id[document.library_item_id].append(document)
+
+    for item_id in deduped_item_ids:
+        if not documents_by_item_id[item_id]:
+            item = items_by_id[item_id]
+            raise LibraryItemRagError(
+                f"Library item has not been indexed yet: {item.title}"
+            )
+
+    document_ids = [document.id for document in documents]
+    document_ids_with_embeddings = set(
+        session.execute(
+            select(DocumentChunk.document_id)
+            .where(DocumentChunk.document_id.in_(document_ids))
+            .where(DocumentChunk.embedding.is_not(None))
+        )
+        .scalars()
+        .all()
+    )
+
+    for item_id in deduped_item_ids:
+        if not any(
+            document.id in document_ids_with_embeddings
+            for document in documents_by_item_id[item_id]
+        ):
+            item = items_by_id[item_id]
+            raise LibraryItemRagError(
+                f"Library item has no indexed chunks to search: {item.title}"
+            )
+
+    return [
+        LibraryItemRagContext(
+            item_id=item.id,
+            title=item.title,
+            author=item.author,
+            file_type=item.file_type,
+            status=item.status,
+        )
+        for item in (items_by_id[item_id] for item_id in deduped_item_ids)
+    ]
+
+
 def retrieve_relevant_chunks(
     session: Session,
     question: str,

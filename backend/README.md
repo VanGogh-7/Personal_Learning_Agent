@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 25: Multi-Book RAG MVP.
+Stage 26: Chat RAG Graph Boundary MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -79,14 +79,18 @@ Stage 25: Multi-Book RAG MVP.
 - Multi-Book RAG MVP: `POST /api/rag/query/library-items` retrieves
   only from multiple selected indexed Library items, returns selected
   item metadata plus structured citations, preserves memory behavior,
-  and records `multi_book_rag_question_asked` events (Stage 25, current)
+  and records `multi_book_rag_question_asked` events (Stage 25, completed)
+- Chat RAG Graph Boundary MVP: `POST /api/agent/chat` runs a minimal
+  LangGraph workflow that orchestrates existing validation, RAG
+  retrieval, memory, citation, prompt, LLM provider, and learning-event
+  services without replacing them (Stage 26, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
-semantic/vector search over long-term memory, LangGraph workflows, MCP,
-backend auto-start from Tauri, complex Rust backend logic, document
-parsing UI, repository analysis, and production packaging are planned
-but **not implemented yet**. Stage 25 is a retrieval-scope extension
-only. It does not add LangGraph, agent planning, tool calling, MCP,
+semantic/vector search over long-term memory, open-ended agent
+workflows, MCP, backend auto-start from Tauri, complex Rust backend
+logic, document parsing UI, repository analysis, and production
+packaging are planned but **not implemented yet**. Stage 26 is a graph
+boundary only. It does not add an agent planner, tool calling,
 multi-agent systems, streaming, reranking, hybrid search, BM25,
 full-text search, query expansion, real embedding providers, parser
 changes, whole-book synthesis, background jobs, authentication, or
@@ -113,8 +117,9 @@ deployment.
    ```
 
    `backend/requirements.txt` is only for backend Python runtime,
-   migration, and test dependencies. Frontend dependencies are managed
-   separately by `frontend/package.json`.
+   migration, graph orchestration, and test dependencies. Stage 26 adds
+   `langgraph`; install it through this same command. Frontend
+   dependencies are managed separately by `frontend/package.json`.
 
 3. Copy the example environment file and fill in real values locally.
    The real `.env` lives at the **project root** (one level above
@@ -490,6 +495,7 @@ Current event types:
 - `metadata_draft_generated`
 - `book_rag_question_asked`
 - `multi_book_rag_question_asked`
+- `agent_chat_question_asked`
 - `note_created`
 - `note_from_chat_created`
 - `note_exported`
@@ -510,6 +516,8 @@ The backend currently records these events automatically:
 - successful metadata draft generation: `metadata_draft_generated`
 - successful book-scoped RAG question: `book_rag_question_asked`
 - successful multi-book RAG question: `multi_book_rag_question_asked`
+- successful graph-orchestrated agent chat question:
+  `agent_chat_question_asked`
 - successful note creation: `note_created`, or
   `note_from_chat_created` when the saved note carries a chat session id
 
@@ -998,6 +1006,128 @@ PDF/DOCX/LaTeX parsing, OCR, knowledge graphs, whole-book synthesis,
 automatic cross-book comparison engines, background jobs,
 Redis/Celery/RQ, authentication, user accounts, cloud deployment, or a
 large UI redesign.
+
+## Chat RAG Graph Boundary (Stage 26)
+
+Stage 26 adds LangGraph as a minimal orchestration boundary for the
+existing Chat RAG workflow. The only direct dependency added to
+`backend/requirements.txt` is:
+
+```text
+langgraph
+```
+
+Install backend dependencies with the existing command:
+
+```bash
+conda activate pla
+cd backend
+pip install -r requirements.txt
+```
+
+New endpoint:
+
+```http
+POST /api/agent/chat
+```
+
+Request:
+
+```json
+{
+  "question": "What is a vector space?",
+  "scope_type": "multi_book",
+  "library_item_id": null,
+  "library_item_ids": [
+    "00000000-0000-0000-0000-000000000000",
+    "11111111-1111-1111-1111-111111111111"
+  ],
+  "top_k": 5,
+  "session_id": "optional-session-id",
+  "include_long_term_memory": false
+}
+```
+
+Response:
+
+```json
+{
+  "answer": "...",
+  "scope_type": "multi_book",
+  "selected_library_items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "title": "Linear Algebra",
+      "author": "Some Author",
+      "file_type": "md",
+      "status": "indexed"
+    }
+  ],
+  "retrieved_chunks": [],
+  "citations": [],
+  "total_retrieved": 0,
+  "session_id": "optional-session-id",
+  "memory": {
+    "used_recent_turns": 0,
+    "saved_current_turn": true,
+    "used_long_term_memories": 0
+  }
+}
+```
+
+Graph node sequence:
+
+```text
+validate_input
+-> resolve_scope
+-> load_memory
+-> retrieve_chunks
+-> build_citations
+-> build_prompt
+-> generate_answer
+-> save_memory
+-> record_learning_event
+-> format_response
+```
+
+LangGraph nodes call existing services:
+
+- RAG retrieval: global, single-book, and multi-book retrieval services
+- Memory: existing short-term and long-term memory services
+- Citations: Stage 22 citation builder
+- Prompt/answer: existing RAG prompt helpers and Stage 21 LLM provider
+  boundary
+- Learning events: Stage 24 event service
+
+The graph saves one short-term memory turn with `query_type:
+"agent_chat"` metadata and records one `agent_chat_question_asked`
+event after successful responses. It does not call existing RAG
+endpoints internally, so it does not duplicate their learning events.
+
+Existing RAG endpoints remain available and unchanged:
+
+- `POST /api/rag/query`
+- `POST /api/rag/query/library-item`
+- `POST /api/rag/query/library-items`
+
+The frontend Chat page still uses the existing RAG endpoints in Stage
+26. Switching the UI to `/api/agent/chat`, adding graph visualization,
+or adding frontend graph settings is left for a future stage.
+
+Stage 26 tests remain deterministic. The default LLM provider is still
+deterministic and requires no API key; real LLM use remains opt-in
+through the existing Stage 21 provider configuration.
+
+Stage 26 does not add an open-ended agent planner, tool calling, MCP,
+multi-agent system, autonomous behavior, reflection loop, retry loop,
+self-critique, streaming responses, function calling, frontend settings
+page, graph-based Notes generation, graph-based study sessions,
+graph-based book summaries, real embedding providers, OpenAI/DeepSeek
+embedding calls, embedding dimension changes, chunking/indexing
+pipeline changes, reranking, hybrid search, BM25, full-text search,
+query expansion, PDF/DOCX/LaTeX parsing, OCR, knowledge graphs,
+background jobs, Redis/Celery/RQ, authentication, user accounts, cloud
+deployment, or a large UI redesign.
 
 ## Notes MVP (Stage 16)
 

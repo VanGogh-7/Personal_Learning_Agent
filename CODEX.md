@@ -40,8 +40,9 @@ Stage 21: Real LLM Integration Boundary — completed.
 Stage 22: Better Retrieval / Citations / Chunk Metadata — completed.
 Stage 23: Book Summary + Topic Extraction — completed.
 Stage 24: Learning History / Progress Timeline — completed.
+Stage 25: Multi-Book RAG MVP — completed.
 
-Current active stage: Stage 25: Multi-Book RAG MVP.
+Current active stage: Stage 26: Chat RAG Graph Boundary MVP.
 
 Do not implement the full product at once.
 
@@ -72,7 +73,8 @@ Project stage roadmap:
 22. Better Retrieval / Citations / Chunk Metadata — completed
 23. Book Summary + Topic Extraction — completed
 24. Learning History / Progress Timeline — completed
-25. Multi-Book RAG MVP — current
+25. Multi-Book RAG MVP — completed
+26. Chat RAG Graph Boundary MVP — current
 
 ---
 
@@ -224,6 +226,16 @@ items, retrieves only chunks whose documents have
 Library item metadata plus structured citations, preserves session and
 long-term memory behavior, and records
 `multi_book_rag_question_asked` only after successful responses.
+
+Stage 26 is Chat RAG Graph Boundary MVP. The backend adds LangGraph and
+`POST /api/agent/chat` as a minimal orchestration layer around existing
+RAG, memory, citation, prompt, LLM provider, and learning-event
+services. The graph is mostly linear:
+validate_input -> resolve_scope -> load_memory -> retrieve_chunks ->
+build_citations -> build_prompt -> generate_answer -> save_memory ->
+record_learning_event -> format_response. This is not an open-ended
+agent system, planner, tool-calling layer, or replacement for existing
+RAG endpoints.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -408,51 +420,60 @@ Do not implement in Stage 23:
 - Frontend API-key settings
 - Exposing API keys to the frontend
 
-Allowed in Stage 25:
-- Add `POST /api/rag/query/library-items`
-- Add typed multi-book RAG request/response schemas
-- Validate non-empty selected Library item IDs, blank questions, `top_k`,
-  missing items, and unindexed items
-- Deduplicate duplicate selected IDs consistently
-- Retrieve with a backend document/library-item filter, not frontend
-  filtering
-- Reuse deterministic mock embeddings, existing pgvector similarity
-  helpers, the LLM provider boundary, Stage 22 citation builder, memory
-  services, and Stage 24 learning event service
-- Return selected Library item metadata and citations that identify the
-  source Library item for each chunk
-- Update Chat so zero selected books uses global RAG, one selected book
-  uses the existing single-book endpoint, and two or more selected books
-  use the new endpoint
-- Keep Chat-to-Notes compatible by leaving `library_item_id` null for
-  multi-book note drafts
+Allowed in Stage 26:
+- Add `langgraph` to backend dependencies
+- Add `backend/app/graphs/chat_rag_graph.py`
+- Add a small explicit `ChatRAGState`
+- Build a mostly linear LangGraph using `StateGraph`
+- Add graph nodes for validate input, resolve scope, load memory,
+  retrieve chunks, build citations, build prompt, generate answer, save
+  memory, record learning event, and format response
+- Add `POST /api/agent/chat`
+- Add typed `AgentChatRequest` and `AgentChatResponse` schemas
+- Reuse existing global, single-book, and multi-book retrieval services
+- Reuse existing memory services
+- Reuse Stage 22 citation builder
+- Reuse existing RAG prompt helpers and Stage 21 LLM provider boundary
+- Reuse Stage 24 learning event service
+- Record one `agent_chat_question_asked` event per successful graph
+  response
+- Preserve existing RAG endpoints unchanged
+- Keep frontend unchanged unless a minimal API client is explicitly
+  needed
 - Add deterministic tests that do not require API keys or network calls
-- Update README/backend/frontend/CODEX documentation
+- Update README/backend/CODEX documentation
 
-Do not implement in Stage 25:
-- LangGraph
-- Graph design
-- Agent planning
+Do not implement in Stage 26:
+- Open-ended agent planner
 - Tool calling
 - MCP
 - Multi-agent systems
+- Autonomous agent behavior
+- Reflection loop
+- Retry loop
+- Self-critique
 - Streaming responses
+- Function calling
+- Frontend settings page
+- Replacing existing RAG endpoints
+- Replacing service-layer logic with graph nodes
+- Graph-based Notes generation
+- Graph-based study sessions
+- Graph-based book summary generation
+- Real embedding provider
+- OpenAI/DeepSeek embedding calls
+- Embedding dimension changes
+- Chunking/indexing pipeline changes
 - Reranking
 - Hybrid search
 - BM25
 - Full-text search
 - Query expansion
-- Real embedding provider
-- OpenAI/DeepSeek embedding calls
-- Embedding dimension changes
-- Chunking/indexing pipeline changes
 - PDF parsing
 - DOCX parsing
 - LaTeX parsing
 - OCR
 - Knowledge graph
-- Whole-book synthesis
-- Automatic cross-book comparison engine
 - Background jobs
 - Redis / Celery / RQ
 - User accounts
@@ -474,6 +495,8 @@ Backend:
 - psycopg (v3)
 - pgvector (nullable embedding column + basic similarity search only;
   embeddings are deterministic mocks, not a real provider)
+- LangGraph (Stage 26 graph boundary only; no planner, tools, MCP, or
+  autonomous loop)
 - Minimal RAG Q&A (`backend/app/rag/`): deterministic mock embeddings +
   pgvector search + simple extractive answer generation; no real LLM or
   embedding provider
@@ -547,10 +570,16 @@ Frontend:
   selected `documents.library_item_id` values, citations identify the
   source book, and no reranking, hybrid search, graph workflow, or
   agent planning is added
+- Stage 26 Chat RAG Graph Boundary MVP adds `langgraph`,
+  `backend/app/graphs/chat_rag_graph.py`, and `POST /api/agent/chat`.
+  The graph orchestrates existing validation, scope resolution, memory,
+  retrieval, citation, prompt, LLM provider, memory save, and
+  learning-event services; it does not add planning, tools, MCP,
+  streaming, or autonomous behavior
 
 Planned later:
-- LangGraph
-- Real embedding provider integration and production-quality agent workflows
+- Production-quality agent workflows
+- Real embedding provider integration
 - Semantic memory embeddings and long-term memory vector search
 - Rust local backend
 - MCP integration

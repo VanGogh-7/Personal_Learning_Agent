@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.agent_routes import router as agent_router
 from app.api.ingestion_routes import router as ingestion_router
 from app.api.learning_event_routes import router as learning_event_router
 from app.api.library_routes import router as library_router
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 app.include_router(router)
+app.include_router(agent_router)
 app.include_router(ingestion_router)
 app.include_router(rag_router)
 app.include_router(memory_router)
