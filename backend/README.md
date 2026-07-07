@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 31: Embedded PDF Viewer MVP.
+Stage 32: PDF Text Extraction / Page-Aware Indexing.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -105,23 +105,29 @@ Stage 31: Embedded PDF Viewer MVP.
   local PDFs in-app with basic page navigation and zoom while
   preserving the system PDF reader action. The PDF bytes are loaded by
   a minimal Tauri command, not by a FastAPI backend endpoint (Stage 31,
+  completed)
+- PDF Text Extraction / Page-Aware Indexing: local PDF Library items
+  can be indexed with `pypdf`; extracted chunks store nullable
+  `page_start` and `page_end` metadata, and RAG citations expose
+  additive page fields when available (Stage 32,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
-logic, document parsing UI, repository analysis, and production
-packaging are planned but **not implemented yet**. Stage 31 is a
-frontend/Tauri embedded viewer pass only. It does not change
+logic, repository analysis, and production packaging are planned but
+**not implemented yet**. Stage 32 is a backend PDF extraction and
+page-aware indexing pass with a minimal frontend citation display. It
+does not change
 `/api/agent/chat`, existing RAG endpoints, retrieval behavior,
 LangGraph behavior, memory behavior, learning event behavior, notes
-APIs, database schema, Tauri architecture, or Vite architecture. It
-also does not add PDF text extraction, PDF indexing changes,
-page-aware citations, PDF annotation, an agent planner, tool calling,
-multi-agent systems, streaming, reranking, hybrid search, BM25,
-full-text search, query expansion, real embedding providers, parser
-changes, whole-book synthesis, background jobs, authentication,
-settings, theme management, or deployment.
+APIs, Tauri architecture, or Vite architecture. It adds a minimal
+database migration for nullable page metadata on chunks. It does not
+add OCR, PDF annotation, selected text to chat, citation-to-PDF-page
+jumps, an agent planner, tool calling, multi-agent systems, streaming,
+reranking, hybrid search, BM25, full-text search, query expansion, real
+embedding providers, whole-book synthesis, background jobs,
+authentication, settings, theme management, or deployment.
 
 ## Setup
 

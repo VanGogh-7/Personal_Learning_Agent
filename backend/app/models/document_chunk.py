@@ -43,6 +43,8 @@ class DocumentChunk(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     char_start: Mapped[int] = mapped_column(Integer, nullable=False)
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

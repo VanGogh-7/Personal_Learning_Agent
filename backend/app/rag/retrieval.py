@@ -26,6 +26,8 @@ class RetrievedChunkResult:
     library_item_id: uuid.UUID | None = None
     library_title: str | None = None
     library_author: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 @dataclass
@@ -208,6 +210,8 @@ def retrieve_relevant_chunks(
                 content=chunk.content,
                 char_start=chunk.char_start,
                 char_end=chunk.char_end,
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
                 score=chunk.distance,
             )
         )
@@ -267,6 +271,8 @@ def retrieve_relevant_chunks_for_library_item(
                 content=chunk.content,
                 char_start=chunk.char_start,
                 char_end=chunk.char_end,
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
                 score=chunk.distance,
             )
         )
@@ -374,6 +380,8 @@ def retrieve_relevant_chunks_for_library_items(
                 content=chunk.content,
                 char_start=chunk.char_start,
                 char_end=chunk.char_end,
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
                 score=chunk.distance,
             )
         )

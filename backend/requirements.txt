@@ -9,3 +9,4 @@ psycopg[binary]
 alembic
 pgvector
 langgraph
+pypdf

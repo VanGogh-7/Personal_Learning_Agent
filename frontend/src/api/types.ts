@@ -33,6 +33,9 @@ export interface RagCitation {
   document_title: string | null;
   document_source_path: string | null;
   chunk_index: number;
+  page_number: number | null;
+  page_start: number | null;
+  page_end: number | null;
   score: number;
   excerpt: string;
   content: string;
@@ -44,6 +47,9 @@ export interface RetrievedChunk {
   document_title: string | null;
   document_source_path: string | null;
   chunk_index: number;
+  page_number: number | null;
+  page_start: number | null;
+  page_end: number | null;
   content: string;
   char_start: number;
   char_end: number;

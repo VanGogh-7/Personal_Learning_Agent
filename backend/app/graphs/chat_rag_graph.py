@@ -425,6 +425,8 @@ def _retrieved_chunk_to_state(chunk: RetrievedChunkResult) -> dict[str, Any]:
         "content": chunk.content,
         "char_start": chunk.char_start,
         "char_end": chunk.char_end,
+        "page_start": chunk.page_start,
+        "page_end": chunk.page_end,
         "score": chunk.score,
     }
 
@@ -444,6 +446,8 @@ def _state_to_retrieved_chunk(data: dict[str, Any]) -> RetrievedChunkResult:
         content=data["content"],
         char_start=data["char_start"],
         char_end=data["char_end"],
+        page_start=data.get("page_start"),
+        page_end=data.get("page_end"),
         score=data["score"],
     )
 
@@ -459,6 +463,9 @@ def _citation_to_state(citation: ChunkCitationResult) -> dict[str, Any]:
         "document_title": citation.document_title,
         "document_source_path": citation.document_source_path,
         "chunk_index": citation.chunk_index,
+        "page_number": citation.page_number,
+        "page_start": citation.page_start,
+        "page_end": citation.page_end,
         "score": citation.score,
         "excerpt": citation.excerpt,
         "content": citation.content,
@@ -474,6 +481,9 @@ def _retrieved_chunk_response(
         document_title=chunk.get("document_title"),
         document_source_path=chunk.get("document_source_path"),
         chunk_index=chunk["chunk_index"],
+        page_number=citation.page_number,
+        page_start=chunk.get("page_start"),
+        page_end=chunk.get("page_end"),
         content=chunk["content"],
         char_start=chunk["char_start"],
         char_end=chunk["char_end"],

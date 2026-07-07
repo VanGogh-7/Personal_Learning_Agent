@@ -1,6 +1,6 @@
 # Personal Learning Agent Frontend
 
-Stage 31 adds a minimal embedded PDF viewer to the Workspace. The stack
+Stage 32 adds PDF text extraction and page-aware citations to the Workspace. The stack
 remains Bun + Tauri + React + Vite. The default page is the
 IDE-like Workspace with a collapsible/resizable PDF Library Explorer, a
 center embedded PDF Workspace, and a collapsible/resizable Agent Chat
@@ -111,8 +111,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library item selection and detail metadata panel
 - Library `Choose PDF` button in Tauri to fill `file_path` metadata
 - Library `Open PDF` button in Tauri for local PDF `file_path` values
-- PDF indexing is not exposed yet; legacy text indexing support may
-  remain in backend services
+- Library `Index PDF` action indexes local text PDFs through the backend
+  and stores page-aware chunk metadata
+- Agent Chat Sources show page metadata when indexed PDF chunks include it
 - Library detail `Generate Summary & Tags` action for indexed items
 - Editable generated summary/topic tag draft with save-through-metadata update
 - Legacy Notes page with LaTeX note create/list/view/edit/archive workflow
@@ -126,17 +127,19 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 - Does not auto-start the FastAPI backend
 - Library `file_path` is still metadata stored in the backend
-- Choosing a file records its local path for Library metadata; selected
-  PDFs are read locally by a Tauri command for embedded viewing only
-- The embedded viewer renders local PDFs but does not parse, extract,
-  upload, copy, ingest, annotate, or index them
+- Choosing a file records its local path for Library metadata. Embedded
+  viewing reads local bytes through Tauri; indexing reads local PDFs in
+  the backend from the stored Library path.
+- The embedded viewer renders local PDFs but does not annotate,
+  highlight, select text, or jump to citation pages
 - Opening local files is performed by Tauri, not the backend
 - Local file picking and opening should be tested with `bun run tauri dev`
 - `Open PDF` opens the file with the system default app
 - User-facing Library format is PDF; existing `.txt` and `.md` support
   may remain in backend services for legacy/internal/test paths
-- PDF parsing, text extraction, indexing, page-aware citations, and
-  source highlighting are not supported yet
+- PDF text extraction/indexing is text-layer only; OCR, annotations,
+  jump-to-page citations, selected-text-to-chat, and source highlighting
+  are not supported yet
 - Generated Library metadata works only for already indexed legacy
   items and does not auto-save; reviewed summaries are stored in
   `description`, and reviewed tags are stored in `topic_tags`
@@ -164,10 +167,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   dashboard, calendar, goals, spaced repetition, reminders, or AI
   progress evaluation
 - Calendar / Today Log is the planned learning-record direction but is
-  not implemented in Stage 31
+  not implemented in Stage 32
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 31
+  Stage 32
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary

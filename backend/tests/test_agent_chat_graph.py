@@ -104,6 +104,8 @@ def test_agent_chat_global_scope_works(monkeypatch, agent_chat_session) -> None:
         content="Global graph retrieval works.",
         char_start=0,
         char_end=29,
+        page_start=3,
+        page_end=3,
         score=0.01,
     )
     monkeypatch.setattr(
@@ -125,6 +127,8 @@ def test_agent_chat_global_scope_works(monkeypatch, agent_chat_session) -> None:
     assert response.total_retrieved == 1
     assert response.citations[0].citation_id == "S1"
     assert response.citations[0].library_item_id == str(library_item_id)
+    assert response.citations[0].page_number == 3
+    assert response.retrieved_chunks[0].page_start == 3
     assert response.retrieved_chunks[0].citation == response.citations[0]
     assert response.memory.saved_current_turn is True
 

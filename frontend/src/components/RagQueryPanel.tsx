@@ -575,9 +575,22 @@ function citationMetadata(citation: RagCitation): string {
     citation.library_author ? `Author: ${citation.library_author}` : null,
     citation.document_title ? `Document: ${citation.document_title}` : null,
     citation.document_source_path ? `Path: ${citation.document_source_path}` : null,
+    citationPageLabel(citation),
     `Chunk: ${citation.chunk_index}`,
   ];
   return parts.filter(Boolean).join(" · ");
+}
+
+function citationPageLabel(citation: RagCitation): string | null {
+  if (citation.page_number) {
+    return `Page: ${citation.page_number}`;
+  }
+  if (citation.page_start && citation.page_end) {
+    return citation.page_start === citation.page_end
+      ? `Page: ${citation.page_start}`
+      : `Pages: ${citation.page_start}-${citation.page_end}`;
+  }
+  return null;
 }
 
 function scopeTypeForSelection(selectedIds: string[]): AgentChatScopeType {

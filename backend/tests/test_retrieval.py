@@ -51,7 +51,13 @@ class _FakeSession:
         return _FakeScalarResult(list(self._documents.values()))
 
 
-def _make_similar_chunk(document_id, content: str = "some content", distance: float = 0.05):
+def _make_similar_chunk(
+    document_id,
+    content: str = "some content",
+    distance: float = 0.05,
+    page_start: int | None = None,
+    page_end: int | None = None,
+):
     return SimilarChunkResult(
         chunk_id=uuid.uuid4(),
         document_id=document_id,
@@ -59,6 +65,8 @@ def _make_similar_chunk(document_id, content: str = "some content", distance: fl
         content=content,
         char_start=0,
         char_end=len(content),
+        page_start=page_start,
+        page_end=page_end,
         distance=distance,
     )
 
@@ -93,7 +101,12 @@ def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(mo
 
 def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monkeypatch) -> None:
     document_id = uuid.uuid4()
-    chunk = _make_similar_chunk(document_id, content="Gradient descent minimizes a loss function.")
+    chunk = _make_similar_chunk(
+        document_id,
+        content="Gradient descent minimizes a loss function.",
+        page_start=7,
+        page_end=7,
+    )
 
     monkeypatch.setattr(
         retrieval_module, "search_similar_chunks", lambda session, embedding, limit: [chunk]
@@ -125,6 +138,8 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
     assert item.content == "Gradient descent minimizes a loss function."
     assert item.char_start == 0
     assert item.char_end == len(chunk.content)
+    assert item.page_start == 7
+    assert item.page_end == 7
     assert item.score == chunk.distance
 
 

@@ -17,6 +17,9 @@ class ChunkCitationResult:
     document_title: str | None
     document_source_path: str | None
     chunk_index: int
+    page_number: int | None
+    page_start: int | None
+    page_end: int | None
     score: float
     excerpt: str
     content: str
@@ -51,9 +54,18 @@ def build_chunk_citations(
                 document_title=chunk.document_title,
                 document_source_path=chunk.document_source_path,
                 chunk_index=chunk.chunk_index,
+                page_number=_single_page_number(chunk.page_start, chunk.page_end),
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
                 score=chunk.score,
                 excerpt=make_excerpt(chunk.content, max_length=max_excerpt_length),
                 content=chunk.content,
             )
         )
     return citations
+
+
+def _single_page_number(page_start: int | None, page_end: int | None) -> int | None:
+    if page_start is not None and page_start == page_end:
+        return page_start
+    return None

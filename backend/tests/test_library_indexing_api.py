@@ -14,6 +14,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
 from app.models.note import Note
+from tests.pdf_fixtures import make_pdf_bytes
 
 
 @pytest.fixture
@@ -84,12 +85,12 @@ def test_index_library_item_endpoint_missing_id_returns_404(
     assert exc_info.value.status_code == 404
 
 
-def test_index_library_item_endpoint_rejects_pdf(
+def test_index_library_item_endpoint_indexes_pdf(
     monkeypatch, indexing_api_session, tmp_path
 ) -> None:
     _patch_db(monkeypatch, indexing_api_session)
     file_path = tmp_path / "book.pdf"
-    file_path.write_text("not parsed", encoding="utf-8")
+    file_path.write_bytes(make_pdf_bytes(["PDF page one.", "PDF page two."]))
     item = create_library_item(
         indexing_api_session,
         title="Index Me",
@@ -97,14 +98,13 @@ def test_index_library_item_endpoint_rejects_pdf(
         file_type="pdf",
     )
 
-    with pytest.raises(HTTPException) as exc_info:
-        index_library_item_endpoint(item.item_id)
+    response = index_library_item_endpoint(item.item_id)
 
-    assert exc_info.value.status_code == 400
-    assert "Only .txt and .md" in exc_info.value.detail
+    assert response.status == "indexed"
+    assert response.chunks_created == 2
     refreshed = indexing_api_session.get(LibraryItem, item.item_id)
     assert refreshed is not None
-    assert refreshed.status == "index_failed"
+    assert refreshed.status == "indexed"
 
 
 def test_index_library_item_endpoint_creates_chunks_with_embeddings(

@@ -47,9 +47,10 @@ Stage 28: Agent Chat Stabilization / Regression Polish — completed.
 Stage 29A: Frontend Bun Migration — completed.
 Stage 29B: Workspace Layout Refactor MVP — completed.
 Stage 30: PDF-First Library UX — completed.
-Stage 31: Embedded PDF Viewer MVP — current.
+Stage 31: Embedded PDF Viewer MVP — completed.
+Stage 32: PDF Text Extraction / Page-Aware Indexing — current.
 
-Current active stage: Stage 31: Embedded PDF Viewer MVP.
+Current active stage: Stage 32: PDF Text Extraction / Page-Aware Indexing.
 
 Do not implement the full product at once.
 
@@ -87,7 +88,8 @@ Project stage roadmap:
 29A. Frontend Bun Migration — completed
 29B. Workspace Layout Refactor MVP — completed
 30. PDF-First Library UX — completed
-31. Embedded PDF Viewer MVP — current
+31. Embedded PDF Viewer MVP — completed
+32. PDF Text Extraction / Page-Aware Indexing — current
 
 ---
 
@@ -301,6 +303,17 @@ minimal Tauri command reads selected local `.pdf` files as bytes for
 the viewer; the FastAPI backend is unchanged. Stage 31 does not add PDF
 text extraction, PDF indexing changes, page-aware citations, selected
 text to chat, PDF annotations, new RAG behavior, or backend API changes.
+
+Stage 32 is PDF Text Extraction / Page-Aware Indexing. The backend uses
+`pypdf` to extract local PDF Library items page by page during indexing.
+PDF chunks store nullable `document_chunks.page_start` and
+`document_chunks.page_end`, and RAG citations/retrieved chunks expose
+additive `page_number`, `page_start`, and `page_end` fields when page
+metadata is available. The frontend Sources UI displays page metadata
+minimally. Stage 32 does not add OCR, annotations, highlighting,
+selected text to chat, citation-to-viewer navigation, new LangGraph
+nodes, planner/tool behavior, reranking, hybrid search, BM25, or a new
+RAG algorithm.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -593,30 +606,24 @@ Do not implement in Stage 29B:
 - Retrieval behavior changes
 - Large backend changes
 
-Allowed in Stage 31:
-- Add a minimal embedded PDF viewer in the center Workspace panel
-- Add `react-pdf` and `pdfjs-dist` through Bun
-- Load selected local `.pdf` files through a minimal Tauri command
-- Show selected PDF title, current page, total pages, loading state,
-  readable error state, and zoom controls
-- Reset viewer page/error state when the selected PDF changes
-- Preserve `Open in system PDF reader`
-- Preserve left PDF Library Explorer, right Agent Chat dock, panel
-  collapse/resize behavior, and layout `localStorage` persistence
-- Preserve `/api/agent/chat`, global/single-book/multi-book RAG,
-  citations, loading/error/empty states, and Chat-to-Notes behavior
-- Keep Bun + Tauri + React + Vite as the frontend stack
-- Update README/backend/frontend/CODEX documentation
+Allowed in Stage 32:
+- Add backend PDF text extraction with `pypdf`
+- Index local PDF Library items page by page
+- Add minimal nullable page metadata columns to `document_chunks`
+- Add page metadata to retrieved chunks and citations without removing
+  existing API fields
+- Keep legacy `.txt` and `.md` indexing paths working
+- Display citation page metadata minimally in frontend Sources
+- Preserve `/api/agent/chat`, RAG retrieval behavior, LangGraph
+  orchestration boundaries, memory behavior, learning events, and
+  Chat-to-Notes behavior
 
-Do not implement in Stage 31:
-- PDF text extraction
-- Page-aware citations
-- PDF indexing changes
-- Jump from citation to PDF page
-- Selected text to chat
+Do not implement in Stage 32:
+- OCR
 - PDF annotation
 - Highlighting
-- OCR
+- Selected text to chat
+- Jump from citation to PDF page
 - Calendar daily summary generation
 - Settings page
 - Theme system
@@ -759,6 +766,13 @@ Frontend:
   Agent Chat behavior, and does not add PDF text extraction, indexing,
   page-aware citations, annotations, backend API changes, or new RAG
   behavior
+- Stage 32 PDF Text Extraction / Page-Aware Indexing adds backend
+  `pypdf` extraction for local PDFs, nullable chunk page metadata,
+  additive citation page fields, and a minimal Sources display update.
+  It preserves existing RAG/Agent Chat behavior and does not add OCR,
+  annotations, selected-text workflows, citation-to-viewer navigation,
+  reranking, hybrid search, BM25, new LangGraph nodes, or a new RAG
+  algorithm
 
 Planned later:
 - Production-quality agent workflows

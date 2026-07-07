@@ -20,6 +20,8 @@ class SimilarChunkResult:
     char_start: int
     char_end: int
     distance: float
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 def _validate_embedding_dimension(embedding: Sequence[float]) -> None:
@@ -82,6 +84,8 @@ def search_similar_chunks(
             content=chunk.content,
             char_start=chunk.char_start,
             char_end=chunk.char_end,
+            page_start=chunk.page_start,
+            page_end=chunk.page_end,
             distance=float(distance),
         )
         for chunk, distance in rows
@@ -134,6 +138,8 @@ def search_similar_chunks_for_documents(
             content=chunk.content,
             char_start=chunk.char_start,
             char_end=chunk.char_end,
+            page_start=chunk.page_start,
+            page_end=chunk.page_end,
             distance=float(distance),
         )
         for chunk, distance in scored[:limit]

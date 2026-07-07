@@ -10,6 +10,7 @@ from app.library.service import create_library_item
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
+from tests.pdf_fixtures import make_pdf_bytes
 
 
 @pytest.fixture
@@ -97,9 +98,16 @@ def test_index_library_item_empty_file_path_sets_failed_status(indexing_session)
     assert updated_item.status == "index_failed"
 
 
-def test_index_library_item_rejects_unsupported_pdf(indexing_session, tmp_path) -> None:
+def test_index_library_item_pdf_creates_page_aware_chunks(indexing_session, tmp_path) -> None:
     file_path = tmp_path / "analysis.pdf"
-    file_path.write_text("not really a pdf", encoding="utf-8")
+    file_path.write_bytes(
+        make_pdf_bytes(
+            [
+                "Derivatives measure local linear change.",
+                "Integrals accumulate area under curves.",
+            ]
+        )
+    )
     item = create_library_item(
         indexing_session,
         title="Analysis",
@@ -107,11 +115,39 @@ def test_index_library_item_rejects_unsupported_pdf(indexing_session, tmp_path) 
         file_type="pdf",
     )
 
-    with pytest.raises(LibraryIndexingError, match="Only .txt and .md"):
+    result = index_library_item(indexing_session, item.item_id)
+
+    assert result is not None
+    assert result.status == "indexed"
+    document = indexing_session.get(Document, result.document_id)
+    assert document is not None
+    assert document.file_type == "pdf"
+    chunks = indexing_session.execute(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .order_by(DocumentChunk.chunk_index)
+    ).scalars().all()
+    assert [chunk.page_start for chunk in chunks] == [1, 2]
+    assert [chunk.page_end for chunk in chunks] == [1, 2]
+    assert chunks[0].content == "Derivatives measure local linear change."
+
+
+def test_index_library_item_invalid_pdf_sets_failed_status(indexing_session, tmp_path) -> None:
+    file_path = tmp_path / "broken.pdf"
+    file_path.write_text("not really a pdf", encoding="utf-8")
+    item = create_library_item(
+        indexing_session,
+        title="Broken PDF",
+        file_path=str(file_path),
+        file_type="pdf",
+    )
+
+    with pytest.raises(LibraryIndexingError, match="Could not read PDF file"):
         index_library_item(indexing_session, item.item_id)
 
-    documents = indexing_session.execute(select(Document)).scalars().all()
-    assert documents == []
+    updated_item = indexing_session.get(LibraryItem, item.item_id)
+    assert updated_item is not None
+    assert updated_item.status == "index_failed"
 
 
 def test_index_library_item_rejects_nonexistent_file(indexing_session, tmp_path) -> None:

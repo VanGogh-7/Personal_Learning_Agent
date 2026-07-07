@@ -4,7 +4,12 @@ from app.rag.citations import build_chunk_citations, make_excerpt
 from app.rag.retrieval import RetrievedChunkResult
 
 
-def _chunk(content: str, index: int = 0) -> RetrievedChunkResult:
+def _chunk(
+    content: str,
+    index: int = 0,
+    page_start: int | None = None,
+    page_end: int | None = None,
+) -> RetrievedChunkResult:
     return RetrievedChunkResult(
         chunk_id=uuid.uuid4(),
         document_id=uuid.uuid4(),
@@ -17,6 +22,8 @@ def _chunk(content: str, index: int = 0) -> RetrievedChunkResult:
         content=content,
         char_start=0,
         char_end=len(content),
+        page_start=page_start,
+        page_end=page_end,
         score=0.123,
     )
 
@@ -48,3 +55,16 @@ def test_build_chunk_citations_assigns_deterministic_ids_and_metadata() -> None:
     assert citations[0].chunk_index == 0
     assert citations[0].score == 0.123
     assert citations[0].excerpt == "A vector space over a field."
+    assert citations[0].page_number is None
+    assert citations[0].page_start is None
+    assert citations[0].page_end is None
+
+
+def test_build_chunk_citations_includes_page_metadata_when_available() -> None:
+    chunk = _chunk("A compact set is closed and bounded.", page_start=12, page_end=12)
+
+    citation = build_chunk_citations([chunk])[0]
+
+    assert citation.page_number == 12
+    assert citation.page_start == 12
+    assert citation.page_end == 12

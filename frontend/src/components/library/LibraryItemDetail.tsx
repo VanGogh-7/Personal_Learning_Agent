@@ -296,7 +296,7 @@ export default function LibraryItemDetail({
                 <button
                   type="button"
                   className="secondary-button"
-                  disabled={true}
+                  disabled={indexing || !isPdfLike(item)}
                   onClick={() => onIndex(item)}
                 >
                   {indexing ? "Indexing..." : "Index PDF"}
@@ -306,8 +306,8 @@ export default function LibraryItemDetail({
               <p className="empty-state">No local file path registered.</p>
             )}
             <p className="field-help">
-              PDF files can be opened now. Embedded viewing, PDF text extraction, and PDF
-              indexing are future work.
+              PDF files can be opened, embedded in the Workspace, and indexed with page-aware
+              chunks.
             </p>
             {!isPdfLike(item) && (
               <p className="empty-state compact-note">
@@ -317,7 +317,7 @@ export default function LibraryItemDetail({
             )}
             {isPdfLike(item) && (
               <p className="field-help">
-                PDF files can be opened, but PDF indexing is not supported yet.
+                PDF indexing extracts text page by page. OCR and annotations are not supported.
               </p>
             )}
             {indexResult && indexResult.item_id === item.id && (
@@ -340,8 +340,7 @@ export default function LibraryItemDetail({
             </div>
             {item.status !== "indexed" ? (
               <p className="empty-state">
-                Summary and tag generation requires an already indexed legacy item. PDF indexing
-                is future work.
+                Summary and tag generation requires an indexed Library item.
               </p>
             ) : (
               <>
@@ -410,7 +409,7 @@ export default function LibraryItemDetail({
       <div className="future-grid">
         <Placeholder
           title="PDF Indexing"
-          text="Coming later: PDF text extraction, page-aware chunks, and background indexing."
+          text="Available now for local text PDFs. OCR, annotations, and background indexing are later work."
         />
         <Placeholder
           title="Related Notes"

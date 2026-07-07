@@ -68,6 +68,9 @@ class RagCitation(BaseModel):
     document_title: str | None = None
     document_source_path: str | None = None
     chunk_index: int
+    page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
     score: float
     excerpt: str
     content: str
@@ -79,6 +82,9 @@ class RetrievedChunk(BaseModel):
     document_title: str | None = None
     document_source_path: str | None = None
     chunk_index: int
+    page_number: int | None = None
+    page_start: int | None = None
+    page_end: int | None = None
     content: str
     char_start: int
     char_end: int

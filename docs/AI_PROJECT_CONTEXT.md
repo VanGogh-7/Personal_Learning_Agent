@@ -28,17 +28,20 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 
 ## Current Stage Status
 
-- **Stages 1–30 are completed** (backend skeleton through PDF-first UX).
-- **Stage 31 (Embedded PDF Viewer MVP) is under review.**
+- **Stages 1–31 are completed** (backend skeleton through embedded PDF viewing).
+- **Stage 32 (PDF Text Extraction / Page-Aware Indexing) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
 - **Stage 30** made the Library and Workspace PDF-first (file picker
   restricts `.pdf`, non-PDF items marked unsupported).
 
-Stage 31 adds `react-pdf` + `pdfjs-dist` for embedded PDF rendering in
-the center Workspace, with page controls, zoom, a Tauri Rust command to
-load local `.pdf` bytes, and a minimal CSP update.
+Stage 32 adds backend `pypdf` extraction for local PDF Library items.
+PDF indexing extracts text page by page, stores nullable
+`document_chunks.page_start` and `document_chunks.page_end`, and
+returns additive page metadata in RAG citations/retrieved chunks. The
+frontend only displays page metadata in Sources; it does not jump the
+viewer to citation pages.
 
 ---
 
@@ -55,7 +58,7 @@ alembic upgrade head
 ```
 
 - Python 3, FastAPI, PostgreSQL + pgvector, SQLAlchemy 2.x, Alembic,
-  LangGraph, pytest.
+  LangGraph, pytest, pypdf.
 - Backend runs on `127.0.0.1:8081`.
 - `LLM_PROVIDER=deterministic` is the default; `deepseek` is opt-in.
 - API keys must never be committed, logged, or exposed to the frontend.
@@ -119,8 +122,8 @@ These require an explicit stage decision from the developer.
 | 29A   | Frontend Bun Migration | completed |
 | 29B   | Workspace Layout Refactor MVP | completed |
 | 30    | PDF-First Library UX | completed |
-| **31** | **Embedded PDF Viewer MVP** | **under review** |
-| 32    | PDF Text Extraction / Page-Aware Indexing | planned |
+| 31    | Embedded PDF Viewer MVP | completed |
+| **32** | **PDF Text Extraction / Page-Aware Indexing** | **current** |
 | 33    | Today Log / Calendar MVP | planned |
 | 34    | Agent-generated Daily Summary | planned |
 | 35    | Simple Settings MVP | planned |

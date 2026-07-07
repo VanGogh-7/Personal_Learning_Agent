@@ -8,11 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.embeddings.mock import MockEmbeddingProvider
 from app.ingestion.chunking import chunk_text
+from app.ingestion.pdf import PDFExtractionError, PDFPageText, extract_pdf_pages
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
 
-SUPPORTED_LIBRARY_INDEX_TYPES = {"txt", "md"}
+SUPPORTED_LIBRARY_INDEX_TYPES = {"txt", "md", "pdf"}
 DEFAULT_INDEX_CHUNK_SIZE = 800
 DEFAULT_INDEX_CHUNK_OVERLAP = 100
 
@@ -31,6 +32,16 @@ class LibraryIndexResult:
     message: str
 
 
+@dataclass(frozen=True)
+class IndexChunk:
+    index: int
+    content: str
+    char_start: int
+    char_end: int
+    page_start: int | None = None
+    page_end: int | None = None
+
+
 def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResult | None:
     item = session.get(LibraryItem, item_id)
     if item is None:
@@ -42,8 +53,7 @@ def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResu
 
         path = _validate_file_path(item.file_path)
         file_type = _detect_supported_file_type(item.file_type, path)
-        text = _read_text_file(path)
-        content_hash = _content_hash(text)
+        chunks, content_hash = _prepare_index_chunks(path, file_type)
 
         document = _get_or_create_document(session, item, path, file_type)
         document.title = item.title
@@ -53,11 +63,6 @@ def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResu
         session.flush()
 
         session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-        chunks = chunk_text(
-            text,
-            chunk_size=DEFAULT_INDEX_CHUNK_SIZE,
-            chunk_overlap=DEFAULT_INDEX_CHUNK_OVERLAP,
-        )
         provider = MockEmbeddingProvider()
         embeddings = provider.embed_texts([chunk.content for chunk in chunks])
 
@@ -69,6 +74,8 @@ def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResu
                     content=chunk.content,
                     char_start=chunk.char_start,
                     char_end=chunk.char_end,
+                    page_start=chunk.page_start,
+                    page_end=chunk.page_end,
                     embedding=embedding,
                 )
             )
@@ -108,7 +115,7 @@ def _detect_supported_file_type(file_type: str | None, path: Path) -> str:
         if extension in SUPPORTED_LIBRARY_INDEX_TYPES:
             return extension
         raise LibraryIndexingError(
-            "Only .txt and .md library item indexing is supported in this MVP."
+            "Only .pdf, .txt, and .md library item indexing is supported."
         )
 
     if file_type and file_type.strip():
@@ -117,8 +124,61 @@ def _detect_supported_file_type(file_type: str | None, path: Path) -> str:
             return normalized
 
     raise LibraryIndexingError(
-        "Only .txt and .md library item indexing is supported in this MVP."
+        "Only .pdf, .txt, and .md library item indexing is supported."
     )
+
+
+def _prepare_index_chunks(path: Path, file_type: str) -> tuple[list[IndexChunk], str]:
+    if file_type == "pdf":
+        try:
+            pages = extract_pdf_pages(path)
+        except PDFExtractionError as exc:
+            raise LibraryIndexingError(str(exc)) from exc
+        return _chunk_pdf_pages(pages), _content_hash(
+            "\n\n".join(f"Page {page.page_number}\n{page.text}" for page in pages)
+        )
+
+    text = _read_text_file(path)
+    chunks = [
+        IndexChunk(
+            index=chunk.index,
+            content=chunk.content,
+            char_start=chunk.char_start,
+            char_end=chunk.char_end,
+        )
+        for chunk in chunk_text(
+            text,
+            chunk_size=DEFAULT_INDEX_CHUNK_SIZE,
+            chunk_overlap=DEFAULT_INDEX_CHUNK_OVERLAP,
+        )
+    ]
+    return chunks, _content_hash(text)
+
+
+def _chunk_pdf_pages(pages: list[PDFPageText]) -> list[IndexChunk]:
+    chunks: list[IndexChunk] = []
+    next_index = 0
+
+    for page in pages:
+        page_chunks = chunk_text(
+            page.text,
+            chunk_size=DEFAULT_INDEX_CHUNK_SIZE,
+            chunk_overlap=DEFAULT_INDEX_CHUNK_OVERLAP,
+        )
+        for chunk in page_chunks:
+            chunks.append(
+                IndexChunk(
+                    index=next_index,
+                    content=chunk.content,
+                    char_start=chunk.char_start,
+                    char_end=chunk.char_end,
+                    page_start=page.page_number,
+                    page_end=page.page_number,
+                )
+            )
+            next_index += 1
+
+    return chunks
 
 
 def _read_text_file(path: Path) -> str:
