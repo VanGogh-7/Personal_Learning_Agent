@@ -10,6 +10,7 @@ __pycache__/
 *.tgz
 *.iml
 .env
+backend/.env
 .env.*
 !.env.example
 .venv/

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 34: Backend PDF-to-RAG Pipeline MVP.
+Stage 35: Backend Dual-Agent LangGraph MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -122,22 +122,29 @@ Stage 34: Backend PDF-to-RAG Pipeline MVP.
   deterministic embeddings, pgvector-backed storage/retrieval,
   LangGraph Agent Chat, and structured citations is hardened and covered
   by an end-to-end backend regression test (Stage 34,
+  completed)
+- Backend Dual-Agent LangGraph MVP: `POST /api/agent/chat` now
+  orchestrates a deterministic router, fixed Local Library Agent,
+  deterministic/mock Web Research Agent, and synthesis step while
+  preserving existing local RAG retrieval and citations (Stage 35,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 34 is backend integration hardening for
-the PDF-to-RAG path. It does not change frontend workspace behavior,
-Tauri architecture, Vite architecture, `/api/agent/chat` request
-contract, retrieval algorithms, LangGraph node responsibilities, memory
-behavior, learning-event semantics, or Notes APIs. It does not add
-frontend feature expansion, AI daily summaries, planner/tool calling,
-multi-agent systems, streaming, reranking, hybrid search, BM25,
-full-text search, query expansion, real embedding providers, OCR,
-annotations, selected-text workflows, whole-book synthesis, background
-jobs, authentication, settings, theme management, or deployment.
+**not implemented yet**. Stage 35 is a backend-only fixed dual-agent
+orchestration pass. It keeps `/api/agent/chat` as the Agent Chat API and
+adds backward-compatible response fields for route, summaries, and web
+sources. It does not change frontend workspace behavior, Tauri
+architecture, Vite architecture, local retrieval algorithms, memory
+behavior, learning-event semantics, Notes APIs, or database schema. It
+does not add frontend simplification, AI daily summaries, autonomous
+planning, broad tool calling, open-ended multi-agent systems, streaming,
+reranking, hybrid search, BM25, full-text search, query expansion, real
+web providers by default, real embedding providers, OCR, annotations,
+selected-text workflows, whole-book synthesis, background jobs,
+authentication, settings, theme management, or deployment.
 
 ## Setup
 
@@ -165,16 +172,15 @@ jobs, authentication, settings, theme management, or deployment.
    dependencies are managed separately by `frontend/package.json`.
 
 3. Copy the example environment file and fill in real values locally.
-   The real `.env` lives at the **project root** (one level above
-   `backend/`), not inside `backend/`:
+   The real local development `.env` lives inside `backend/`:
 
    ```bash
-   cp backend/.env.example .env
+   cp backend/.env.example backend/.env
    ```
 
 4. PostgreSQL + pgvector: have a local PostgreSQL server running with the
-   `pgvector` extension installed, and set `DATABASE_URL` in the root
-   `.env` to point at your local development database (see
+   `pgvector` extension installed, and set `DATABASE_URL` in
+   `backend/.env` to point at your local development database (see
    [Environment Variables](#environment-variables) below). The `vector`
    extension itself is enabled by the Stage 4 migration (see below), not
    manually.
@@ -205,8 +211,9 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 `DATABASE_URL` uses the SQLAlchemy + psycopg (v3) format, e.g.
 `postgresql+psycopg://user:password@localhost:5432/personal_learning_agent`.
 
-`.env` lives at the project root and is never committed. Only
-`backend/.env.example` (placeholders) is tracked.
+`backend/.env` is loaded automatically for local backend startup and
+Alembic migrations, and is never committed. Only `backend/.env.example`
+(placeholders) is tracked.
 
 LLM provider selection is backend-only. The frontend never sends API
 keys or provider settings. Local development and tests use
@@ -303,14 +310,14 @@ Alembic migration for `learning_sources`, `documents`,
 - ORM: SQLAlchemy 2.x (`app/db/`, `app/models/`)
 - Driver: `psycopg` (v3)
 - Migrations: Alembic (`backend/alembic/`)
-- `DATABASE_URL` is read from the root `.env` via `app.core.config.get_settings()`.
+- `DATABASE_URL` is read from `backend/.env` via `app.core.config.get_settings()`.
   No connection string or credential is hard-coded, and migrations are
   never run automatically from application startup.
 
 ### Running migrations manually
 
 From `backend/`, with the `pla` environment active and `DATABASE_URL` set
-in the root `.env`:
+in `backend/.env`:
 
 ```bash
 conda activate pla
@@ -1156,6 +1163,10 @@ Response:
   ],
   "retrieved_chunks": [],
   "citations": [],
+  "route": "both",
+  "web_sources": [],
+  "local_summary": null,
+  "web_summary": null,
   "total_retrieved": 0,
   "session_id": "optional-session-id",
   "memory": {
@@ -1219,6 +1230,73 @@ pipeline changes, reranking, hybrid search, BM25, full-text search,
 query expansion, PDF/DOCX/LaTeX parsing, OCR, knowledge graphs,
 background jobs, Redis/Celery/RQ, authentication, user accounts, cloud
 deployment, or a large UI redesign.
+
+## Backend Dual-Agent LangGraph MVP (Stage 35)
+
+Stage 35 keeps `POST /api/agent/chat` as the single Agent Chat API and
+adds a fixed dual-agent orchestration path:
+
+```text
+validate_input
+-> resolve_scope
+-> load_memory
+-> route_question
+-> run_local_library_agent
+-> run_web_research_agent
+-> synthesize_answer
+-> save_memory
+-> record_learning_event
+-> format_response
+```
+
+Router behavior is deterministic and requires no LLM:
+
+- `local_only`: questions mentioning "my books", "my PDFs", "library",
+  "imported documents", "我的书", "书库", "我的 PDF", or "根据我的资料".
+- `web_only`: questions mentioning "latest", "recent", "current",
+  "news", "web", "internet", "最新", "最近", "网络", or "网上".
+- `both`: questions matching both local and web keyword groups, and
+  uncertain/general learning questions by default.
+
+Fixed agent boundaries:
+
+- Local Library Agent: reuses existing global, single-book, and
+  multi-book retrieval services, `pgvector` chunk search, page-aware
+  citation builder, and deterministic local evidence summary.
+- Web Research Agent: deterministic/mock provider by default. It
+  returns placeholder web sources and does not make network requests or
+  require API keys. A real web provider should be added only as an
+  explicit opt-in configuration path in a later stage.
+- Synthesis: combines local and/or web results into one final answer.
+
+Additive response fields:
+
+```json
+{
+  "route": "local_only | web_only | both",
+  "web_sources": [
+    {
+      "source_id": "W1",
+      "title": "Deterministic web research placeholder",
+      "url": "mock://web-research/deterministic",
+      "excerpt": "...",
+      "provider": "deterministic"
+    }
+  ],
+  "local_summary": "...",
+  "web_summary": "..."
+}
+```
+
+Existing response fields remain: `answer`, `scope_type`,
+`selected_library_items`, `retrieved_chunks`, `citations`,
+`total_retrieved`, `session_id`, and `memory`.
+
+Stage 35 does not add frontend simplification, new frontend pages, PDF
+viewer changes, OCR, annotations, citation-to-page navigation,
+authentication, settings, autonomous planning, broad tool calling,
+open-ended multi-agent behavior, a new RAG algorithm, BM25, hybrid
+search, reranking, database migrations, or major backend rewrites.
 
 ## Notes MVP (Stage 16)
 

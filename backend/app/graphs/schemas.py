@@ -2,6 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.agents.router import AgentRoute
 from app.rag.schemas import (
     MAX_TOP_K,
     MIN_TOP_K,
@@ -12,6 +13,14 @@ from app.rag.schemas import (
 )
 
 AgentChatScope = Literal["global", "single_book", "multi_book"]
+
+
+class WebSource(BaseModel):
+    source_id: str
+    title: str
+    url: str
+    excerpt: str
+    provider: str = "deterministic"
 
 
 class AgentChatRequest(BaseModel):
@@ -72,9 +81,13 @@ class AgentChatRequest(BaseModel):
 class AgentChatResponse(BaseModel):
     answer: str
     scope_type: AgentChatScope
+    route: AgentRoute = "local_only"
     selected_library_items: list[SelectedLibraryItemRead] = Field(default_factory=list)
     retrieved_chunks: list[RetrievedChunk]
     citations: list[RagCitation]
+    web_sources: list[WebSource] = Field(default_factory=list)
+    local_summary: str | None = None
+    web_summary: str | None = None
     total_retrieved: int
     session_id: str
     memory: MemoryMetadata

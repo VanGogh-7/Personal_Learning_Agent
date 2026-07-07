@@ -32,24 +32,28 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 - **Stages 1–32 are completed** (backend skeleton through PDF text extraction / page-aware indexing).
 - **Stage 33 (Today Log / Calendar MVP)** is handled separately from
   the current backend pipeline work.
-- **Stage 34 (Backend PDF-to-RAG Pipeline MVP) is current.**
+- **Stage 34 (Backend PDF-to-RAG Pipeline MVP)** is completed.
+- **Stage 35 (Backend Dual-Agent LangGraph MVP) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
 - **Stage 30** made the Library and Workspace PDF-first (file picker
   restricts `.pdf`, non-PDF items marked unsupported).
 
-Stage 34 focuses on backend PDF-to-RAG pipeline hardening. Frontend
-feature expansion is paused for this stage. The expected backend path is:
+Stage 35 adds a fixed backend dual-agent LangGraph MVP behind the
+existing `/api/agent/chat` endpoint:
 
 ```text
-PDF -> extraction -> chunking -> embedding -> pgvector -> retrieval -> LangGraph RAG
+User question -> Router -> Local Library Agent and/or Web Research Agent -> Synthesis
 ```
 
-The existing `/api/agent/chat` endpoint remains the preferred Agent Chat
-API. LangGraph remains orchestration only; extraction, chunking,
-embedding, storage, retrieval, citation, memory, and learning-event
-business logic should stay in services.
+The router chooses `local_only`, `web_only`, or `both`. The Local
+Library Agent reuses existing PDF/RAG retrieval and citation services.
+The Web Research Agent is deterministic/mock by default and requires no
+network access or API keys. Synthesis combines the fixed agent outputs.
+LangGraph remains orchestration only; retrieval, citation, memory,
+learning-event, and web-provider business logic should stay in services.
+Frontend simplification is not part of Stage 35.
 
 ---
 
@@ -133,9 +137,10 @@ These require an explicit stage decision from the developer.
 | 31    | Embedded PDF Viewer MVP | completed |
 | 32    | PDF Text Extraction / Page-Aware Indexing | completed |
 | 33    | Today Log / Calendar MVP | separate/integration work |
-| **34** | **Backend PDF-to-RAG Pipeline MVP** | **current** |
-| 35    | Agent-generated Daily Summary | planned |
-| 36    | Simple Settings MVP | planned |
+| 34    | Backend PDF-to-RAG Pipeline MVP | completed |
+| **35** | **Backend Dual-Agent LangGraph MVP** | **current** |
+| 36    | Agent-generated Daily Summary | planned |
+| 37    | Simple Settings MVP | planned |
 
 ---
 

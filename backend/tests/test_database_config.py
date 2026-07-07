@@ -4,7 +4,13 @@ import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from app.core.config import ROOT_ENV_FILE, Settings, get_database_url, get_settings
+from app.core.config import (
+    BACKEND_ENV_FILE,
+    ROOT_ENV_FILE,
+    Settings,
+    get_database_url,
+    get_settings,
+)
 from app.db.session import get_engine, get_session_factory
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -26,9 +32,10 @@ def test_settings_has_llm_provider_field() -> None:
     assert settings.llm_provider == "deterministic"
 
 
-def test_root_env_file_points_to_project_root() -> None:
-    assert ROOT_ENV_FILE.name == ".env"
-    assert ROOT_ENV_FILE.parent == BACKEND_DIR.parent
+def test_backend_env_file_points_to_backend_dir() -> None:
+    assert BACKEND_ENV_FILE.name == ".env"
+    assert BACKEND_ENV_FILE.parent == BACKEND_DIR
+    assert ROOT_ENV_FILE == BACKEND_ENV_FILE
 
 
 def test_settings_reads_database_url_from_env_var(monkeypatch) -> None:

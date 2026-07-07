@@ -5,6 +5,17 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
+from app.agents.local_library import (
+    LocalLibraryAgentResult,
+    run_local_library_agent as run_local_library_agent_service,
+)
+from app.agents.router import AgentRoute, route_question
+from app.agents.synthesis import synthesize_agent_answer
+from app.agents.web_research import (
+    WebResearchResult,
+    WebSourceResult,
+    run_web_research_agent as run_web_research_agent_service,
+)
 from app.graphs.schemas import AgentChatRequest, AgentChatResponse, AgentChatScope
 from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED, SOURCE_RAG
 from app.learning_events.service import create_learning_event
@@ -51,11 +62,15 @@ class ChatRAGState(TypedDict, total=False):
     library_item_ids: list[str]
     include_long_term_memory: bool
     top_k: int
+    route: AgentRoute
     selected_library_items: list[dict[str, Any]]
     short_term_context: list[dict[str, Any]]
     long_term_context: list[dict[str, Any]]
     retrieved_chunks: list[dict[str, Any]]
     citations: list[dict[str, Any]]
+    local_summary: str | None
+    web_summary: str | None
+    web_sources: list[dict[str, Any]]
     prompt: str
     answer: str
     memory_metadata: dict[str, Any]
@@ -71,10 +86,13 @@ def build_chat_rag_graph(session: Session):
     graph.add_node("validate_input", validate_input)
     graph.add_node("resolve_scope", lambda state: resolve_scope(state, session))
     graph.add_node("load_memory", lambda state: load_memory(state, session))
-    graph.add_node("retrieve_chunks", lambda state: retrieve_chunks(state, session))
-    graph.add_node("build_citations", build_citations)
-    graph.add_node("build_prompt", build_prompt)
-    graph.add_node("generate_answer", generate_answer)
+    graph.add_node("route_question", route_question_node)
+    graph.add_node(
+        "run_local_library_agent",
+        lambda state: run_local_library_agent(state, session),
+    )
+    graph.add_node("run_web_research_agent", run_web_research_agent)
+    graph.add_node("synthesize_answer", synthesize_answer)
     graph.add_node("save_memory", lambda state: save_memory(state, session))
     graph.add_node("record_learning_event", lambda state: record_learning_event(state, session))
     graph.add_node("format_response", format_response)
@@ -82,11 +100,11 @@ def build_chat_rag_graph(session: Session):
     graph.set_entry_point("validate_input")
     graph.add_edge("validate_input", "resolve_scope")
     graph.add_edge("resolve_scope", "load_memory")
-    graph.add_edge("load_memory", "retrieve_chunks")
-    graph.add_edge("retrieve_chunks", "build_citations")
-    graph.add_edge("build_citations", "build_prompt")
-    graph.add_edge("build_prompt", "generate_answer")
-    graph.add_edge("generate_answer", "save_memory")
+    graph.add_edge("load_memory", "route_question")
+    graph.add_edge("route_question", "run_local_library_agent")
+    graph.add_edge("run_local_library_agent", "run_web_research_agent")
+    graph.add_edge("run_web_research_agent", "synthesize_answer")
+    graph.add_edge("synthesize_answer", "save_memory")
     graph.add_edge("save_memory", "record_learning_event")
     graph.add_edge("record_learning_event", "format_response")
     graph.add_edge("format_response", END)
@@ -110,6 +128,9 @@ def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChat
         "long_term_context": [],
         "retrieved_chunks": [],
         "citations": [],
+        "web_sources": [],
+        "local_summary": None,
+        "web_summary": None,
         "errors": [],
         "learning_event_created": False,
     }
@@ -191,6 +212,62 @@ def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
     return {
         "short_term_context": [_conversation_turn_to_state(turn) for turn in recent_turns],
         "long_term_context": [_long_term_memory_to_state(memory) for memory in long_term_memories],
+    }
+
+
+def route_question_node(state: ChatRAGState) -> ChatRAGState:
+    return {"route": route_question(state["question"])}
+
+
+def run_local_library_agent(state: ChatRAGState, session: Session) -> ChatRAGState:
+    if state["route"] == "web_only":
+        return {
+            "retrieved_chunks": [],
+            "citations": [],
+            "local_summary": None,
+        }
+
+    recent_turns = [_state_to_conversation_turn(turn) for turn in state["short_term_context"]]
+    long_term_memories = [
+        _state_to_long_term_memory(memory) for memory in state["long_term_context"]
+    ]
+    result = run_local_library_agent_service(
+        session,
+        question=state["question"],
+        scope_type=state["scope_type"],
+        library_item_id=state.get("library_item_id"),
+        library_item_ids=state.get("library_item_ids", []),
+        top_k=state["top_k"],
+        recent_turns=recent_turns,
+        long_term_memories=long_term_memories,
+        retrieve_global=retrieve_relevant_chunks,
+        retrieve_single_book=retrieve_relevant_chunks_for_library_item,
+        retrieve_multi_book=retrieve_relevant_chunks_for_library_items,
+    )
+    return _local_library_agent_result_to_state(result)
+
+
+def run_web_research_agent(state: ChatRAGState) -> ChatRAGState:
+    if state["route"] == "local_only":
+        return {"web_summary": None, "web_sources": []}
+
+    result = run_web_research_agent_service(state["question"])
+    return _web_research_result_to_state(result)
+
+
+def synthesize_answer(state: ChatRAGState) -> ChatRAGState:
+    local_result = _state_to_local_library_agent_result(state)
+    web_result = _state_to_web_research_result(state)
+    synthesis = synthesize_agent_answer(
+        question=state["question"],
+        route=state["route"],
+        local_result=local_result,
+        web_result=web_result,
+    )
+    return {
+        "answer": synthesis.answer,
+        "local_summary": synthesis.local_summary,
+        "web_summary": synthesis.web_summary,
     }
 
 
@@ -326,9 +403,13 @@ def format_response(state: ChatRAGState) -> ChatRAGState:
         "response": {
             "answer": state["answer"],
             "scope_type": state["scope_type"],
+            "route": state["route"],
             "selected_library_items": selected_items,
             "retrieved_chunks": retrieved_chunks,
             "citations": [citation.model_dump() for citation in citations],
+            "web_sources": state.get("web_sources", []),
+            "local_summary": state.get("local_summary"),
+            "web_summary": state.get("web_summary"),
             "total_retrieved": len(retrieved_chunks),
             "session_id": state["session_id"],
             "memory": memory,
@@ -364,6 +445,16 @@ def _library_item_context_to_state(item: LibraryItemRagContext) -> dict[str, Any
         "file_type": item.file_type,
         "status": item.status,
     }
+
+
+def _state_to_library_item_context(data: dict[str, Any]) -> LibraryItemRagContext:
+    return LibraryItemRagContext(
+        item_id=uuid.UUID(data["id"]),
+        title=data["title"],
+        author=data.get("author"),
+        file_type=data.get("file_type"),
+        status=data["status"],
+    )
 
 
 def _conversation_turn_to_state(turn: ConversationTurnResult) -> dict[str, Any]:
@@ -470,6 +561,104 @@ def _citation_to_state(citation: ChunkCitationResult) -> dict[str, Any]:
         "excerpt": citation.excerpt,
         "content": citation.content,
     }
+
+
+def _state_to_citation_result(data: dict[str, Any]) -> ChunkCitationResult:
+    return ChunkCitationResult(
+        citation_id=data["citation_id"],
+        chunk_id=data["chunk_id"],
+        document_id=data["document_id"],
+        library_item_id=data.get("library_item_id"),
+        library_title=data.get("library_title"),
+        library_author=data.get("library_author"),
+        document_title=data.get("document_title"),
+        document_source_path=data.get("document_source_path"),
+        chunk_index=data["chunk_index"],
+        page_number=data.get("page_number"),
+        page_start=data.get("page_start"),
+        page_end=data.get("page_end"),
+        score=data["score"],
+        excerpt=data["excerpt"],
+        content=data["content"],
+    )
+
+
+def _local_library_agent_result_to_state(
+    result: LocalLibraryAgentResult,
+) -> dict[str, Any]:
+    return {
+        "selected_library_items": [
+            _library_item_context_to_state(item) for item in result.selected_library_items
+        ],
+        "retrieved_chunks": [
+            _retrieved_chunk_to_state(chunk) for chunk in result.retrieved_chunks
+        ],
+        "citations": [_citation_to_state(citation) for citation in result.citations],
+        "local_summary": result.summary,
+    }
+
+
+def _state_to_local_library_agent_result(
+    state: ChatRAGState,
+) -> LocalLibraryAgentResult | None:
+    if state.get("local_summary") is None and not state.get("retrieved_chunks"):
+        return None
+
+    return LocalLibraryAgentResult(
+        summary=state.get("local_summary") or "",
+        selected_library_items=[
+            _state_to_library_item_context(item)
+            for item in state.get("selected_library_items", [])
+        ],
+        retrieved_chunks=[
+            _state_to_retrieved_chunk(chunk)
+            for chunk in state.get("retrieved_chunks", [])
+        ],
+        citations=[
+            _state_to_citation_result(citation)
+            for citation in state.get("citations", [])
+        ],
+    )
+
+
+def _web_source_to_state(source: WebSourceResult) -> dict[str, Any]:
+    return {
+        "source_id": source.source_id,
+        "title": source.title,
+        "url": source.url,
+        "excerpt": source.excerpt,
+        "provider": source.provider,
+    }
+
+
+def _state_to_web_source(data: dict[str, Any]) -> WebSourceResult:
+    return WebSourceResult(
+        source_id=data["source_id"],
+        title=data["title"],
+        url=data["url"],
+        excerpt=data["excerpt"],
+        provider=data.get("provider", "deterministic"),
+    )
+
+
+def _web_research_result_to_state(result: WebResearchResult) -> dict[str, Any]:
+    return {
+        "web_summary": result.summary,
+        "web_sources": [_web_source_to_state(source) for source in result.sources],
+    }
+
+
+def _state_to_web_research_result(state: ChatRAGState) -> WebResearchResult | None:
+    if state.get("web_summary") is None and not state.get("web_sources"):
+        return None
+
+    return WebResearchResult(
+        summary=state.get("web_summary") or "",
+        sources=[
+            _state_to_web_source(source)
+            for source in state.get("web_sources", [])
+        ],
+    )
 
 
 def _retrieved_chunk_response(

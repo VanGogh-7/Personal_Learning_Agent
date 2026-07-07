@@ -50,9 +50,10 @@ Stage 30: PDF-First Library UX — completed.
 Stage 31: Embedded PDF Viewer MVP — completed.
 Stage 32: PDF Text Extraction / Page-Aware Indexing — completed.
 Stage 33: Today Log / Calendar MVP — handled separately.
-Stage 34: Backend PDF-to-RAG Pipeline MVP — current.
+Stage 34: Backend PDF-to-RAG Pipeline MVP — completed.
+Stage 35: Backend Dual-Agent LangGraph MVP — current.
 
-Current active stage: Stage 34: Backend PDF-to-RAG Pipeline MVP.
+Current active stage: Stage 35: Backend Dual-Agent LangGraph MVP.
 
 Do not implement the full product at once.
 
@@ -93,7 +94,8 @@ Project stage roadmap:
 31. Embedded PDF Viewer MVP — completed
 32. PDF Text Extraction / Page-Aware Indexing — completed
 33. Today Log / Calendar MVP — handled separately
-34. Backend PDF-to-RAG Pipeline MVP — current
+34. Backend PDF-to-RAG Pipeline MVP — completed
+35. Backend Dual-Agent LangGraph MVP — current
 
 ---
 
@@ -338,6 +340,17 @@ preferred chat API. LangGraph remains orchestration only; PDF loading,
 extraction, chunking, embedding, storage, retrieval, citation, memory,
 and learning-event business logic stay in services. Frontend feature
 expansion is paused for Stage 34.
+
+Stage 35 is Backend Dual-Agent LangGraph MVP. The existing
+`/api/agent/chat` endpoint orchestrates a deterministic router, fixed
+Local Library Agent, deterministic/mock Web Research Agent, and
+synthesis step. The router returns `local_only`, `web_only`, or `both`.
+The Local Library Agent reuses existing PDF/RAG retrieval and page-aware
+citations. The Web Research Agent does not make network calls by
+default. Synthesis returns one final answer plus additive route,
+summary, and web-source fields. LangGraph remains orchestration only,
+not the business-logic layer. Frontend simplification is not part of
+Stage 35.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -698,6 +711,39 @@ Do not implement in Stage 34:
 - Real embedding provider integration as a default
 - Large backend architecture refactor
 
+Allowed in Stage 35:
+- Add a deterministic router for `local_only`, `web_only`, and `both`
+- Add fixed Local Library Agent and Web Research Agent service boundaries
+- Keep the Web Research Agent deterministic/mock by default
+- Reuse existing local retrieval, pgvector search, and citation services
+- Preserve page-aware citation metadata when local retrieval is used
+- Add a deterministic synthesis step
+- Extend `POST /api/agent/chat` responses additively with route,
+  summaries, and web sources
+- Keep LangGraph as orchestration over services only
+- Add deterministic backend tests with no network or API-key requirement
+- Update backend and project-context documentation
+
+Do not implement in Stage 35:
+- Frontend UI simplification
+- New frontend pages
+- PDF viewer changes
+- OCR
+- PDF annotation or highlighting
+- Citation jump to PDF page
+- Authentication or user accounts
+- Large settings system
+- Autonomous planner
+- Broad tool-calling framework
+- Open-ended multi-agent behavior
+- New RAG algorithm
+- BM25
+- Hybrid search
+- Reranking
+- Real web provider by default
+- Database schema changes
+- Major backend rewrite
+
 ---
 
 ## Tech Stack
@@ -844,6 +890,12 @@ Frontend:
   and structured page-aware citations. It pauses frontend feature
   expansion, keeps `/api/agent/chat` additive/backward-compatible, and
   does not add new RAG algorithms or move business logic into graph nodes
+- Stage 35 Backend Dual-Agent LangGraph MVP adds a fixed deterministic
+  router, Local Library Agent, deterministic/mock Web Research Agent, and
+  synthesis step behind `/api/agent/chat`. It keeps local retrieval and
+  citations in services, adds route/web-source response fields
+  additively, and does not add frontend simplification, broad tools,
+  autonomous planning, or open-ended multi-agent behavior
 
 Planned later:
 - Production-quality agent workflows

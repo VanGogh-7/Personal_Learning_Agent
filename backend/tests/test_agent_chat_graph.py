@@ -177,8 +177,84 @@ def test_agent_chat_http_endpoint_works(monkeypatch, agent_chat_session) -> None
     assert response.status_code == 200
     data = response.json()
     assert data["scope_type"] == "global"
+    assert data["route"] == "both"
     assert data["total_retrieved"] == 1
     assert data["citations"][0]["citation_id"] == "S1"
+    assert data["web_sources"][0]["source_id"] == "W1"
+
+
+def test_agent_chat_web_only_route_skips_local_retrieval(
+    monkeypatch, agent_chat_session
+) -> None:
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("web_only route should not retrieve local chunks")
+
+    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called)
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            question="What is the latest news about calculus?",
+            scope_type="global",
+            session_id="web-session",
+        )
+    )
+
+    assert response.scope_type == "global"
+    assert response.route == "web_only"
+    assert response.selected_library_items == []
+    assert response.retrieved_chunks == []
+    assert response.citations == []
+    assert response.total_retrieved == 0
+    assert response.local_summary is None
+    assert response.web_summary is not None
+    assert response.web_sources[0].source_id == "W1"
+    assert "No live network request was made" in response.answer
+    assert response.memory.saved_current_turn is True
+
+
+def test_agent_chat_both_route_returns_local_citations_and_web_sources(
+    monkeypatch, agent_chat_session
+) -> None:
+    library_item_id = uuid.uuid4()
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Learning PDF",
+        document_source_path="/tmp/learning.pdf",
+        library_item_id=library_item_id,
+        library_title="Learning Book",
+        library_author="Author",
+        chunk_index=0,
+        content="Derivatives measure local rates of change.",
+        char_start=0,
+        char_end=42,
+        page_start=8,
+        page_end=8,
+        score=0.02,
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [chunk],
+    )
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            question="Explain derivatives",
+            scope_type="global",
+            session_id="both-session",
+        )
+    )
+
+    assert response.route == "both"
+    assert response.scope_type == "global"
+    assert response.total_retrieved == 1
+    assert response.citations[0].page_number == 8
+    assert response.retrieved_chunks[0].citation == response.citations[0]
+    assert response.web_sources[0].provider == "deterministic"
+    assert response.local_summary is not None
+    assert response.web_summary is not None
+    assert "Web research:" in response.answer
 
 
 def test_agent_chat_single_book_scope_returns_only_selected_chunks(

@@ -28,7 +28,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Load DATABASE_URL from the project root .env via the app's own settings,
+# Load DATABASE_URL from backend/.env via the app's own settings,
 # so no connection string or credential is hard-coded here.
 # ConfigParser applies interpolation, so a literal "%" (e.g. in a
 # URL-encoded password) must be escaped as "%%" before being stored.

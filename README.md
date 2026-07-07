@@ -6,7 +6,7 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 34: Backend PDF-to-RAG Pipeline MVP.
+Stage 35: Backend Dual-Agent LangGraph MVP.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -16,16 +16,18 @@ Bun + Tauri + React + Vite
 PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 ```
 
-Stage 34 hardens and tests the backend PDF-to-RAG path end to end:
+Stage 35 adds a fixed dual-agent orchestration path behind the existing
+Agent Chat API:
 
 ```text
-PDF Library item -> pypdf extraction -> page-aware chunks -> embeddings
--> pgvector storage -> retrieval -> LangGraph Agent Chat -> citations
+User question -> Router -> Local Library Agent and/or Web Research Agent
+-> Synthesis -> Final answer
 ```
 
-Frontend feature expansion is paused for this stage. The existing
-workspace, embedded PDF viewer, Agent Chat UI, and Today Log work remain
-separate from the Stage 34 backend integration work.
+Frontend simplification is not part of this stage. The Local Library
+Agent reuses the existing PDF/RAG retrieval and citation services. The
+Web Research Agent is deterministic/mock by default and does not require
+network access or API keys.
 
 ## Configuration
 
@@ -33,6 +35,8 @@ Use the `pla` conda environment for backend work. The backend runs on
 `127.0.0.1:8081`, and the frontend connects to
 `http://127.0.0.1:8081`.
 
+Backend local configuration lives in `backend/.env`, which is
+automatically loaded for local FastAPI startup and Alembic migrations.
 Example placeholders are tracked in `backend/.env.example` only:
 
 ```env
@@ -50,17 +54,17 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 34 Does
+## What Stage 35 Does
 
-- Reuses the existing Library item indexing flow for local PDF files.
-- Validates PDF source paths and keeps clear failures for missing,
-  unsupported, unreadable, or invalid files.
-- Preserves Stage 32 page-aware metadata on indexed PDF chunks.
-- Keeps deterministic mock embeddings as the default while allowing the
-  indexing service to receive an explicit embedding provider for tests.
-- Verifies the backend pipeline through `/api/agent/chat`, including
-  retrieval, LangGraph orchestration, answer generation, learning events,
-  and structured page-aware citations.
+- Adds a deterministic router with `local_only`, `web_only`, and `both`
+  routes.
+- Adds fixed Local Library Agent and Web Research Agent service
+  boundaries.
+- Reuses existing pgvector retrieval, PDF chunk metadata, structured
+  citations, memory, and learning-event behavior.
+- Adds deterministic synthesis that combines local and/or web results.
+- Extends `POST /api/agent/chat` responses additively with route,
+  summaries, and web sources.
 - Adds no new database schema or Alembic migration.
 
 The long-term product direction is:
@@ -73,13 +77,13 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 34 Does Not Do
+## What Stage 35 Does Not Do
 
-No new frontend pages, Today Log expansion, embedded PDF viewer changes,
-PDF annotation/highlighting, selected text to chat, jump-to-page from
-citations, OCR, planner/tool calling, multi-agent behavior, auth,
-settings, reranking, hybrid search, BM25, new RAG algorithm, or major
-backend/frontend redesign.
+No frontend simplification, new frontend pages, embedded PDF viewer
+changes, OCR, PDF annotation/highlighting, citation jump-to-page,
+auth/user accounts, large settings system, autonomous planner, broad
+tool-calling framework, open-ended multi-agent behavior, new RAG
+algorithm, BM25/hybrid search/reranking, or major backend rewrite.
 
 ## Commands
 

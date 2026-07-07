@@ -3,8 +3,12 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# The real .env lives at the project root (one level above backend/), not inside backend/.
-ROOT_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+BACKEND_ENV_FILE = BACKEND_DIR / ".env"
+
+# Backward-compatible alias for older tests/imports. The local development
+# environment file now lives in backend/.env.
+ROOT_ENV_FILE = BACKEND_ENV_FILE
 
 
 class Settings(BaseSettings):
@@ -23,7 +27,7 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     model_config = SettingsConfigDict(
-        env_file=ROOT_ENV_FILE,
+        env_file=BACKEND_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )
