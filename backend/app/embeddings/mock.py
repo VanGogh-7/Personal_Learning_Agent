@@ -11,6 +11,12 @@ class MockEmbeddingProvider(EmbeddingProvider):
     vector, and no external API calls or API keys are involved.
     """
 
+    provider_name = "mock"
+
+    @property
+    def dimension(self) -> int:
+        return EMBEDDING_DIMENSION
+
     def embed_text(self, text: str) -> list[float]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
 

@@ -263,6 +263,7 @@ def synthesize_answer(state: ChatRAGState) -> ChatRAGState:
         route=state["route"],
         local_result=local_result,
         web_result=web_result,
+        llm_provider=get_llm_provider(),
     )
     return {
         "answer": synthesis.answer,

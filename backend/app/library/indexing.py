@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.embeddings.base import EmbeddingProvider
-from app.embeddings.mock import MockEmbeddingProvider
+from app.embeddings.providers import get_embedding_provider
 from app.ingestion.chunking import chunk_text
 from app.ingestion.pdf import PDFExtractionError, PDFPageText, extract_pdf_pages
 from app.models.document import Document
@@ -68,7 +68,7 @@ def index_library_item(
         session.flush()
 
         session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-        provider = embedding_provider or MockEmbeddingProvider()
+        provider = embedding_provider or get_embedding_provider()
         embeddings = provider.embed_texts([chunk.content for chunk in chunks])
 
         for chunk, embedding in zip(chunks, embeddings, strict=True):

@@ -2,11 +2,11 @@ from app.core.config import Settings, get_settings
 
 
 class DeepSeekClient:
-    """Minimal DeepSeek API client shell.
+    """Minimal DeepSeek configuration wrapper.
 
     Reads configuration only; does not perform any network calls on
-    import or instantiation. Chat/completion logic will be added when
-    the agent workflow stage begins.
+    import or instantiation. The OpenAI-compatible provider performs
+    completion calls only when selected explicitly by backend config.
     """
 
     def __init__(self, settings: Settings | None = None) -> None:

@@ -51,9 +51,11 @@ Stage 31: Embedded PDF Viewer MVP — completed.
 Stage 32: PDF Text Extraction / Page-Aware Indexing — completed.
 Stage 33: Today Log / Calendar MVP — handled separately.
 Stage 34: Backend PDF-to-RAG Pipeline MVP — completed.
-Stage 35: Backend Dual-Agent LangGraph MVP — current.
+Stage 35: Backend Dual-Agent LangGraph MVP — completed.
+Stage 36: Real LLM Provider Integration — completed.
+Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — current.
 
-Current active stage: Stage 35: Backend Dual-Agent LangGraph MVP.
+Current active stage: Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
 
 Do not implement the full product at once.
 
@@ -95,7 +97,8 @@ Project stage roadmap:
 32. PDF Text Extraction / Page-Aware Indexing — completed
 33. Today Log / Calendar MVP — handled separately
 34. Backend PDF-to-RAG Pipeline MVP — completed
-35. Backend Dual-Agent LangGraph MVP — current
+35. Backend Dual-Agent LangGraph MVP — completed
+36. Real LLM Provider Integration — current
 
 ---
 
@@ -351,6 +354,26 @@ default. Synthesis returns one final answer plus additive route,
 summary, and web-source fields. LangGraph remains orchestration only,
 not the business-logic layer. Frontend simplification is not part of
 Stage 35.
+
+Stage 36 is Real LLM Provider Integration. The existing backend LLM
+provider abstraction remains the boundary, with
+`LLM_PROVIDER=deterministic` as the default and `LLM_PROVIDER=deepseek`
+as the explicit real OpenAI-compatible provider. Agent Chat synthesis
+calls `get_llm_provider()` so `/api/agent/chat` can use the real model
+when `backend/.env` provides `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`,
+and `DEEPSEEK_MODEL`. Tests must not require real API keys or network
+access. Secrets must stay in `backend/.env` and must never be printed,
+logged, committed, or exposed to frontend code.
+
+Stage 36A is Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
+It adds `EMBEDDING_PROVIDER=zhipu` for real Zhipu `embedding-3`
+vectors, keeps `EMBEDDING_PROVIDER=mock` as the default for tests, and
+adds backend-only scripts to index one local PDF and ask one indexed
+book. DeepSeek remains the LLM provider for final answer generation
+when `LLM_PROVIDER=deepseek` is configured. Stage 36A changes
+`document_chunks.embedding` to `vector(1024)` and clears old stored
+embeddings during migration; affected books must be re-indexed. It does
+not touch frontend UI or add new retrieval algorithms.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -744,6 +767,32 @@ Do not implement in Stage 35:
 - Database schema changes
 - Major backend rewrite
 
+Allowed in Stage 36:
+- Reuse the existing backend LLM provider abstraction
+- Keep deterministic/mock provider as the default
+- Use `LLM_PROVIDER=deepseek` for the real OpenAI-compatible provider
+- Read DeepSeek API key, base URL, and model from backend-only config
+- Make Agent Chat synthesis call the configured provider
+- Keep `/api/agent/chat` request/response compatibility
+- Add tests that use deterministic providers or mocked HTTP clients
+- Return clear configuration/provider errors without leaking secrets
+- Update backend and project-context documentation
+
+Do not implement in Stage 36:
+- Frontend changes
+- Frontend settings UI
+- Authentication or user accounts
+- Tool-calling framework
+- Autonomous planner
+- Web browsing implementation
+- New RAG algorithm
+- BM25
+- Hybrid search
+- Reranking
+- Database schema changes
+- Alembic migration
+- Exposing provider secrets to frontend code
+
 ---
 
 ## Tech Stack
@@ -896,12 +945,24 @@ Frontend:
   citations in services, adds route/web-source response fields
   additively, and does not add frontend simplification, broad tools,
   autonomous planning, or open-ended multi-agent behavior
+- Stage 36 Real LLM Provider Integration wires Agent Chat synthesis to
+  the configured backend LLM provider. `LLM_PROVIDER=deterministic`
+  remains default; `LLM_PROVIDER=deepseek` uses the OpenAI-compatible
+  DeepSeek provider only when backend `.env` supplies key, base URL, and
+  model. Tests mock provider/client behavior and require no real key or
+  network access
+- Stage 36A Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test
+  adds `EMBEDDING_PROVIDER=zhipu` for 1024-dimensional Zhipu
+  `embedding-3` vectors, keeps `EMBEDDING_PROVIDER=mock` as the test
+  default, and adds backend-only `scripts/index_pdf.py` and
+  `scripts/ask_book.py` commands. It changes `document_chunks.embedding`
+  to `vector(1024)` and clears existing embeddings during migration, so
+  affected books must be re-indexed
 
 Planned later:
 - Production-quality agent workflows
 - Calendar-style Today Log expansion
 - Simple settings for theme and long-term memory
-- Real embedding provider integration
 - Semantic memory embeddings and long-term memory vector search
 - Rust local backend
 - MCP integration
@@ -911,6 +972,12 @@ LLM provider:
 - `LLM_PROVIDER=deepseek` is optional and must be explicitly configured
 - DeepSeek API key, base URL, and model are read from environment/config only
 - API keys must never be hard-coded, printed, logged, committed, or exposed to frontend code
+
+Embedding provider:
+- `EMBEDDING_PROVIDER=mock` is the default and requires no API key
+- `EMBEDDING_PROVIDER=zhipu` is optional and must be explicitly configured
+- Zhipu API key, base URL, model, and dimension are read from environment/config only
+- Real PDF files used for smoke tests must stay untracked local files
 
 ---
 

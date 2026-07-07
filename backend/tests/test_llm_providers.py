@@ -6,6 +6,7 @@ from app.llm.providers import (
     DeepSeekLLMProvider,
     DeterministicLLMProvider,
     LLMConfigurationError,
+    LLMProviderError,
     OpenAICompatibleLLMProvider,
     get_llm_provider,
 )
@@ -87,3 +88,23 @@ def test_openai_compatible_provider_can_use_mocked_client_without_network() -> N
     )
 
     assert provider.generate("Question?") == "Mocked real-provider answer."
+
+
+def test_openai_compatible_provider_failure_is_clean_and_does_not_leak_key() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": "bad key"})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    provider = OpenAICompatibleLLMProvider(
+        api_key="secret-test-key",
+        base_url="https://api.example.com",
+        model="test-model",
+        client=client,
+    )
+
+    with pytest.raises(LLMProviderError) as exc_info:
+        provider.generate("Question?")
+
+    message = str(exc_info.value)
+    assert message == "Real LLM provider request failed."
+    assert "secret-test-key" not in message

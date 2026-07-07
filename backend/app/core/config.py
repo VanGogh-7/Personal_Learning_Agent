@@ -19,10 +19,16 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
 
     llm_provider: str = "deterministic"
+    embedding_provider: str = "mock"
 
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+
+    zhipu_api_key: str = ""
+    zhipu_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
+    zhipu_embedding_model: str = "embedding-3"
+    zhipu_embedding_dimension: int = 1024
 
     database_url: str = ""
 

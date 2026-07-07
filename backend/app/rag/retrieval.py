@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.vector_search import search_similar_chunks, search_similar_chunks_for_documents
 from app.embeddings.base import EmbeddingProvider
-from app.embeddings.mock import MockEmbeddingProvider
+from app.embeddings.providers import get_embedding_provider
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
@@ -156,11 +156,10 @@ def retrieve_relevant_chunks(
 ) -> list[RetrievedChunkResult]:
     """Embed the question and retrieve the most similar document chunks.
 
-    Uses the deterministic mock embedding provider (unless a different
-    provider is passed in) and the existing Stage 4 pgvector similarity
-    search. Does not call external APIs.
+    Uses the configured embedding provider unless a provider is passed in
+    explicitly. Tests force the mock provider through environment setup.
     """
-    provider = embedding_provider or MockEmbeddingProvider()
+    provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
 
     similar_chunks = search_similar_chunks(session, query_embedding, limit=top_k)
@@ -237,7 +236,7 @@ def retrieve_relevant_chunks_for_library_item(
     if not documents:
         raise LibraryItemRagError("Library item has not been indexed yet.")
 
-    provider = embedding_provider or MockEmbeddingProvider()
+    provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
     document_ids = [document.id for document in documents]
     similar_chunks = search_similar_chunks_for_documents(
@@ -339,7 +338,7 @@ def retrieve_relevant_chunks_for_library_items(
                 f"Library item has no indexed chunks to search: {item.title}"
             )
 
-    provider = embedding_provider or MockEmbeddingProvider()
+    provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
     similar_chunks = search_similar_chunks_for_documents(
         session, query_embedding, document_ids=document_ids, limit=top_k

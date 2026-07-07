@@ -1,12 +1,13 @@
 # Personal Learning Agent
 
 Local-first learning workspace with a FastAPI backend, PostgreSQL +
-pgvector storage, deterministic mock embeddings, RAG, memory, Library
-metadata, Notes, and a Tauri + React desktop frontend.
+pgvector storage, deterministic mock embeddings by default, optional
+real Zhipu embeddings, RAG, memory, Library metadata, Notes, and a
+Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 35: Backend Dual-Agent LangGraph MVP.
+Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -16,18 +17,18 @@ Bun + Tauri + React + Vite
 PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 ```
 
-Stage 35 adds a fixed dual-agent orchestration path behind the existing
-Agent Chat API:
+Stage 36 wires the existing OpenAI-compatible LLM provider boundary into
+the Agent Chat synthesis path. Stage 36A adds a real Zhipu embedding
+provider and backend-only scripts for a single-book PDF RAG smoke test:
 
 ```text
-User question -> Router -> Local Library Agent and/or Web Research Agent
--> Synthesis -> Final answer
+PDF -> page-aware extraction -> chunking -> Zhipu embeddings
+-> pgvector -> single-book retrieval -> DeepSeek answer -> citations
 ```
 
-Frontend simplification is not part of this stage. The Local Library
-Agent reuses the existing PDF/RAG retrieval and citation services. The
-Web Research Agent is deterministic/mock by default and does not require
-network access or API keys.
+Deterministic/mock mode remains the default for local development and
+tests. Real Zhipu and DeepSeek modes are enabled only through backend
+`.env` configuration and secrets stay backend-only.
 
 ## Configuration
 
@@ -41,31 +42,54 @@ Example placeholders are tracked in `backend/.env.example` only:
 
 ```env
 LLM_PROVIDER=deterministic
+EMBEDDING_PROVIDER=mock
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+ZHIPU_API_KEY=your_zhipu_api_key_here
+ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+ZHIPU_EMBEDDING_MODEL=embedding-3
+ZHIPU_EMBEDDING_DIMENSION=1024
 ```
 
-Real DeepSeek mode is opt-in:
+Real single-book smoke mode is opt-in:
 
 ```env
+EMBEDDING_PROVIDER=zhipu
 LLM_PROVIDER=deepseek
 ```
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 35 Does
+## What Stage 36A Does
 
-- Adds a deterministic router with `local_only`, `web_only`, and `both`
-  routes.
-- Adds fixed Local Library Agent and Web Research Agent service
-  boundaries.
-- Reuses existing pgvector retrieval, PDF chunk metadata, structured
-  citations, memory, and learning-event behavior.
-- Adds deterministic synthesis that combines local and/or web results.
-- Extends `POST /api/agent/chat` responses additively with route,
-  summaries, and web sources.
-- Adds no new database schema or Alembic migration.
+- Reuses the existing embedding and LLM provider abstractions.
+- Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
+  network calls.
+- Keeps `EMBEDDING_PROVIDER=mock` as the default for tests and local
+  deterministic runs.
+- Supports `LLM_PROVIDER=deepseek` through the existing
+  OpenAI-compatible provider.
+- Supports `EMBEDDING_PROVIDER=zhipu` for 1024-dimensional
+  `embedding-3` vectors.
+- Adds backend scripts to index one local PDF and ask one indexed book.
+- Keeps `/api/agent/chat` request and response compatibility.
+- Adds tests with mocked providers/clients only; no real API key is
+  required for tests.
+- Adds a minimal Alembic migration that changes `document_chunks.embedding`
+  to `vector(1024)`. Existing stored embeddings are cleared and affected
+  books should be re-indexed.
+
+Manual single-book smoke test:
+
+```bash
+conda activate pla
+cd backend
+alembic upgrade head
+python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
+python scripts/ask_book.py --library-item-id <library_item_id> \
+  "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
+```
 
 The long-term product direction is:
 
@@ -77,13 +101,12 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 35 Does Not Do
+## What Stage 36A Does Not Do
 
-No frontend simplification, new frontend pages, embedded PDF viewer
-changes, OCR, PDF annotation/highlighting, citation jump-to-page,
-auth/user accounts, large settings system, autonomous planner, broad
-tool-calling framework, open-ended multi-agent behavior, new RAG
-algorithm, BM25/hybrid search/reranking, or major backend rewrite.
+No frontend changes, settings UI, auth/user accounts, tool-calling
+framework, autonomous planner, web browsing implementation, new RAG
+algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
+frontend PDF viewer changes.
 
 ## Commands
 

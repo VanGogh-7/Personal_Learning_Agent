@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
-# Stage 4 uses a small deterministic dimension for development/testing only;
-# this is not a production-scale embedding size.
-EMBEDDING_DIMENSION = 16
+# Stage 36A aligns the persisted pgvector column with the configured
+# Zhipu embedding-3 dimension used for real PDF indexing.
+EMBEDDING_DIMENSION = 1024
 
 
 class EmbeddingProvider(ABC):
@@ -11,6 +11,11 @@ class EmbeddingProvider(ABC):
     @abstractmethod
     def embed_text(self, text: str) -> list[float]:
         """Return a fixed-length embedding vector for a single text."""
+
+    @property
+    @abstractmethod
+    def dimension(self) -> int:
+        """Return the provider's embedding dimension."""
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return [self.embed_text(text) for text in texts]

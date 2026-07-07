@@ -17,6 +17,7 @@ from app.embeddings.mock import MockEmbeddingProvider
 from app.graphs.schemas import AgentChatRequest
 from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED
 from app.library.service import create_library_item
+from app.llm.providers import LLMConfigurationError
 from app.models.conversation_turn import ConversationTurn
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
@@ -255,6 +256,71 @@ def test_agent_chat_both_route_returns_local_citations_and_web_sources(
     assert response.local_summary is not None
     assert response.web_summary is not None
     assert "Web research:" in response.answer
+
+
+def test_agent_chat_synthesis_uses_configured_llm_provider(
+    monkeypatch, agent_chat_session
+) -> None:
+    prompts: list[str] = []
+
+    class RecordingProvider:
+        def generate(self, prompt: str) -> str:
+            prompts.append(prompt)
+            return "Mocked provider synthesis."
+
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "get_llm_provider",
+        lambda: RecordingProvider(),
+    )
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            question="Explain derivatives",
+            scope_type="global",
+            session_id="provider-session",
+        )
+    )
+
+    assert response.answer == "Mocked provider synthesis."
+    assert response.route == "both"
+    assert prompts
+    assert "Local Library Agent summary:" in prompts[0]
+    assert "Web Research Agent summary:" in prompts[0]
+
+
+def test_agent_chat_provider_configuration_error_is_clean(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "get_llm_provider",
+        lambda: (_ for _ in ()).throw(
+            LLMConfigurationError("LLM_PROVIDER=deepseek requires DEEPSEEK_API_KEY.")
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        agent_chat_endpoint(
+            AgentChatRequest(
+                question="Explain derivatives",
+                scope_type="global",
+                session_id="provider-error-session",
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == "LLM_PROVIDER=deepseek requires DEEPSEEK_API_KEY."
 
 
 def test_agent_chat_single_book_scope_returns_only_selected_chunks(

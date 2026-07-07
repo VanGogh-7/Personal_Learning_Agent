@@ -32,6 +32,13 @@ def test_settings_has_llm_provider_field() -> None:
     assert settings.llm_provider == "deterministic"
 
 
+def test_settings_has_embedding_provider_fields() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.embedding_provider == "mock"
+    assert settings.zhipu_embedding_model == "embedding-3"
+    assert settings.zhipu_embedding_dimension == 1024
+
+
 def test_backend_env_file_points_to_backend_dir() -> None:
     assert BACKEND_ENV_FILE.name == ".env"
     assert BACKEND_ENV_FILE.parent == BACKEND_DIR
@@ -87,8 +94,11 @@ def test_alembic_script_directory_has_expected_revision_chain() -> None:
     assert len(heads) == 1
 
     head_revision = script.get_revision(heads[0])
-    assert head_revision.revision == "2f8c3a7d9e10"
-    assert head_revision.down_revision == "6a8c3d4e5f01"
+    assert head_revision.revision == "7c1a2b3d4e5f"
+    assert head_revision.down_revision == "2f8c3a7d9e10"
+
+    stage32_revision = script.get_revision("2f8c3a7d9e10")
+    assert stage32_revision.down_revision == "6a8c3d4e5f01"
 
     stage24_revision = script.get_revision("6a8c3d4e5f01")
     assert stage24_revision.down_revision == "b4a2f1c8d9e0"
