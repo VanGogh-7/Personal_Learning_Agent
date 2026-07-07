@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:8081 http://localhost:8081 ws://127.0.0.1:1420 ws://localhost:1420"
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src http://127.0.0.1:8081 http://localhost:8081 ws://127.0.0.1:1420 ws://localhost:1420"
     }
   }
 }

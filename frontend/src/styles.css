@@ -923,6 +923,84 @@ label {
   width: 100%;
 }
 
+.pdf-viewer-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.pdf-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.pdf-viewer-title {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pdf-viewer-title strong,
+.pdf-viewer-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-viewer-title span,
+.pdf-zoom-label {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.pdf-viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pdf-zoom-label {
+  min-width: 44px;
+  text-align: center;
+}
+
+.pdf-viewer-stage {
+  display: grid;
+  justify-items: center;
+  min-height: 420px;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f1f5f9;
+  padding: 18px;
+}
+
+.pdf-viewer-stage .react-pdf__Document {
+  max-width: 100%;
+}
+
+.pdf-viewer-stage .react-pdf__Page {
+  max-width: 100%;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+}
+
+.pdf-viewer-stage .react-pdf__Page canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
 .agent-chat-dock .panel {
   border: 0;
   background: transparent;

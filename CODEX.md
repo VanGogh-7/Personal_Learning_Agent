@@ -46,9 +46,10 @@ Stage 27: Agent Chat Frontend Integration MVP — completed.
 Stage 28: Agent Chat Stabilization / Regression Polish — completed.
 Stage 29A: Frontend Bun Migration — completed.
 Stage 29B: Workspace Layout Refactor MVP — completed.
-Stage 30: PDF-First Library UX — current.
+Stage 30: PDF-First Library UX — completed.
+Stage 31: Embedded PDF Viewer MVP — current.
 
-Current active stage: Stage 30: PDF-First Library UX.
+Current active stage: Stage 31: Embedded PDF Viewer MVP.
 
 Do not implement the full product at once.
 
@@ -85,7 +86,8 @@ Project stage roadmap:
 28. Agent Chat Stabilization / Regression Polish — completed
 29A. Frontend Bun Migration — completed
 29B. Workspace Layout Refactor MVP — completed
-30. PDF-First Library UX — current
+30. PDF-First Library UX — completed
+31. Embedded PDF Viewer MVP — current
 
 ---
 
@@ -290,6 +292,15 @@ marked unsupported in the PDF Library UI. Backend `.txt`/`.md` support
 may remain for legacy/internal/test paths. Stage 30 does not add
 embedded PDF rendering, PDF text extraction, PDF indexing changes,
 backend API changes, or new RAG behavior.
+
+Stage 31 is Embedded PDF Viewer MVP. The center Workspace renders the
+selected local PDF using `react-pdf` and `pdfjs-dist`, with loading and
+error states, previous/next page controls, total page count, and zoom
+controls. The existing system PDF reader action remains available. A
+minimal Tauri command reads selected local `.pdf` files as bytes for
+the viewer; the FastAPI backend is unchanged. Stage 31 does not add PDF
+text extraction, PDF indexing changes, page-aware citations, selected
+text to chat, PDF annotations, new RAG behavior, or backend API changes.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -582,25 +593,30 @@ Do not implement in Stage 29B:
 - Retrieval behavior changes
 - Large backend changes
 
-Allowed in Stage 30:
-- Make the frontend Library and Workspace UX PDF-first
-- Restrict the file picker to `.pdf`
-- Infer `file_type = "pdf"` for new PDF selections
-- Reject or clearly mark non-PDF files as unsupported in the UI
-- Polish the Workspace Library Explorer with PDF labels, filename/path,
-  and indexed/unindexed status
+Allowed in Stage 31:
+- Add a minimal embedded PDF viewer in the center Workspace panel
+- Add `react-pdf` and `pdfjs-dist` through Bun
+- Load selected local `.pdf` files through a minimal Tauri command
+- Show selected PDF title, current page, total pages, loading state,
+  readable error state, and zoom controls
+- Reset viewer page/error state when the selected PDF changes
 - Preserve `Open in system PDF reader`
-- Preserve selected indexed Library item binding into Agent Chat scope
-- Keep `.txt`/`.md` backend support as legacy/internal/test support
+- Preserve left PDF Library Explorer, right Agent Chat dock, panel
+  collapse/resize behavior, and layout `localStorage` persistence
+- Preserve `/api/agent/chat`, global/single-book/multi-book RAG,
+  citations, loading/error/empty states, and Chat-to-Notes behavior
 - Keep Bun + Tauri + React + Vite as the frontend stack
 - Update README/backend/frontend/CODEX documentation
 
-Do not implement in Stage 30:
-- Embedded PDF viewer
-- PDF.js or react-pdf integration
+Do not implement in Stage 31:
 - PDF text extraction
 - Page-aware citations
 - PDF indexing changes
+- Jump from citation to PDF page
+- Selected text to chat
+- PDF annotation
+- Highlighting
+- OCR
 - Calendar daily summary generation
 - Settings page
 - Theme system
@@ -734,13 +750,18 @@ Frontend:
 - Stage 30 PDF-First Library UX makes PDF the official user-facing
   Library format, restricts the frontend file picker to PDFs, marks
   legacy non-PDF records unsupported in the UI, preserves system PDF
-  opening and Agent Chat scoping, and does not add PDF rendering, PDF
-  text extraction, PDF indexing changes, backend contract changes, or
-  new RAG behavior
+  opening and Agent Chat scoping, and does not add PDF text extraction,
+  PDF indexing changes, backend contract changes, or new RAG behavior
+- Stage 31 Embedded PDF Viewer MVP renders selected local PDFs in the
+  center Workspace with previous/next page controls, total page count,
+  loading/error states, and zoom controls. It uses a minimal Tauri
+  command to load local `.pdf` bytes, preserves system PDF opening and
+  Agent Chat behavior, and does not add PDF text extraction, indexing,
+  page-aware citations, annotations, backend API changes, or new RAG
+  behavior
 
 Planned later:
 - Production-quality agent workflows
-- Embedded PDF viewing
 - Calendar / Today Log learning record
 - Simple settings for theme and long-term memory
 - Real embedding provider integration

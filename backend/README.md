@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 30: PDF-First Library UX.
+Stage 31: Embedded PDF Viewer MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -100,23 +100,28 @@ Stage 30: PDF-First Library UX.
 - PDF-First Library UX: the frontend Library and Workspace UX now treat
   PDF as the official user-facing supported format, while legacy
   `.txt`/`.md` backend support may remain for tests and internal paths
-  (Stage 30, current)
+  (Stage 30, completed)
+- Embedded PDF Viewer MVP: the frontend Workspace renders selected
+  local PDFs in-app with basic page navigation and zoom while
+  preserving the system PDF reader action. The PDF bytes are loaded by
+  a minimal Tauri command, not by a FastAPI backend endpoint (Stage 31,
+  current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
-logic, embedded PDF rendering, document parsing UI, repository analysis,
-and production packaging are planned but **not implemented yet**. Stage
-30 is a frontend PDF-first UX pass only. It does not change
+logic, document parsing UI, repository analysis, and production
+packaging are planned but **not implemented yet**. Stage 31 is a
+frontend/Tauri embedded viewer pass only. It does not change
 `/api/agent/chat`, existing RAG endpoints, retrieval behavior,
 LangGraph behavior, memory behavior, learning event behavior, notes
 APIs, database schema, Tauri architecture, or Vite architecture. It
-also does not add embedded PDF rendering, PDF text extraction, PDF
-indexing changes, an agent planner, tool calling, multi-agent systems,
-streaming, reranking, hybrid search, BM25, full-text search, query
-expansion, real embedding providers, parser changes, whole-book
-synthesis, background jobs, authentication, settings, theme management,
-or deployment.
+also does not add PDF text extraction, PDF indexing changes,
+page-aware citations, PDF annotation, an agent planner, tool calling,
+multi-agent systems, streaming, reranking, hybrid search, BM25,
+full-text search, query expansion, real embedding providers, parser
+changes, whole-book synthesis, background jobs, authentication,
+settings, theme management, or deployment.
 
 ## Setup
 

@@ -6,22 +6,22 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 30: PDF-First Library UX.
+Stage 31: Embedded PDF Viewer MVP.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
 
 ```text
 Bun + Tauri + React + Vite
-PDF Library Explorer | PDF Workspace placeholder | Agent Chat
+PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 ```
 
-Stage 30 makes the Library UX explicitly PDF-first. The official
-user-facing supported Library format is now PDF. `.txt` and `.md`
-support may remain in backend services for legacy/internal/test paths,
-but the frontend Library picker and user-facing wording are oriented
-around PDF books. Embedded PDF viewing, PDF text extraction, and PDF
-indexing remain future work.
+Stage 31 adds a minimal embedded PDF viewer to the center Workspace
+panel. Selected local PDFs render in-app with loading/error states,
+previous/next page controls, total page count, and zoom controls. The
+existing `Open in system PDF reader` action remains available. PDF text
+extraction, PDF indexing changes, page-aware citations, annotation,
+highlighting, and selected-text workflows remain future work.
 
 ## Configuration
 
@@ -46,19 +46,18 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 30 Does
+## What Stage 31 Does
 
-- Restricts the frontend file picker to `.pdf` files.
-- Defaults new Library file selections to `file_type = "pdf"`.
-- Rejects non-PDF paths/types in visible Library create/edit forms.
-- Marks legacy non-PDF Library records as unsupported in the PDF
-  Library UI.
-- Polishes the Workspace Library Explorer with PDF labels, normalized
-  indexed/unindexed status, and filename/path metadata.
-- Polishes the PDF Workspace placeholder around selected PDF title,
-  file, status, and system-reader opening.
-- Keeps selected indexed PDFs bound to the Agent Chat single-book scope.
-- Keeps the Stage 29A Bun workflow and Stage 29B Workspace layout.
+- Adds `react-pdf` and `pdfjs-dist` to the Bun-managed frontend.
+- Renders the selected local PDF inside the center Workspace panel.
+- Shows selected PDF title, file metadata, indexed/unindexed status,
+  current page, total pages, and zoom percentage.
+- Supports previous page, next page, zoom in, and zoom out controls.
+- Uses a minimal Tauri command to read selected local `.pdf` files as
+  bytes for the embedded viewer.
+- Preserves `Open in system PDF reader`.
+- Preserves the Stage 29B Workspace layout, Stage 30 PDF-first Library
+  UX, and Agent Chat behavior.
 
 The long-term product direction is:
 
@@ -70,14 +69,14 @@ Calendar / Today Log will become the learning record.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 30 Does Not Do
+## What Stage 31 Does Not Do
 
-No embedded PDF viewer, PDF.js/react-pdf integration, PDF text
-extraction, page-aware citations, PDF indexing changes, calendar daily
-summary, settings page, theme system, long-term memory settings UI,
-login/register, auth/user system, new LangGraph nodes, planner, tool
-calling, multi-agent behavior, new RAG algorithm, backend contract
-changes, or large backend changes.
+No PDF text extraction, PDF indexing changes, page-aware citations,
+jump from citation to PDF page, selected text to chat, PDF annotation,
+highlighting, OCR, calendar daily summary, settings page, theme system,
+long-term memory settings UI, login/register, auth/user system, new
+LangGraph nodes, planner, tool calling, multi-agent behavior, new RAG
+algorithm, backend contract changes, or large backend changes.
 
 ## Commands
 

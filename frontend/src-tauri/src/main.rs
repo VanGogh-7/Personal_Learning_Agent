@@ -46,6 +46,36 @@ fn export_tex_note_to_workspace(
     Ok(export_path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn read_pdf_file(path: String) -> Result<Vec<u8>, String> {
+    const MAX_PDF_BYTES: u64 = 250 * 1024 * 1024;
+
+    let trimmed_path = path.trim();
+    if trimmed_path.is_empty() {
+        return Err("PDF path is required.".to_string());
+    }
+
+    let pdf_path = std::path::Path::new(trimmed_path);
+    let is_pdf = pdf_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"));
+    if !is_pdf {
+        return Err("Only .pdf files can be loaded in the Workspace viewer.".to_string());
+    }
+
+    let metadata = std::fs::metadata(pdf_path)
+        .map_err(|error| format!("Could not read PDF file metadata: {error}"))?;
+    if !metadata.is_file() {
+        return Err("PDF path must point to a file.".to_string());
+    }
+    if metadata.len() > MAX_PDF_BYTES {
+        return Err("PDF file is too large for the embedded viewer.".to_string());
+    }
+
+    std::fs::read(pdf_path).map_err(|error| format!("Could not read PDF file: {error}"))
+}
+
 fn validate_tex_filename(filename: &str) -> Result<String, String> {
     if filename.is_empty() {
         return Err("Export filename is required.".to_string());
@@ -94,7 +124,8 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             write_tex_note_file,
-            export_tex_note_to_workspace
+            export_tex_note_to_workspace,
+            read_pdf_file
         ])
         .run(context)
         .expect("error while running tauri application");

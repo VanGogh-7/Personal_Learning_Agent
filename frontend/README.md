@@ -1,9 +1,9 @@
 # Personal Learning Agent Frontend
 
-Stage 30 makes the Library and Workspace UX explicitly PDF-first. The
-stack remains Bun + Tauri + React + Vite. The default page is the
+Stage 31 adds a minimal embedded PDF viewer to the Workspace. The stack
+remains Bun + Tauri + React + Vite. The default page is the
 IDE-like Workspace with a collapsible/resizable PDF Library Explorer, a
-center PDF Workspace placeholder, and a collapsible/resizable Agent Chat
+center embedded PDF Workspace, and a collapsible/resizable Agent Chat
 dock. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
@@ -72,12 +72,16 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Bun is used for frontend dependency management and scripts
 - Sidebar navigation emphasizes Workspace and Learning Progress
 - Workspace page, opened by default, with PDF Library Explorer, PDF
-  Workspace placeholder, and Agent Chat dock
+  Workspace viewer, and Agent Chat dock
 - Left PDF Library panel lists existing Library items compactly with
   title, PDF/unsupported label, indexed/unindexed status, filename/path,
   and selected-item highlighting
-- Center PDF Workspace placeholder shows "No PDF selected" until an item
-  is selected, then shows selected title, file, status, and PDF support
+- Center PDF Workspace shows "No PDF selected" until an item is
+  selected, then shows selected title, file, status, PDF support, and
+  an embedded PDF viewer
+- Embedded PDF viewer renders selected local PDFs with loading/error
+  states, current page, total pages, previous/next controls, and zoom
+  controls
 - Center workspace exposes "Open in system PDF reader" for selected
   items that have a local `file_path`
 - Library file picker is restricted to `.pdf` files
@@ -122,19 +126,17 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 - Does not auto-start the FastAPI backend
 - Library `file_path` is still metadata stored in the backend
-- Choosing a file only records its local path; it does not read, upload,
-  copy, parse, or ingest the file
-- The center PDF Workspace is a placeholder only; it does not embed or
-  render PDFs yet
+- Choosing a file records its local path for Library metadata; selected
+  PDFs are read locally by a Tauri command for embedded viewing only
+- The embedded viewer renders local PDFs but does not parse, extract,
+  upload, copy, ingest, annotate, or index them
 - Opening local files is performed by Tauri, not the backend
 - Local file picking and opening should be tested with `bun run tauri dev`
 - `Open PDF` opens the file with the system default app
 - User-facing Library format is PDF; existing `.txt` and `.md` support
   may remain in backend services for legacy/internal/test paths
-- PDF parsing, text extraction, embedded viewing, and indexing are not
-  supported yet
-- There is no PDF.js/react-pdf integration, PDF text extraction,
-  page-aware citations, page navigation, or source highlighting
+- PDF parsing, text extraction, indexing, page-aware citations, and
+  source highlighting are not supported yet
 - Generated Library metadata works only for already indexed legacy
   items and does not auto-save; reviewed summaries are stored in
   `description`, and reviewed tags are stored in `topic_tags`
@@ -157,15 +159,15 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - No VS Code-specific integration, forced VS Code opening, LaTeX
   compilation, PDF generation, workspace scanning, file sync, file
   watcher, `.tex` import, recent exports list, workspace browser, or Git sync
-- No internal PDF preview or file upload
+- No PDF upload
 - Progress is an event timeline only; there are no charts, analytics
   dashboard, calendar, goals, spaced repetition, reminders, or AI
   progress evaluation
 - Calendar / Today Log is the planned learning-record direction but is
-  not implemented in Stage 30
+  not implemented in Stage 31
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 30
+  Stage 31
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary
@@ -180,7 +182,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   there is no tool calling, planner, graph visualization, streaming, or
   frontend settings UI
 - RAG citations show chunk/document/library metadata only; there is no
-  PDF page navigation, source highlighting, internal document preview,
+  citation-to-PDF-page navigation, source highlighting,
   CSL/BibTeX/Zotero integration, or citation formatting engine
 - No MCP
 - No real embedding provider integration

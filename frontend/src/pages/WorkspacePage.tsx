@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import { listLibraryItems } from "../api/client";
 import type { LibraryItem } from "../api/types";
+import PdfViewerPanel from "../components/PdfViewerPanel";
 import RagQueryPanel from "../components/RagQueryPanel";
 import { openLocalFile } from "../tauri/localFiles";
 import {
@@ -250,6 +251,7 @@ export default function WorkspacePage() {
                 </div>
               </dl>
               {openError && <p className="error compact-error">{openError}</p>}
+              <PdfViewerPanel title={selectedItem.title} filePath={selectedItem.file_path} />
             </div>
           ) : (
             <div className="pdf-placeholder">
