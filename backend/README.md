@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 32: PDF Text Extraction / Page-Aware Indexing.
+Stage 34: Backend PDF-to-RAG Pipeline MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -110,24 +110,34 @@ Stage 32: PDF Text Extraction / Page-Aware Indexing.
   can be indexed with `pypdf`; extracted chunks store nullable
   `page_start` and `page_end` metadata, and RAG citations expose
   additive page fields when available (Stage 32,
+  completed)
+- Today Log / Calendar MVP: `GET /api/learning-events` accepts an
+  additive `date=YYYY-MM-DD` filter, learning event responses include
+  related Library item and Note titles when available, and the frontend
+  Today Log displays events for the selected day without generating AI
+  summaries (Stage 33,
+  being implemented separately)
+- Backend PDF-to-RAG Pipeline MVP: the existing backend path from local
+  PDF Library item through `pypdf` extraction, page-aware chunking,
+  deterministic embeddings, pgvector-backed storage/retrieval,
+  LangGraph Agent Chat, and structured citations is hardened and covered
+  by an end-to-end backend regression test (Stage 34,
   current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 32 is a backend PDF extraction and
-page-aware indexing pass with a minimal frontend citation display. It
-does not change
-`/api/agent/chat`, existing RAG endpoints, retrieval behavior,
-LangGraph behavior, memory behavior, learning event behavior, notes
-APIs, Tauri architecture, or Vite architecture. It adds a minimal
-database migration for nullable page metadata on chunks. It does not
-add OCR, PDF annotation, selected text to chat, citation-to-PDF-page
-jumps, an agent planner, tool calling, multi-agent systems, streaming,
-reranking, hybrid search, BM25, full-text search, query expansion, real
-embedding providers, whole-book synthesis, background jobs,
-authentication, settings, theme management, or deployment.
+**not implemented yet**. Stage 34 is backend integration hardening for
+the PDF-to-RAG path. It does not change frontend workspace behavior,
+Tauri architecture, Vite architecture, `/api/agent/chat` request
+contract, retrieval algorithms, LangGraph node responsibilities, memory
+behavior, learning-event semantics, or Notes APIs. It does not add
+frontend feature expansion, AI daily summaries, planner/tool calling,
+multi-agent systems, streaming, reranking, hybrid search, BM25,
+full-text search, query expansion, real embedding providers, OCR,
+annotations, selected-text workflows, whole-book synthesis, background
+jobs, authentication, settings, theme management, or deployment.
 
 ## Setup
 
@@ -539,9 +549,14 @@ API endpoints:
 - `POST /api/learning-events` creates a manual event.
 - `GET /api/learning-events` lists events newest-first, with optional
   filters for `event_type`, `source_type`, `library_item_id`, `note_id`,
-  `session_id`, `limit`, and `offset`.
+  `session_id`, `date=YYYY-MM-DD`, `limit`, and `offset`.
 - `GET /api/learning-events/recent` returns the latest events.
 - `GET /api/learning-events/{event_id}` returns one event or 404.
+
+Stage 33 extends learning event responses with related
+`library_item_title` and `note_title` when available. The date filter
+uses the selected calendar day against event `created_at` timestamps and
+preserves existing filters and pagination.
 
 The backend currently records these events automatically:
 
@@ -903,23 +918,66 @@ Redis/queues, or production packaging.
 
 Stage 14 adds `POST /api/library/items/{item_id}/index`. Indexing is
 manual from the Library detail view. It reads the selected local
-`file_path` on the backend, supports only `.txt` and `.md` files,
-chunks UTF-8 text, creates or updates a related `documents` row,
-replaces that document's chunks, generates deterministic mock
-embeddings, stores them on `document_chunks.embedding`, and marks the
-library item `indexed`.
+`file_path` on the backend, originally supported `.txt` and `.md` files,
+and Stage 32 extended the same path to `.pdf`. Indexing chunks extracted
+content, creates or updates a related `documents` row, replaces that
+document's chunks, generates deterministic mock embeddings, stores them
+on `document_chunks.embedding`, and marks the library item `indexed`.
 
 `Open File` and `Index File` are separate operations. `Open File` asks
 Tauri to open the path with the system default app. `Index File` asks
 the backend to read a supported text file and persist chunks plus mock
 embeddings.
 
-PDF parsing, DOCX parsing, LaTeX parsing, OCR, internal PDF preview,
-file upload, drag-and-drop import, batch/folder import, background
-queues, Redis, Celery/RQ, real embedding providers, OpenAI/DeepSeek
-embedding calls, LLM summaries, automatic book summaries, book-scoped
-RAG, notes generation, authentication, Docker, and production packaging
-are not implemented in Stage 14.
+DOCX parsing, LaTeX parsing, OCR, file upload, drag-and-drop import,
+batch/folder import, background queues, Redis, Celery/RQ, real embedding
+providers, OpenAI/DeepSeek embedding calls, LLM summaries, automatic
+book summaries, notes generation, authentication, Docker, and production
+packaging are not implemented in this indexing foundation.
+
+## Backend PDF-to-RAG Pipeline (Stage 34)
+
+Stage 34 keeps the existing architecture and hardens the backend path:
+
+```text
+PDF Library item
+-> pypdf page extraction
+-> page-aware chunking
+-> embedding provider
+-> document_chunks.embedding storage
+-> retrieval
+-> LangGraph Agent Chat orchestration
+-> answer with structured citations
+```
+
+Key implementation details:
+
+- PDF loading still starts from an existing Library item/document path.
+  The indexing service validates the source path, requires a supported
+  file type, and reports clear `LibraryIndexingError` failures.
+- PDF extraction uses `backend/app/ingestion/pdf.py` and returns page
+  records with one-based page numbers.
+- PDF chunks keep `library_item_id`, `document_id`, source path,
+  `chunk_index`, and nullable `page_start` / `page_end` metadata.
+- `index_library_item` defaults to deterministic `MockEmbeddingProvider`
+  but can receive an explicit embedding provider for deterministic
+  integration tests.
+- Retrieval and `/api/agent/chat` reuse existing services. LangGraph
+  remains orchestration only; extraction, chunking, embeddings, storage,
+  retrieval, citations, memory, and learning-event logic stay in
+  services.
+- No Stage 34 database migration is required; it reuses the Stage 32
+  page metadata columns and existing pgvector storage.
+
+Manual smoke path:
+
+1. Register a Library item with `file_type: "pdf"` and a local
+   `file_path`.
+2. Run `POST /api/library/items/{item_id}/index`.
+3. Ask through `POST /api/agent/chat` with `scope_type: "single_book"`
+   and that `library_item_id`.
+4. Verify the response contains an answer, retrieved chunks, structured
+   citations, and page metadata when available.
 
 ## Book-Scoped RAG (Stage 15)
 

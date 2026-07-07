@@ -18,7 +18,8 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
   PDF with an embedded viewer.
 - **Library** is a collapsible PDF file-system-like explorer on the left.
 - **Agent Chat** is a docked/collapsible assistant on the right.
-- **Calendar / Today Log** is the planned future learning-record page.
+- **Today Log** is the learning-record page. Calendar-style expansion is
+  planned later.
 - **Settings** will stay simple: theme + long-term memory only.
 - **Notes/LaTeX** is **legacy/secondary** — do not emphasize it as the
   primary product direction and do not delete it unless the user
@@ -28,20 +29,27 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 
 ## Current Stage Status
 
-- **Stages 1–31 are completed** (backend skeleton through embedded PDF viewing).
-- **Stage 32 (PDF Text Extraction / Page-Aware Indexing) is current.**
+- **Stages 1–32 are completed** (backend skeleton through PDF text extraction / page-aware indexing).
+- **Stage 33 (Today Log / Calendar MVP)** is handled separately from
+  the current backend pipeline work.
+- **Stage 34 (Backend PDF-to-RAG Pipeline MVP) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
 - **Stage 30** made the Library and Workspace PDF-first (file picker
   restricts `.pdf`, non-PDF items marked unsupported).
 
-Stage 32 adds backend `pypdf` extraction for local PDF Library items.
-PDF indexing extracts text page by page, stores nullable
-`document_chunks.page_start` and `document_chunks.page_end`, and
-returns additive page metadata in RAG citations/retrieved chunks. The
-frontend only displays page metadata in Sources; it does not jump the
-viewer to citation pages.
+Stage 34 focuses on backend PDF-to-RAG pipeline hardening. Frontend
+feature expansion is paused for this stage. The expected backend path is:
+
+```text
+PDF -> extraction -> chunking -> embedding -> pgvector -> retrieval -> LangGraph RAG
+```
+
+The existing `/api/agent/chat` endpoint remains the preferred Agent Chat
+API. LangGraph remains orchestration only; extraction, chunking,
+embedding, storage, retrieval, citation, memory, and learning-event
+business logic should stay in services.
 
 ---
 
@@ -123,10 +131,11 @@ These require an explicit stage decision from the developer.
 | 29B   | Workspace Layout Refactor MVP | completed |
 | 30    | PDF-First Library UX | completed |
 | 31    | Embedded PDF Viewer MVP | completed |
-| **32** | **PDF Text Extraction / Page-Aware Indexing** | **current** |
-| 33    | Today Log / Calendar MVP | planned |
-| 34    | Agent-generated Daily Summary | planned |
-| 35    | Simple Settings MVP | planned |
+| 32    | PDF Text Extraction / Page-Aware Indexing | completed |
+| 33    | Today Log / Calendar MVP | separate/integration work |
+| **34** | **Backend PDF-to-RAG Pipeline MVP** | **current** |
+| 35    | Agent-generated Daily Summary | planned |
+| 36    | Simple Settings MVP | planned |
 
 ---
 

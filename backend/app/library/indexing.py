@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.embeddings.base import EmbeddingProvider
 from app.embeddings.mock import MockEmbeddingProvider
 from app.ingestion.chunking import chunk_text
 from app.ingestion.pdf import PDFExtractionError, PDFPageText, extract_pdf_pages
@@ -42,7 +43,11 @@ class IndexChunk:
     page_end: int | None = None
 
 
-def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResult | None:
+def index_library_item(
+    session: Session,
+    item_id: uuid.UUID,
+    embedding_provider: EmbeddingProvider | None = None,
+) -> LibraryIndexResult | None:
     item = session.get(LibraryItem, item_id)
     if item is None:
         return None
@@ -63,7 +68,7 @@ def index_library_item(session: Session, item_id: uuid.UUID) -> LibraryIndexResu
         session.flush()
 
         session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-        provider = MockEmbeddingProvider()
+        provider = embedding_provider or MockEmbeddingProvider()
         embeddings = provider.embed_texts([chunk.content for chunk in chunks])
 
         for chunk, embedding in zip(chunks, embeddings, strict=True):

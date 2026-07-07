@@ -48,9 +48,11 @@ Stage 29A: Frontend Bun Migration — completed.
 Stage 29B: Workspace Layout Refactor MVP — completed.
 Stage 30: PDF-First Library UX — completed.
 Stage 31: Embedded PDF Viewer MVP — completed.
-Stage 32: PDF Text Extraction / Page-Aware Indexing — current.
+Stage 32: PDF Text Extraction / Page-Aware Indexing — completed.
+Stage 33: Today Log / Calendar MVP — handled separately.
+Stage 34: Backend PDF-to-RAG Pipeline MVP — current.
 
-Current active stage: Stage 32: PDF Text Extraction / Page-Aware Indexing.
+Current active stage: Stage 34: Backend PDF-to-RAG Pipeline MVP.
 
 Do not implement the full product at once.
 
@@ -89,7 +91,9 @@ Project stage roadmap:
 29B. Workspace Layout Refactor MVP — completed
 30. PDF-First Library UX — completed
 31. Embedded PDF Viewer MVP — completed
-32. PDF Text Extraction / Page-Aware Indexing — current
+32. PDF Text Extraction / Page-Aware Indexing — completed
+33. Today Log / Calendar MVP — handled separately
+34. Backend PDF-to-RAG Pipeline MVP — current
 
 ---
 
@@ -278,8 +282,8 @@ React, and Vite architecture.
 Stage 29B is Workspace Layout Refactor MVP. The product direction shifts
 toward an IDE-like PDF learning workspace: PDF is the main workspace,
 Library is a collapsible PDF/book explorer, Agent Chat is a docked
-assistant, Calendar / Today Log will become the learning record, and
-Settings should later stay limited to theme plus long-term memory. The
+assistant, Today Log is the learning record, and Settings should later
+stay limited to theme plus long-term memory. The
 frontend opens to a Workspace page with a left PDF Library Explorer,
 center PDF Workspace placeholder, and right Agent Chat panel. The
 Library and Agent Chat panels can be hidden, shown, and resized, with
@@ -314,6 +318,26 @@ minimally. Stage 32 does not add OCR, annotations, highlighting,
 selected text to chat, citation-to-viewer navigation, new LangGraph
 nodes, planner/tool behavior, reranking, hybrid search, BM25, or a new
 RAG algorithm.
+
+Stage 33 is Today Log / Calendar MVP. The existing learning event API
+accepts an additive `date=YYYY-MM-DD` filter and returns related
+Library item / Note titles when available. The frontend Today Log
+defaults to today, lets the user select another date, and displays event
+time, readable type, related PDF/book or note title, and useful event
+metadata. Stage 33 does not add AI daily summaries, saved summaries,
+full month calendar UI, streaks, duration analytics, charts,
+notifications, settings, auth, new LangGraph nodes, planner/tool
+behavior, multi-agent behavior, or new RAG behavior.
+
+Stage 34 is Backend PDF-to-RAG Pipeline MVP. It hardens the backend path
+from existing local PDF Library items through `pypdf` extraction,
+page-aware chunking, deterministic embeddings, pgvector-backed chunk
+storage, retrieval, simplified LangGraph Agent Chat orchestration, and
+structured citations. The `/api/agent/chat` request contract remains the
+preferred chat API. LangGraph remains orchestration only; PDF loading,
+extraction, chunking, embedding, storage, retrieval, citation, memory,
+and learning-event business logic stay in services. Frontend feature
+expansion is paused for Stage 34.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -606,25 +630,25 @@ Do not implement in Stage 29B:
 - Retrieval behavior changes
 - Large backend changes
 
-Allowed in Stage 32:
-- Add backend PDF text extraction with `pypdf`
-- Index local PDF Library items page by page
-- Add minimal nullable page metadata columns to `document_chunks`
-- Add page metadata to retrieved chunks and citations without removing
-  existing API fields
-- Keep legacy `.txt` and `.md` indexing paths working
-- Display citation page metadata minimally in frontend Sources
-- Preserve `/api/agent/chat`, RAG retrieval behavior, LangGraph
-  orchestration boundaries, memory behavior, learning events, and
-  Chat-to-Notes behavior
+Allowed in Stage 33:
+- Add date filtering to the existing learning events API
+- Add related Library item / Note titles to learning event responses
+- Add a Today Log frontend view that defaults to today
+- Allow selecting another date
+- Show learning event loading, empty, and error states
+- Display event time, readable type, related PDF/book or note title,
+  and useful metadata when available
+- Preserve Workspace, Library Explorer, embedded PDF viewer, Agent Chat,
+  RAG behavior, citations, and Notes legacy behavior
 
-Do not implement in Stage 32:
-- OCR
-- PDF annotation
-- Highlighting
-- Selected text to chat
-- Jump from citation to PDF page
-- Calendar daily summary generation
+Do not implement in Stage 33:
+- AI-generated daily summary
+- Edit/save daily summary
+- Full month calendar view
+- Streaks/check-ins
+- Learning duration analytics
+- Charts/statistics dashboard
+- Notification system
 - Settings page
 - Theme system
 - Long-term memory settings UI
@@ -638,6 +662,41 @@ Do not implement in Stage 32:
 - New RAG algorithm
 - Backend contract changes
 - Large backend changes
+
+Allowed in Stage 34:
+- Reuse existing Library item and Document models for local PDF indexing
+- Validate PDF source existence, file type, and readability
+- Harden existing `pypdf` extraction where needed
+- Preserve page metadata through chunking and stored document chunks
+- Use the existing embedding abstraction/provider boundary
+- Keep deterministic/mock embeddings as the default for tests
+- Reuse existing pgvector-backed chunk storage and retrieval services
+- Reuse `/api/agent/chat` for the end-to-end RAG path
+- Keep LangGraph as orchestration over existing services only
+- Return existing structured citations with additive page metadata
+- Add deterministic backend integration tests for the PDF-to-RAG path
+- Update backend and project-context documentation
+
+Do not implement in Stage 34:
+- New frontend pages
+- Today Log / Calendar expansion
+- Embedded PDF viewer changes
+- PDF annotation
+- Highlighting
+- Selected text to chat
+- Jump from citation to PDF page
+- OCR
+- Planner
+- Tool calling
+- Multi-agent behavior
+- Authentication or user accounts
+- Settings system
+- Reranking
+- Hybrid search
+- BM25
+- New RAG algorithm
+- Real embedding provider integration as a default
+- Large backend architecture refactor
 
 ---
 
@@ -773,10 +832,22 @@ Frontend:
   annotations, selected-text workflows, citation-to-viewer navigation,
   reranking, hybrid search, BM25, new LangGraph nodes, or a new RAG
   algorithm
+- Stage 33 Today Log / Calendar MVP adds `date=YYYY-MM-DD` filtering to
+  `GET /api/learning-events`, related Library item / Note titles on
+  learning event responses, and a Today Log UI for viewing events by
+  selected day. It does not add AI summaries, full calendar views,
+  analytics, notifications, settings, auth, new LangGraph nodes, or new
+  RAG behavior
+- Stage 34 Backend PDF-to-RAG Pipeline MVP hardens the backend path from
+  local PDF Library item to page-aware extraction, chunking, deterministic
+  embeddings, pgvector-backed storage/retrieval, LangGraph Agent Chat,
+  and structured page-aware citations. It pauses frontend feature
+  expansion, keeps `/api/agent/chat` additive/backward-compatible, and
+  does not add new RAG algorithms or move business logic into graph nodes
 
 Planned later:
 - Production-quality agent workflows
-- Calendar / Today Log learning record
+- Calendar-style Today Log expansion
 - Simple settings for theme and long-term memory
 - Real embedding provider integration
 - Semantic memory embeddings and long-term memory vector search

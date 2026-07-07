@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
@@ -32,7 +33,9 @@ def _to_response(event: LearningEventResult) -> LearningEventRead:
         source_type=event.source_type,
         source_id=str(event.source_id) if event.source_id else None,
         library_item_id=str(event.library_item_id) if event.library_item_id else None,
+        library_item_title=event.library_item_title,
         note_id=str(event.note_id) if event.note_id else None,
+        note_title=event.note_title,
         session_id=event.session_id,
         metadata_json=event.metadata_json,
         created_at=event.created_at,
@@ -82,6 +85,7 @@ def list_learning_events_endpoint(
     library_item_id: str | None = None,
     note_id: str | None = None,
     session_id: str | None = None,
+    date: date | None = None,
     limit: int = Query(
         default=DEFAULT_LEARNING_EVENTS_LIMIT,
         ge=MIN_LEARNING_EVENTS_LIMIT,
@@ -105,6 +109,7 @@ def list_learning_events_endpoint(
                 ),
                 note_id=_parse_optional_uuid(note_id, "note_id"),
                 session_id=session_id,
+                event_date=date,
                 limit=limit,
                 offset=offset,
             )

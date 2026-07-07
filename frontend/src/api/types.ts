@@ -293,7 +293,9 @@ export interface LearningEvent {
   source_type: string | null;
   source_id: string | null;
   library_item_id: string | null;
+  library_item_title: string | null;
   note_id: string | null;
+  note_title: string | null;
   session_id: string | null;
   metadata_json: Record<string, unknown> | null;
   created_at: string;
@@ -310,6 +312,7 @@ export interface LearningEventFilters {
   library_item_id?: string;
   note_id?: string;
   session_id?: string;
+  date?: string;
   limit?: number;
   offset?: number;
 }

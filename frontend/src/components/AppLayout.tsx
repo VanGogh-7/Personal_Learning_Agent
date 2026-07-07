@@ -9,7 +9,7 @@ const PAGE_TITLES: Record<AppPage, string> = {
   chat: "Agent Chat",
   library: "PDF Library",
   notes: "Legacy Notes",
-  progress: "Learning Progress",
+  progress: "Today Log",
 };
 
 export default function AppLayout({
@@ -33,7 +33,7 @@ export default function AppLayout({
       >
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Stage 32</p>
+            <p className="eyebrow">Stage 33</p>
             <h1>{PAGE_TITLES[activePage]}</h1>
           </div>
           <p className="backend-note">Backend: {getBackendBaseUrl()}</p>

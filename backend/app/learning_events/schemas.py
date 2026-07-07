@@ -46,7 +46,9 @@ class LearningEventRead(BaseModel):
     source_type: str | None = None
     source_id: str | None = None
     library_item_id: str | None = None
+    library_item_title: str | None = None
     note_id: str | None = None
+    note_title: str | None = None
     session_id: str | None = None
     metadata_json: dict[str, Any] | None = None
     created_at: datetime
@@ -63,5 +65,6 @@ class LearningEventListParams(BaseModel):
     library_item_id: str | None = None
     note_id: str | None = None
     session_id: str | None = None
+    date: str | None = None
     limit: int = Field(default=20, ge=1, le=100)
     offset: int = Field(default=0, ge=0)

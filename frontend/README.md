@@ -1,6 +1,6 @@
 # Personal Learning Agent Frontend
 
-Stage 32 adds PDF text extraction and page-aware citations to the Workspace. The stack
+Stage 33 adds the Today Log learning-record view to the Workspace. The stack
 remains Bun + Tauri + React + Vite. The default page is the
 IDE-like Workspace with a collapsible/resizable PDF Library Explorer, a
 center embedded PDF Workspace, and a collapsible/resizable Agent Chat
@@ -70,7 +70,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 ## Current Features
 
 - Bun is used for frontend dependency management and scripts
-- Sidebar navigation emphasizes Workspace and Learning Progress
+- Sidebar navigation emphasizes Workspace and Today Log
 - Workspace page, opened by default, with PDF Library Explorer, PDF
   Workspace viewer, and Agent Chat dock
 - Left PDF Library panel lists existing Library items compactly with
@@ -121,7 +121,12 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Notes page `Export as .tex` action in the Tauri desktop app
 - Notes Workspace section with local folder selection and `Export to Workspace`
 - Notes page `Open Exported File` action for the latest successfully exported `.tex`
-- Learning Progress page with recent learning events and simple event/source filters
+- Today Log page defaults to today's learning events and supports
+  selecting another date
+- Today Log displays event time, readable event type, related PDF/book
+  or note title when available, and useful metadata such as question,
+  scope, selected books, chunks, citations, document, export path, and
+  status
 
 ## Current Limitations
 
@@ -163,14 +168,15 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   compilation, PDF generation, workspace scanning, file sync, file
   watcher, `.tex` import, recent exports list, workspace browser, or Git sync
 - No PDF upload
-- Progress is an event timeline only; there are no charts, analytics
-  dashboard, calendar, goals, spaced repetition, reminders, or AI
+- Today Log is an event timeline only; there are no charts, analytics
+  dashboard, full calendar, goals, spaced repetition, reminders, or AI
   progress evaluation
-- Calendar / Today Log is the planned learning-record direction but is
-  not implemented in Stage 32
+- Today Log is date-filtered event viewing only; there is no full month
+  calendar, daily summary generation, streaks, duration analytics,
+  charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 32
+  Stage 33
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary

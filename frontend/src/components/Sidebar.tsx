@@ -2,7 +2,7 @@ import type { AppPage } from "./AppLayout";
 
 const NAV_ITEMS: Array<{ id: AppPage; label: string; description: string }> = [
   { id: "workspace", label: "Workspace", description: "PDF workspace" },
-  { id: "progress", label: "Progress", description: "Learning record" },
+  { id: "progress", label: "Today Log", description: "Learning record" },
 ];
 
 export default function Sidebar({

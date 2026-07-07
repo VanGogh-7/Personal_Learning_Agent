@@ -166,6 +166,7 @@ function toLearningEventQueryString(params: LearningEventFilters): string {
   appendOptionalParam(searchParams, "library_item_id", params.library_item_id?.trim());
   appendOptionalParam(searchParams, "note_id", params.note_id?.trim());
   appendOptionalParam(searchParams, "session_id", params.session_id?.trim());
+  appendOptionalParam(searchParams, "date", params.date?.trim());
   appendOptionalParam(searchParams, "limit", params.limit);
   appendOptionalParam(searchParams, "offset", params.offset);
   const query = searchParams.toString();

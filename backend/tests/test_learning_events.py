@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, datetime, timezone
 
 import pytest
 from fastapi import HTTPException
@@ -202,6 +203,84 @@ def test_list_events_newest_first(learning_event_session) -> None:
     events = list_learning_events(learning_event_session)
 
     assert [event.title for event in events] == ["Second", "First"]
+
+
+def test_list_events_filters_by_date_and_preserves_metadata(
+    learning_event_session,
+) -> None:
+    first = create_learning_event(
+        learning_event_session,
+        event_type=EVENT_NOTE_CREATED,
+        title="Morning note",
+        source_type=SOURCE_NOTES,
+        metadata_json={"question": "What is compactness?", "scope_type": "single_book"},
+    )
+    second = create_learning_event(
+        learning_event_session,
+        event_type=EVENT_NOTE_EXPORTED,
+        title="Next day export",
+        source_type=SOURCE_NOTES,
+    )
+    learning_event_session.get(LearningEvent, first.event_id).created_at = datetime(
+        2026, 7, 7, 9, 30, tzinfo=timezone.utc
+    )
+    learning_event_session.get(LearningEvent, second.event_id).created_at = datetime(
+        2026, 7, 8, 9, 30, tzinfo=timezone.utc
+    )
+    learning_event_session.commit()
+
+    events = list_learning_events(learning_event_session, event_date=date(2026, 7, 7))
+
+    assert [event.title for event in events] == ["Morning note"]
+    assert events[0].metadata_json == {
+        "question": "What is compactness?",
+        "scope_type": "single_book",
+    }
+
+
+def test_list_events_for_empty_day_returns_empty_list(learning_event_session) -> None:
+    event = create_learning_event(
+        learning_event_session,
+        event_type=EVENT_NOTE_CREATED,
+        title="Different day",
+        source_type=SOURCE_NOTES,
+    )
+    learning_event_session.get(LearningEvent, event.event_id).created_at = datetime(
+        2026, 7, 8, 10, 0, tzinfo=timezone.utc
+    )
+    learning_event_session.commit()
+
+    events = list_learning_events(learning_event_session, event_date=date(2026, 7, 7))
+
+    assert events == []
+
+
+def test_list_events_endpoint_accepts_date_filter_and_related_title(
+    learning_event_session,
+) -> None:
+    library_item = _create_library_item(learning_event_session, title="Topology")
+    event = create_learning_event(
+        learning_event_session,
+        event_type=EVENT_LIBRARY_INDEXED,
+        title="Indexed library item: Topology",
+        source_type=SOURCE_LIBRARY,
+        library_item_id=library_item.id,
+        metadata_json={"chunks_created": 3},
+    )
+    learning_event_session.get(LearningEvent, event.event_id).created_at = datetime(
+        2026, 7, 7, 14, 0, tzinfo=timezone.utc
+    )
+    learning_event_session.commit()
+
+    response = list_learning_events_endpoint(
+        date=date(2026, 7, 7),
+        limit=20,
+        offset=0,
+    )
+
+    assert response.total == 1
+    assert response.events[0].library_item_title == "Topology"
+    assert response.events[0].metadata_json == {"chunks_created": 3}
 
 
 def test_filter_events_by_event_type(learning_event_session) -> None:

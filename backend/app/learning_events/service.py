@@ -1,6 +1,6 @@
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -25,7 +25,9 @@ class LearningEventResult:
     source_type: str | None
     source_id: uuid.UUID | None
     library_item_id: uuid.UUID | None
+    library_item_title: str | None
     note_id: uuid.UUID | None
+    note_title: str | None
     session_id: str | None
     metadata_json: dict[str, Any] | None
     created_at: datetime
@@ -62,7 +64,11 @@ def create_learning_event(
     )
     session.add(event)
     session.flush()
-    return _to_result(event)
+    return _to_result(
+        event,
+        library_item_title=_related_library_item_title(session, event.library_item_id),
+        note_title=_related_note_title(session, event.note_id),
+    )
 
 
 def get_learning_event(
@@ -70,7 +76,13 @@ def get_learning_event(
     event_id: uuid.UUID,
 ) -> LearningEventResult | None:
     event = session.get(LearningEvent, event_id)
-    return _to_result(event) if event is not None else None
+    if event is None:
+        return None
+    return _to_result(
+        event,
+        library_item_title=_related_library_item_title(session, event.library_item_id),
+        note_title=_related_note_title(session, event.note_id),
+    )
 
 
 def list_learning_events(
@@ -80,6 +92,7 @@ def list_learning_events(
     library_item_id: uuid.UUID | None = None,
     note_id: uuid.UUID | None = None,
     session_id: str | None = None,
+    event_date: date | None = None,
     limit: int = DEFAULT_LEARNING_EVENTS_LIMIT,
     offset: int = 0,
 ) -> list[LearningEventResult]:
@@ -97,9 +110,25 @@ def list_learning_events(
         stmt = stmt.where(LearningEvent.note_id == note_id)
     if session_id and session_id.strip():
         stmt = stmt.where(LearningEvent.session_id == session_id.strip())
+    if event_date is not None:
+        start = datetime.combine(event_date, time.min, tzinfo=timezone.utc)
+        end = datetime.combine(event_date, time.max, tzinfo=timezone.utc)
+        stmt = stmt.where(LearningEvent.created_at >= start).where(
+            LearningEvent.created_at <= end
+        )
 
     stmt = stmt.order_by(LearningEvent.created_at.desc()).offset(offset).limit(limit)
-    return [_to_result(row) for row in session.execute(stmt).scalars().all()]
+    events = session.execute(stmt).scalars().all()
+    library_titles = _library_item_titles(session, [event.library_item_id for event in events])
+    note_titles = _note_titles(session, [event.note_id for event in events])
+    return [
+        _to_result(
+            event,
+            library_item_title=library_titles.get(event.library_item_id),
+            note_title=note_titles.get(event.note_id),
+        )
+        for event in events
+    ]
 
 
 def get_recent_learning_events(
@@ -109,7 +138,12 @@ def get_recent_learning_events(
     return list_learning_events(session, limit=limit, offset=0)
 
 
-def _to_result(event: LearningEvent) -> LearningEventResult:
+def _to_result(
+    event: LearningEvent,
+    *,
+    library_item_title: str | None = None,
+    note_title: str | None = None,
+) -> LearningEventResult:
     return LearningEventResult(
         event_id=event.id,
         event_type=event.event_type,
@@ -118,11 +152,53 @@ def _to_result(event: LearningEvent) -> LearningEventResult:
         source_type=event.source_type,
         source_id=event.source_id,
         library_item_id=event.library_item_id,
+        library_item_title=library_item_title,
         note_id=event.note_id,
+        note_title=note_title,
         session_id=event.session_id,
         metadata_json=event.metadata_json,
         created_at=event.created_at,
     )
+
+
+def _library_item_titles(
+    session: Session, item_ids: list[uuid.UUID | None]
+) -> dict[uuid.UUID, str]:
+    ids = [item_id for item_id in set(item_ids) if item_id is not None]
+    if not ids:
+        return {}
+    return {
+        item.id: item.title
+        for item in session.execute(
+            select(LibraryItem).where(LibraryItem.id.in_(ids))
+        ).scalars()
+    }
+
+
+def _note_titles(session: Session, note_ids: list[uuid.UUID | None]) -> dict[uuid.UUID, str]:
+    ids = [note_id for note_id in set(note_ids) if note_id is not None]
+    if not ids:
+        return {}
+    return {
+        note.id: note.title
+        for note in session.execute(select(Note).where(Note.id.in_(ids))).scalars()
+    }
+
+
+def _related_library_item_title(
+    session: Session, library_item_id: uuid.UUID | None
+) -> str | None:
+    if library_item_id is None:
+        return None
+    item = session.get(LibraryItem, library_item_id)
+    return item.title if item is not None else None
+
+
+def _related_note_title(session: Session, note_id: uuid.UUID | None) -> str | None:
+    if note_id is None:
+        return None
+    note = session.get(Note, note_id)
+    return note.title if note is not None else None
 
 
 def _normalize_event_type(event_type: str) -> str:
