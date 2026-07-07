@@ -1,46 +1,32 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { inferFileTypeFromPath, isPdfPath } from "../utils/libraryFiles";
 
 export async function selectLocalFile(): Promise<string | null> {
   try {
     const selected = await open({
-      title: "Choose learning material",
+      title: "Choose PDF file",
       multiple: false,
       directory: false,
       filters: [
         {
-          name: "Learning material",
-          extensions: ["pdf", "tex", "md", "txt"],
+          name: "PDF files",
+          extensions: ["pdf"],
         },
       ],
     });
 
-    return typeof selected === "string" ? selected : null;
+    if (typeof selected !== "string") {
+      return null;
+    }
+    if (!isPdfPath(selected)) {
+      throw new Error("Only .pdf files are supported in the PDF Library.");
+    }
+
+    return selected;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`Could not open the file picker. ${detail}`);
   }
 }
 
-export function inferFileTypeFromPath(filePath: string): string {
-  const fileName = filePath.trim().split(/[\\/]/).pop() || "";
-  const dotIndex = fileName.lastIndexOf(".");
-  if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
-    return "";
-  }
-
-  const extension = fileName.slice(dotIndex + 1).toLowerCase();
-  if (extension === "pdf") {
-    return "pdf";
-  }
-  if (extension === "tex") {
-    return "tex";
-  }
-  if (extension === "md") {
-    return "md";
-  }
-  if (extension === "txt") {
-    return "txt";
-  }
-
-  return extension;
-}
+export { inferFileTypeFromPath };

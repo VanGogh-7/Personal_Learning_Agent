@@ -6,7 +6,7 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 29B: Workspace Layout Refactor MVP.
+Stage 30: PDF-First Library UX.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -16,14 +16,12 @@ Bun + Tauri + React + Vite
 PDF Library Explorer | PDF Workspace placeholder | Agent Chat
 ```
 
-The Library is a collapsible PDF/book explorer, the center pane is a
-future PDF viewer placeholder, and Agent Chat is a docked/collapsible
-assistant. Agent Chat still uses `POST /api/agent/chat`, global/
-single-book/multi-book behavior, citations, retrieved chunks, and
-Chat-to-Notes compatibility. Selecting an indexed Library item in the
-Workspace prefers that item as the current single-PDF chat scope.
-Notes/LaTeX features remain in the codebase but are no longer the
-primary product direction.
+Stage 30 makes the Library UX explicitly PDF-first. The official
+user-facing supported Library format is now PDF. `.txt` and `.md`
+support may remain in backend services for legacy/internal/test paths,
+but the frontend Library picker and user-facing wording are oriented
+around PDF books. Embedded PDF viewing, PDF text extraction, and PDF
+indexing remain future work.
 
 ## Configuration
 
@@ -48,23 +46,19 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 29B Does
+## What Stage 30 Does
 
-- Makes Workspace the default frontend entry.
-- Adds an IDE-like layout with a left PDF Library Explorer, center PDF
-  Workspace placeholder, and right Agent Chat dock.
-- Lets the Library and Agent Chat panels be hidden, shown, and resized.
-- Persists panel visibility and widths in `localStorage` under
-  `pla.workspace.layout`.
-- Shows compact Library items with title, file type, status, and
-  selected-item highlighting.
-- Shows selected PDF metadata in the center placeholder and keeps the
-  existing Tauri local-file opener available as "Open in system PDF
-  reader".
-- Updates navigation and wording toward Workspace, PDF Library, Agent
-  Chat, and Learning Progress.
-- Keeps Calendar/Today Log as the future learning-record direction.
-- Keeps the Stage 29A Bun frontend workflow.
+- Restricts the frontend file picker to `.pdf` files.
+- Defaults new Library file selections to `file_type = "pdf"`.
+- Rejects non-PDF paths/types in visible Library create/edit forms.
+- Marks legacy non-PDF Library records as unsupported in the PDF
+  Library UI.
+- Polishes the Workspace Library Explorer with PDF labels, normalized
+  indexed/unindexed status, and filename/path metadata.
+- Polishes the PDF Workspace placeholder around selected PDF title,
+  file, status, and system-reader opening.
+- Keeps selected indexed PDFs bound to the Agent Chat single-book scope.
+- Keeps the Stage 29A Bun workflow and Stage 29B Workspace layout.
 
 The long-term product direction is:
 
@@ -76,13 +70,14 @@ Calendar / Today Log will become the learning record.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 29B Does Not Do
+## What Stage 30 Does Not Do
 
-No embedded PDF viewer, PDF.js/react-pdf integration, PDF parsing, PDF
-extraction, page-aware citations, calendar daily summaries, settings
-page, theme system, long-term memory settings UI, auth/user system, new
-LangGraph nodes, planner, tool calling, multi-agent behavior, new RAG
-algorithm, backend contract changes, or large backend changes.
+No embedded PDF viewer, PDF.js/react-pdf integration, PDF text
+extraction, page-aware citations, PDF indexing changes, calendar daily
+summary, settings page, theme system, long-term memory settings UI,
+login/register, auth/user system, new LangGraph nodes, planner, tool
+calling, multi-agent behavior, new RAG algorithm, backend contract
+changes, or large backend changes.
 
 ## Commands
 

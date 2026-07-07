@@ -1,11 +1,11 @@
 # Personal Learning Agent Frontend
 
-Stage 29B refactors the frontend shell toward a PDF-centered Workspace.
-The stack remains Bun + Tauri + React + Vite. The default page is now
-an IDE-like layout with a collapsible/resizable PDF Library Explorer on
-the left, a center PDF Workspace placeholder, and a
-collapsible/resizable Agent Chat dock on the right. The FastAPI backend
-must be started separately on `http://127.0.0.1:8081`.
+Stage 30 makes the Library and Workspace UX explicitly PDF-first. The
+stack remains Bun + Tauri + React + Vite. The default page is the
+IDE-like Workspace with a collapsible/resizable PDF Library Explorer, a
+center PDF Workspace placeholder, and a collapsible/resizable Agent Chat
+dock. The FastAPI backend must be started separately on
+`http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
 create a project `.venv`, and do not commit `.env` files.
@@ -74,12 +74,17 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Workspace page, opened by default, with PDF Library Explorer, PDF
   Workspace placeholder, and Agent Chat dock
 - Left PDF Library panel lists existing Library items compactly with
-  title, file type, status, and selected-item highlighting
+  title, PDF/unsupported label, indexed/unindexed status, filename/path,
+  and selected-item highlighting
 - Center PDF Workspace placeholder shows "No PDF selected" until an item
-  is selected, then shows selected title, file path, status, and file
-  type
+  is selected, then shows selected title, file, status, and PDF support
 - Center workspace exposes "Open in system PDF reader" for selected
   items that have a local `file_path`
+- Library file picker is restricted to `.pdf` files
+- New file-picker selections infer `file_type: "pdf"`
+- Visible Library create/edit forms reject non-PDF paths and non-PDF
+  file types
+- Legacy non-PDF records are marked unsupported in the PDF Library UI
 - Left Library and right Agent Chat panels can be hidden, shown, and
   resized by dragging their panel borders
 - Workspace panel visibility and widths persist in `localStorage` as
@@ -98,11 +103,12 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Empty citation/retrieval results show a clear no relevant chunks message
 - Agent Chat `Create LaTeX Note` action for the latest RAG response
 - Inline note draft review/edit/save panel in Agent Chat
-- Legacy Library page with Book Library metadata create/list/search/edit/archive
+- Legacy Library page with PDF Library metadata create/list/search/edit/archive
 - Library item selection and detail metadata panel
-- Library `Choose File` button in Tauri to fill `file_path` metadata
-- Library `Open` button in Tauri for local `file_path` values
-- Library `Index File` button for `.txt` and `.md` files
+- Library `Choose PDF` button in Tauri to fill `file_path` metadata
+- Library `Open PDF` button in Tauri for local PDF `file_path` values
+- PDF indexing is not exposed yet; legacy text indexing support may
+  remain in backend services
 - Library detail `Generate Summary & Tags` action for indexed items
 - Editable generated summary/topic tag draft with save-through-metadata update
 - Legacy Notes page with LaTeX note create/list/view/edit/archive workflow
@@ -122,16 +128,16 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   render PDFs yet
 - Opening local files is performed by Tauri, not the backend
 - Local file picking and opening should be tested with `bun run tauri dev`
-- `Open File` opens the file with the system default app; `Index File`
-  asks the backend to read supported text files and create chunks plus
-  deterministic mock embeddings
-- Library indexing currently supports `.txt` and `.md` only
-- PDF parsing and indexing are not supported yet
+- `Open PDF` opens the file with the system default app
+- User-facing Library format is PDF; existing `.txt` and `.md` support
+  may remain in backend services for legacy/internal/test paths
+- PDF parsing, text extraction, embedded viewing, and indexing are not
+  supported yet
 - There is no PDF.js/react-pdf integration, PDF text extraction,
   page-aware citations, page navigation, or source highlighting
-- Generated Library metadata works only after indexing and does not
-  auto-save; reviewed summaries are stored in `description`, and
-  reviewed tags are stored in `topic_tags`
+- Generated Library metadata works only for already indexed legacy
+  items and does not auto-save; reviewed summaries are stored in
+  `description`, and reviewed tags are stored in `topic_tags`
 - Related notes and book chat sections are still placeholders in the
   Library detail panel
 - Notes are stored in PostgreSQL through the backend API
@@ -156,10 +162,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   dashboard, calendar, goals, spaced repetition, reminders, or AI
   progress evaluation
 - Calendar / Today Log is the planned learning-record direction but is
-  not implemented in Stage 29B
+  not implemented in Stage 30
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 29B
+  Stage 30
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary

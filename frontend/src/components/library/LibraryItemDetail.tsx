@@ -5,6 +5,14 @@ import type {
   LibraryMetadataDraft,
   UpdateLibraryItemPayload,
 } from "../../api/types";
+import {
+  fileNameFromPath,
+  isPdfLibraryItem,
+  isPdfPath,
+  normalizeFileType,
+  pdfSupportLabel,
+  workspaceStatusLabel,
+} from "../../utils/libraryFiles";
 
 type DetailFormState = {
   title: string;
@@ -64,7 +72,7 @@ export default function LibraryItemDetail({
   if (!item) {
     return (
       <aside className="library-detail panel-subsection">
-        <p className="empty-state">Select a book to view details.</p>
+        <p className="empty-state">Select a PDF book to view details.</p>
       </aside>
     );
   }
@@ -84,6 +92,11 @@ export default function LibraryItemDetail({
       setLocalError("Status is required.");
       return;
     }
+    const pdfError = validatePdfForm(form.filePath, form.fileType);
+    if (pdfError) {
+      setLocalError(pdfError);
+      return;
+    }
 
     try {
       await onSave(item.id, {
@@ -91,7 +104,7 @@ export default function LibraryItemDetail({
         author: emptyToNull(form.author),
         description: emptyToNull(form.description),
         file_path: emptyToNull(form.filePath),
-        file_type: emptyToNull(form.fileType),
+        file_type: "pdf",
         topic_tags: parseTags(form.topicTags),
         status: form.status.trim(),
       });
@@ -157,7 +170,7 @@ export default function LibraryItemDetail({
           <h3>{item.title}</h3>
           <p>{item.author || "Unknown author"}</p>
         </div>
-        <span className="status-badge">{item.status}</span>
+        <span className="status-badge">{workspaceStatusLabel(item.status)}</span>
       </div>
 
       {editing ? (
@@ -184,10 +197,11 @@ export default function LibraryItemDetail({
             />
           </label>
           <label>
-            file_path
+            PDF file_path
             <input
               value={form.filePath}
               onChange={(event) => setForm({ ...form, filePath: event.target.value })}
+              placeholder="/path/to/book.pdf"
             />
           </label>
           <label>
@@ -195,7 +209,9 @@ export default function LibraryItemDetail({
             <input
               value={form.fileType}
               onChange={(event) => setForm({ ...form, fileType: event.target.value })}
+              placeholder="pdf"
             />
+            <span className="field-help">User-facing Library items are PDF books.</span>
           </label>
           <label className="full-width">
             topic_tags
@@ -239,9 +255,14 @@ export default function LibraryItemDetail({
             <DetailRow label="title" value={item.title} />
             <DetailRow label="author" value={item.author || "Unknown"} />
             <DetailRow label="description" value={item.description || "No description."} wide />
+            <DetailRow label="PDF support" value={pdfSupportLabel(item)} />
             <DetailRow
-              label="file_path"
-              value={item.file_path || "No local file path registered."}
+              label="file"
+              value={
+                item.file_path
+                  ? fileNameFromPath(item.file_path) || item.file_path
+                  : "No PDF file registered."
+              }
               mono
               wide
             />
@@ -266,20 +287,34 @@ export default function LibraryItemDetail({
           </div>
 
           <div className="detail-section">
-            <h4>Local File</h4>
+            <h4>PDF File</h4>
             {item.file_path?.trim() ? (
               <div className="button-row">
                 <button type="button" disabled={opening} onClick={() => onOpen(item)}>
-                  {opening ? "Opening..." : "Open File"}
+                  {opening ? "Opening..." : "Open PDF"}
                 </button>
-                <button type="button" disabled={indexing} onClick={() => onIndex(item)}>
-                  {indexing ? "Indexing..." : "Index File"}
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={true}
+                  onClick={() => onIndex(item)}
+                >
+                  {indexing ? "Indexing..." : "Index PDF"}
                 </button>
               </div>
             ) : (
               <p className="empty-state">No local file path registered.</p>
             )}
-            <p className="field-help">Indexing currently supports .txt and .md files only.</p>
+            <p className="field-help">
+              PDF files can be opened now. Embedded viewing, PDF text extraction, and PDF
+              indexing are future work.
+            </p>
+            {!isPdfLike(item) && (
+              <p className="empty-state compact-note">
+                Unsupported in the PDF Library. Legacy .txt/.md records may remain for tests or
+                internal services.
+              </p>
+            )}
             {isPdfLike(item) && (
               <p className="field-help">
                 PDF files can be opened, but PDF indexing is not supported yet.
@@ -304,7 +339,10 @@ export default function LibraryItemDetail({
               )}
             </div>
             {item.status !== "indexed" ? (
-              <p className="empty-state">Index this item before generating summary and tags.</p>
+              <p className="empty-state">
+                Summary and tag generation requires an already indexed legacy item. PDF indexing
+                is future work.
+              </p>
             ) : (
               <>
                 <div className="button-row">
@@ -371,13 +409,16 @@ export default function LibraryItemDetail({
 
       <div className="future-grid">
         <Placeholder
-          title="Indexing"
-          text="Available for .txt and .md files. PDF parsing and background indexing come later."
+          title="PDF Indexing"
+          text="Coming later: PDF text extraction, page-aware chunks, and background indexing."
         />
-        <Placeholder title="Related Notes" text="Coming later: notes connected to this book." />
         <Placeholder
-          title="Chat with this Book"
-          text="Coming later: book-scoped RAG conversation."
+          title="Related Notes"
+          text="Legacy notes remain available outside the main PDF workflow."
+        />
+        <Placeholder
+          title="Chat with this PDF"
+          text="Indexed Library items can already scope Agent Chat from the Workspace."
         />
       </div>
     </aside>
@@ -443,7 +484,16 @@ function formatDate(value: string): string {
 }
 
 function isPdfLike(item: LibraryItem): boolean {
-  const fileType = item.file_type?.trim().toLowerCase().replace(/^\./, "");
-  const path = item.file_path?.trim().toLowerCase() || "";
-  return fileType === "pdf" || path.endsWith(".pdf");
+  return isPdfLibraryItem(item);
+}
+
+function validatePdfForm(filePath: string, fileType: string): string | null {
+  const normalizedType = normalizeFileType(fileType);
+  if (normalizedType && normalizedType !== "pdf") {
+    return "The PDF Library only supports file_type \"pdf\".";
+  }
+  if (filePath.trim() && !isPdfPath(filePath)) {
+    return "The PDF Library only supports local .pdf files.";
+  }
+  return null;
 }

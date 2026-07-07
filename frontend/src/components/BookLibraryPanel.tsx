@@ -17,10 +17,18 @@ import type {
   UpdateLibraryItemPayload,
 } from "../api/types";
 import LibraryItemDetail from "./library/LibraryItemDetail";
-import { inferFileTypeFromPath, selectLocalFile } from "../tauri/filePicker";
+import { selectLocalFile } from "../tauri/filePicker";
 import { openLocalFile } from "../tauri/localFiles";
+import {
+  fileNameFromPath,
+  isPdfPath,
+  normalizeFileType,
+  pdfSupportLabel,
+  workspaceStatusLabel,
+} from "../utils/libraryFiles";
 
 const DEFAULT_STATUS = "registered";
+const DEFAULT_FILE_TYPE = "pdf";
 
 export default function BookLibraryPanel() {
   const [form, setForm] = useState({
@@ -28,7 +36,7 @@ export default function BookLibraryPanel() {
     author: "",
     description: "",
     filePath: "",
-    fileType: "",
+    fileType: DEFAULT_FILE_TYPE,
     topicTags: "",
     status: DEFAULT_STATUS,
   });
@@ -64,6 +72,11 @@ export default function BookLibraryPanel() {
       setError("Status is required.");
       return;
     }
+    const pdfError = validatePdfForm(form.filePath, form.fileType);
+    if (pdfError) {
+      setError(pdfError);
+      return;
+    }
 
     setLoadingSave(true);
     try {
@@ -72,7 +85,7 @@ export default function BookLibraryPanel() {
         author: emptyToNull(form.author),
         description: emptyToNull(form.description),
         file_path: emptyToNull(form.filePath),
-        file_type: emptyToNull(form.fileType),
+        file_type: DEFAULT_FILE_TYPE,
         topic_tags: parseTags(form.topicTags),
         status: form.status.trim(),
       };
@@ -184,9 +197,8 @@ export default function BookLibraryPanel() {
       setForm((current) => ({
         ...current,
         filePath: selectedPath,
-        fileType: current.fileType.trim()
-          ? current.fileType
-          : inferFileTypeFromPath(selectedPath),
+        title: current.title.trim() ? current.title : titleFromPdfPath(selectedPath),
+        fileType: DEFAULT_FILE_TYPE,
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "File picker failed.");
@@ -255,7 +267,7 @@ export default function BookLibraryPanel() {
       author: "",
       description: "",
       filePath: "",
-      fileType: "",
+      fileType: DEFAULT_FILE_TYPE,
       topicTags: "",
       status: DEFAULT_STATUS,
     });
@@ -265,14 +277,14 @@ export default function BookLibraryPanel() {
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <h2>Book Library</h2>
-          <p>Register books and learning materials as metadata only.</p>
+          <h2>PDF Library</h2>
+          <p>Register PDF books as metadata. PDF parsing and embedded viewing come later.</p>
         </div>
       </div>
 
       <div className="split-grid">
         <form className="form-grid" onSubmit={submitItem}>
-          <h3 className="full-width">{editingId ? "Edit Item" : "Create Item"}</h3>
+          <h3 className="full-width">{editingId ? "Edit PDF Book" : "Create PDF Book"}</h3>
           <label>
             title
             <input
@@ -288,7 +300,7 @@ export default function BookLibraryPanel() {
             />
           </label>
           <label className="full-width">
-            file_path
+            PDF file_path
             <div className="input-with-action">
               <input
                 value={form.filePath}
@@ -301,11 +313,11 @@ export default function BookLibraryPanel() {
                 disabled={choosingFile}
                 onClick={chooseFileForForm}
               >
-                {choosingFile ? "Choosing..." : "Choose File"}
+                {choosingFile ? "Choosing..." : "Choose PDF"}
               </button>
             </div>
             <span className="field-help">
-              Select a local book or note file. The path is stored as metadata.
+              Select a local PDF file. The path is stored as metadata only.
             </span>
           </label>
           <label>
@@ -313,8 +325,9 @@ export default function BookLibraryPanel() {
             <input
               value={form.fileType}
               onChange={(event) => setForm({ ...form, fileType: event.target.value })}
-              placeholder="pdf, tex, md, txt, book"
+              placeholder="pdf"
             />
+            <span className="field-help">User-facing Library items are PDF books.</span>
           </label>
           <label>
             status
@@ -404,12 +417,12 @@ export default function BookLibraryPanel() {
 
       {result && (
         <div className="response-block">
-          <h3>Library Items ({result.total})</h3>
+          <h3>PDF Library Items ({result.total})</h3>
           {result.items.length === 0 ? (
             <p className="empty-state">
               {lastMode === "search"
                 ? "No library items matched this search."
-                : "No library items found for these filters."}
+                : "No PDF Library items found for these filters."}
             </p>
           ) : (
             <div className="library-workspace">
@@ -466,20 +479,27 @@ function LibraryItemCard({
   onArchive: (itemId: string) => void;
 }) {
   const hasFilePath = Boolean(item.file_path?.trim());
+  const supportLabel = pdfSupportLabel(item);
+  const fileLabel = item.file_path ? fileNameFromPath(item.file_path) || item.file_path : "none";
+  const displayStatus = workspaceStatusLabel(item.status);
 
   return (
     <li className={selected ? "library-list-item selected" : "library-list-item"}>
       <div className="item-title">
         <span>{item.title}</span>
-        <span className="status-badge">{item.status}</span>
+        <span className="status-badge">{displayStatus}</span>
       </div>
       <p>{item.description || "No description."}</p>
       <small>
-        id {item.id} · author {item.author || "unknown"} · file {item.file_path || "none"} · type{" "}
-        {item.file_type || "none"} · tags{" "}
+        {supportLabel} · file {fileLabel} · type {item.file_type || "none"} · tags{" "}
         {item.topic_tags?.length ? item.topic_tags.join(", ") : "none"}
       </small>
       {!hasFilePath && <p className="muted compact-note">No local file path.</p>}
+      {supportLabel === "Unsupported" && (
+        <p className="empty-state compact-note">
+          Unsupported in the PDF Library. Legacy non-PDF records remain read-only metadata.
+        </p>
+      )}
       <div className="button-row item-actions">
         <button type="button" className="secondary-button" onClick={() => onSelect(item)}>
           {selected ? "Selected" : "View details"}
@@ -518,4 +538,20 @@ function parseTags(value: string): string[] | null {
 function emptyToNull(value: string): string | null {
   const stripped = value.trim();
   return stripped || null;
+}
+
+function validatePdfForm(filePath: string, fileType: string): string | null {
+  const normalizedType = normalizeFileType(fileType);
+  if (normalizedType && normalizedType !== DEFAULT_FILE_TYPE) {
+    return "The PDF Library only supports file_type \"pdf\".";
+  }
+  if (filePath.trim() && !isPdfPath(filePath)) {
+    return "The PDF Library only supports local .pdf files.";
+  }
+  return null;
+}
+
+function titleFromPdfPath(filePath: string): string {
+  const fileName = fileNameFromPath(filePath);
+  return fileName.replace(/\.pdf$/i, "") || "Untitled PDF";
 }

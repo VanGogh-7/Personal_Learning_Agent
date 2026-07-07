@@ -45,9 +45,10 @@ Stage 26: Chat RAG Graph Boundary MVP — completed.
 Stage 27: Agent Chat Frontend Integration MVP — completed.
 Stage 28: Agent Chat Stabilization / Regression Polish — completed.
 Stage 29A: Frontend Bun Migration — completed.
-Stage 29B: Workspace Layout Refactor MVP — current.
+Stage 29B: Workspace Layout Refactor MVP — completed.
+Stage 30: PDF-First Library UX — current.
 
-Current active stage: Stage 29B: Workspace Layout Refactor MVP.
+Current active stage: Stage 30: PDF-First Library UX.
 
 Do not implement the full product at once.
 
@@ -83,7 +84,8 @@ Project stage roadmap:
 27. Agent Chat Frontend Integration MVP — completed
 28. Agent Chat Stabilization / Regression Polish — completed
 29A. Frontend Bun Migration — completed
-29B. Workspace Layout Refactor MVP — current
+29B. Workspace Layout Refactor MVP — completed
+30. PDF-First Library UX — current
 
 ---
 
@@ -279,6 +281,15 @@ center PDF Workspace placeholder, and right Agent Chat panel. The
 Library and Agent Chat panels can be hidden, shown, and resized, with
 layout state stored in `localStorage` as `pla.workspace.layout`. Stage
 29B does not add embedded PDF rendering or backend behavior.
+
+Stage 30 is PDF-First Library UX. The official user-facing Library
+format is PDF. The frontend file picker is PDF-only, new file-picker
+selections infer `file_type = "pdf"`, visible Library create/edit forms
+reject non-PDF paths and file types, and legacy non-PDF records are
+marked unsupported in the PDF Library UI. Backend `.txt`/`.md` support
+may remain for legacy/internal/test paths. Stage 30 does not add
+embedded PDF rendering, PDF text extraction, PDF indexing changes,
+backend API changes, or new RAG behavior.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -571,6 +582,40 @@ Do not implement in Stage 29B:
 - Retrieval behavior changes
 - Large backend changes
 
+Allowed in Stage 30:
+- Make the frontend Library and Workspace UX PDF-first
+- Restrict the file picker to `.pdf`
+- Infer `file_type = "pdf"` for new PDF selections
+- Reject or clearly mark non-PDF files as unsupported in the UI
+- Polish the Workspace Library Explorer with PDF labels, filename/path,
+  and indexed/unindexed status
+- Preserve `Open in system PDF reader`
+- Preserve selected indexed Library item binding into Agent Chat scope
+- Keep `.txt`/`.md` backend support as legacy/internal/test support
+- Keep Bun + Tauri + React + Vite as the frontend stack
+- Update README/backend/frontend/CODEX documentation
+
+Do not implement in Stage 30:
+- Embedded PDF viewer
+- PDF.js or react-pdf integration
+- PDF text extraction
+- Page-aware citations
+- PDF indexing changes
+- Calendar daily summary generation
+- Settings page
+- Theme system
+- Long-term memory settings UI
+- Login/register
+- User system
+- Auth
+- New LangGraph nodes
+- Planner
+- Tool calling
+- Multi-agent behavior
+- New RAG algorithm
+- Backend contract changes
+- Large backend changes
+
 ---
 
 ## Tech Stack
@@ -686,6 +731,12 @@ Frontend:
   `pla.workspace.layout`. Notes/LaTeX remains legacy functionality, and
   no embedded PDF viewer, PDF parsing, settings UI, auth, backend API
   contract change, retrieval change, or new LangGraph behavior is added
+- Stage 30 PDF-First Library UX makes PDF the official user-facing
+  Library format, restricts the frontend file picker to PDFs, marks
+  legacy non-PDF records unsupported in the UI, preserves system PDF
+  opening and Agent Chat scoping, and does not add PDF rendering, PDF
+  text extraction, PDF indexing changes, backend contract changes, or
+  new RAG behavior
 
 Planned later:
 - Production-quality agent workflows

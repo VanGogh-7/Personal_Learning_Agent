@@ -3,6 +3,11 @@ import { listLibraryItems } from "../api/client";
 import type { LibraryItem } from "../api/types";
 import RagQueryPanel from "../components/RagQueryPanel";
 import { openLocalFile } from "../tauri/localFiles";
+import {
+  fileNameFromPath,
+  pdfSupportLabel,
+  workspaceStatusLabel,
+} from "../utils/libraryFiles";
 
 const LAYOUT_STORAGE_KEY = "pla.workspace.layout";
 const MIN_LEFT_WIDTH = 220;
@@ -148,7 +153,7 @@ export default function WorkspacePage() {
             <div className="workspace-panel-header">
               <div>
                 <h2>PDF Library</h2>
-                <p>{items.length} items</p>
+                <p>{items.length} PDF books</p>
               </div>
               <button
                 type="button"
@@ -184,7 +189,10 @@ export default function WorkspacePage() {
                     >
                       <span className="explorer-title">{item.title}</span>
                       <span className="explorer-meta">
-                        {item.file_type || "unknown"} · {item.status}
+                        {pdfSupportLabel(item)} · {workspaceStatusLabel(item.status)}
+                      </span>
+                      <span className="explorer-meta">
+                        {workspaceFileLabel(item)}
                       </span>
                     </button>
                   </li>
@@ -227,16 +235,18 @@ export default function WorkspacePage() {
               <h3>Selected PDF: {selectedItem.title}</h3>
               <dl className="detail-grid workspace-detail-grid">
                 <div className="detail-row wide">
-                  <dt>File path</dt>
-                  <dd className="mono-value">{selectedItem.file_path || "No file path"}</dd>
+                  <dt>File</dt>
+                  <dd className="mono-value">
+                    {selectedItem.file_path || "No PDF file path"}
+                  </dd>
                 </div>
                 <div className="detail-row">
                   <dt>Status</dt>
-                  <dd>{selectedItem.status}</dd>
+                  <dd>{workspaceStatusLabel(selectedItem.status)}</dd>
                 </div>
                 <div className="detail-row">
-                  <dt>File type</dt>
-                  <dd>{selectedItem.file_type || "unknown"}</dd>
+                  <dt>PDF support</dt>
+                  <dd>{pdfSupportLabel(selectedItem)}</dd>
                 </div>
               </dl>
               {openError && <p className="error compact-error">{openError}</p>}
@@ -298,4 +308,11 @@ function loadLayoutState(): WorkspaceLayoutState {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function workspaceFileLabel(item: LibraryItem): string {
+  if (!item.file_path) {
+    return "No PDF file path";
+  }
+  return fileNameFromPath(item.file_path) || item.file_path;
 }

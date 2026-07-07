@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 29B: Workspace Layout Refactor MVP.
+Stage 30: PDF-First Library UX.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -96,18 +96,23 @@ Stage 29B: Workspace Layout Refactor MVP.
 - Workspace Layout Refactor MVP: the frontend now opens to a
   PDF-centered Workspace with a collapsible/resizable PDF Library
   Explorer, PDF Workspace placeholder, and docked Agent Chat panel
-  (Stage 29B, current)
+  (Stage 29B, completed)
+- PDF-First Library UX: the frontend Library and Workspace UX now treat
+  PDF as the official user-facing supported format, while legacy
+  `.txt`/`.md` backend support may remain for tests and internal paths
+  (Stage 30, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, embedded PDF rendering, document parsing UI, repository analysis,
 and production packaging are planned but **not implemented yet**. Stage
-29B is a frontend shell refactor only. It does not change
+30 is a frontend PDF-first UX pass only. It does not change
 `/api/agent/chat`, existing RAG endpoints, retrieval behavior,
 LangGraph behavior, memory behavior, learning event behavior, notes
 APIs, database schema, Tauri architecture, or Vite architecture. It
-also does not add an agent planner, tool calling, multi-agent systems,
+also does not add embedded PDF rendering, PDF text extraction, PDF
+indexing changes, an agent planner, tool calling, multi-agent systems,
 streaming, reranking, hybrid search, BM25, full-text search, query
 expansion, real embedding providers, parser changes, whole-book
 synthesis, background jobs, authentication, settings, theme management,
