@@ -43,8 +43,11 @@ Stage 24: Learning History / Progress Timeline — completed.
 Stage 25: Multi-Book RAG MVP — completed.
 Stage 26: Chat RAG Graph Boundary MVP — completed.
 Stage 27: Agent Chat Frontend Integration MVP — completed.
+Stage 28: Agent Chat Stabilization / Regression Polish — completed.
+Stage 29A: Frontend Bun Migration — completed.
+Stage 29B: Workspace Layout Refactor MVP — current.
 
-Current active stage: Stage 28: Agent Chat Stabilization / Regression Polish.
+Current active stage: Stage 29B: Workspace Layout Refactor MVP.
 
 Do not implement the full product at once.
 
@@ -78,7 +81,9 @@ Project stage roadmap:
 25. Multi-Book RAG MVP — completed
 26. Chat RAG Graph Boundary MVP — completed
 27. Agent Chat Frontend Integration MVP — completed
-28. Agent Chat Stabilization / Regression Polish — current
+28. Agent Chat Stabilization / Regression Polish — completed
+29A. Frontend Bun Migration — completed
+29B. Workspace Layout Refactor MVP — current
 
 ---
 
@@ -256,6 +261,24 @@ common error messages, loading/disabled states, and Chat-to-Notes
 compatibility. It does not add planner behavior, tools, streaming,
 graph visualization, settings, auth, themes, new graph nodes, or a new
 RAG algorithm.
+
+Stage 29A is Frontend Bun Migration. The frontend dependency workflow
+uses Bun for install and script execution while preserving the existing
+Tauri + React + Vite architecture. The frontend uses `bun.lock` and no
+longer keeps the npm `package-lock.json`. Stage 29A does not change app
+layout, backend APIs, RAG behavior, LangGraph behavior, or the Tauri,
+React, and Vite architecture.
+
+Stage 29B is Workspace Layout Refactor MVP. The product direction shifts
+toward an IDE-like PDF learning workspace: PDF is the main workspace,
+Library is a collapsible PDF/book explorer, Agent Chat is a docked
+assistant, Calendar / Today Log will become the learning record, and
+Settings should later stay limited to theme plus long-term memory. The
+frontend opens to a Workspace page with a left PDF Library Explorer,
+center PDF Workspace placeholder, and right Agent Chat panel. The
+Library and Agent Chat panels can be hidden, shown, and resized, with
+layout state stored in `localStorage` as `pla.workspace.layout`. Stage
+29B does not add embedded PDF rendering or backend behavior.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -481,6 +504,73 @@ Do not implement in Stage 28:
 - PDF parsing
 - Large UI redesign
 
+Allowed in Stage 29A:
+- Use Bun for frontend dependency management and script execution
+- Generate and commit `frontend/bun.lock`
+- Remove `frontend/package-lock.json`
+- Keep `frontend/`, `frontend/src/`, `frontend/src-tauri/`,
+  `vite.config.ts`, and `package.json`
+- Keep existing package scripts simple when they work with Bun
+- Keep Tauri, React, and Vite unchanged
+- Document `bun install`, `bun run build`, `bun run dev`, and
+  `bun run tauri dev`
+- Preserve backend conda environment `pla` and backend port `8081`
+- Update README/backend/frontend/CODEX documentation
+
+Do not implement in Stage 29A:
+- Workspace layout refactor
+- Embedded PDF viewer
+- PDF.js or react-pdf integration
+- PDF extraction
+- Settings page
+- Theme system
+- User system
+- Auth
+- New LangGraph nodes
+- Backend changes
+- New RAG algorithm
+- Large frontend redesign
+
+Allowed in Stage 29B:
+- Make Workspace the default frontend page
+- Add a left PDF Library Explorer using existing Library APIs
+- Add a center PDF Workspace placeholder only
+- Dock the existing Agent Chat UI on the right
+- Preserve `POST /api/agent/chat`, global/single-book/multi-book scope
+  behavior, structured citations, loading/error/empty states, and
+  Chat-to-Notes compatibility
+- Prefer a selected indexed Library item as the current single-PDF
+  Agent Chat scope when this can be done without backend changes
+- Let the PDF Library and Agent Chat panels hide/show and resize by
+  dragging
+- Persist panel visibility and widths in `localStorage` under
+  `pla.workspace.layout`
+- Update navigation toward Workspace and Learning Progress; keep
+  Notes/LaTeX as legacy code, not a primary product surface
+- Keep Bun + Tauri + React + Vite as the frontend stack
+- Update README/backend/frontend/CODEX documentation
+
+Do not implement in Stage 29B:
+- Embedded PDF viewer
+- PDF.js or react-pdf integration
+- PDF text extraction
+- Page-aware citations
+- Calendar daily summary generation
+- Settings page
+- Theme system
+- Long-term memory management UI
+- Login/register
+- User system
+- Auth
+- New LangGraph nodes
+- Planner
+- Tool calling
+- Multi-agent behavior
+- New RAG algorithm
+- Backend contract changes
+- Retrieval behavior changes
+- Large backend changes
+
 ---
 
 ## Tech Stack
@@ -584,9 +674,24 @@ Frontend:
   scope labels, selected-book summaries, citation/source readability,
   empty retrieval states, common error messages, and disabled/loading
   states without adding new backend graph behavior or redesigning Chat
+- Stage 29A Frontend Bun Migration uses Bun for frontend dependency
+  management and script execution, keeps Tauri + React + Vite
+  unchanged, adds `frontend/bun.lock`, removes
+  `frontend/package-lock.json`, and does not change app architecture,
+  backend APIs, RAG behavior, or LangGraph behavior
+- Stage 29B Workspace Layout Refactor MVP makes Workspace the default
+  frontend page with a collapsible/resizable PDF Library Explorer,
+  center PDF Workspace placeholder, and docked Agent Chat panel.
+  Workspace layout state is persisted in `localStorage` under
+  `pla.workspace.layout`. Notes/LaTeX remains legacy functionality, and
+  no embedded PDF viewer, PDF parsing, settings UI, auth, backend API
+  contract change, retrieval change, or new LangGraph behavior is added
 
 Planned later:
 - Production-quality agent workflows
+- Embedded PDF viewing
+- Calendar / Today Log learning record
+- Simple settings for theme and long-term memory
 - Real embedding provider integration
 - Semantic memory embeddings and long-term memory vector search
 - Rust local backend

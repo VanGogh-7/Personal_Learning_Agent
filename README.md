@@ -6,19 +6,24 @@ metadata, Notes, and a Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 28: Agent Chat Stabilization / Regression Polish.
+Stage 29B: Workspace Layout Refactor MVP.
 
-The Chat page uses the LangGraph-backed agent chat endpoint and now has
-small reliability and clarity polish around scope display, citations,
-empty states, errors, and Chat-to-Notes compatibility:
+The frontend now uses Bun + Tauri + React + Vite and opens to a
+PDF-centered learning workspace:
 
 ```text
-Chat page -> POST /api/agent/chat -> ChatRAGGraph -> existing RAG services
+Bun + Tauri + React + Vite
+PDF Library Explorer | PDF Workspace placeholder | Agent Chat
 ```
 
-Global, single-book, and multi-book contexts still work, citations and
-retrieved chunks still display, and Chat-to-Notes remains compatible.
-LangGraph remains orchestration-only.
+The Library is a collapsible PDF/book explorer, the center pane is a
+future PDF viewer placeholder, and Agent Chat is a docked/collapsible
+assistant. Agent Chat still uses `POST /api/agent/chat`, global/
+single-book/multi-book behavior, citations, retrieved chunks, and
+Chat-to-Notes compatibility. Selecting an indexed Library item in the
+Workspace prefers that item as the current single-PDF chat scope.
+Notes/LaTeX features remain in the codebase but are no longer the
+primary product direction.
 
 ## Configuration
 
@@ -43,45 +48,41 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 28 Does
+## What Stage 29B Does
 
-- Makes the active Chat scope explicit: Global RAG, Single Book, or
-  Multi-Book with selected titles.
-- Improves citation/source readability for book title, author, document
-  path, chunk index, excerpt, and score.
-- Shows a clear empty retrieval message when no chunks or citations are
-  returned.
-- Normalizes common user-facing agent chat errors without exposing
-  internals.
-- Keeps submit/context controls stable while an agent chat request is
-  running.
-- Preserves Chat-to-Notes behavior for global, single-book, and
-  multi-book responses.
-- Keeps LangGraph orchestration-only and existing backend RAG endpoints
-  available.
+- Makes Workspace the default frontend entry.
+- Adds an IDE-like layout with a left PDF Library Explorer, center PDF
+  Workspace placeholder, and right Agent Chat dock.
+- Lets the Library and Agent Chat panels be hidden, shown, and resized.
+- Persists panel visibility and widths in `localStorage` under
+  `pla.workspace.layout`.
+- Shows compact Library items with title, file type, status, and
+  selected-item highlighting.
+- Shows selected PDF metadata in the center placeholder and keeps the
+  existing Tauri local-file opener available as "Open in system PDF
+  reader".
+- Updates navigation and wording toward Workspace, PDF Library, Agent
+  Chat, and Learning Progress.
+- Keeps Calendar/Today Log as the future learning-record direction.
+- Keeps the Stage 29A Bun frontend workflow.
 
-Example request:
+The long-term product direction is:
 
-```json
-{
-  "question": "Compare the definitions in these selected books.",
-  "scope_type": "multi_book",
-  "library_item_id": null,
-  "library_item_ids": ["00000000-0000-0000-0000-000000000000"],
-  "top_k": 5,
-  "session_id": "optional-session-id",
-  "include_long_term_memory": false
-}
+```text
+PDF is the main workspace.
+Library is a collapsible PDF file explorer.
+Agent Chat is a dockable/collapsible assistant.
+Calendar / Today Log will become the learning record.
+Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 28 Does Not Do
+## What Stage 29B Does Not Do
 
-No open-ended agent planner, tool calling, MCP, multi-agent system,
-autonomous behavior, reflection loop, retry loop, self-critique,
-streaming, function calling, settings page, login/user system, theme
-system, graph visualization, new graph nodes, new RAG algorithm,
-reranking, hybrid search, real embeddings, PDF parsing, or large UI
-redesign.
+No embedded PDF viewer, PDF.js/react-pdf integration, PDF parsing, PDF
+extraction, page-aware citations, calendar daily summaries, settings
+page, theme system, long-term memory settings UI, auth/user system, new
+LangGraph nodes, planner, tool calling, multi-agent behavior, new RAG
+algorithm, backend contract changes, or large backend changes.
 
 ## Commands
 
@@ -105,7 +106,8 @@ Frontend build:
 
 ```bash
 cd frontend
-npm run build
+bun install
+bun run build
 ```
 
 See `backend/README.md` and `frontend/README.md` for detailed setup and

@@ -1,10 +1,8 @@
 import type { AppPage } from "./AppLayout";
 
 const NAV_ITEMS: Array<{ id: AppPage; label: string; description: string }> = [
-  { id: "chat", label: "Chat", description: "RAG and memory tools" },
-  { id: "library", label: "Library", description: "Book metadata" },
-  { id: "notes", label: "Notes", description: "LaTeX workspace later" },
-  { id: "progress", label: "Progress", description: "Learning timeline" },
+  { id: "workspace", label: "Workspace", description: "PDF workspace" },
+  { id: "progress", label: "Progress", description: "Learning record" },
 ];
 
 export default function Sidebar({

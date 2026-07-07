@@ -15,7 +15,11 @@ import type {
   RagCitation,
 } from "../api/types";
 
-export default function RagQueryPanel() {
+export default function RagQueryPanel({
+  workspaceSelectedItem,
+}: {
+  workspaceSelectedItem?: LibraryItem | null;
+}) {
   const [question, setQuestion] = useState("");
   const [topK, setTopK] = useState(5);
   const [sessionId, setSessionId] = useState("");
@@ -44,14 +48,47 @@ export default function RagQueryPanel() {
     void loadLibraryContexts();
   }, []);
 
+  useEffect(() => {
+    if (!workspaceSelectedItem) {
+      return;
+    }
+
+    if (workspaceSelectedItem.status !== "indexed") {
+      setSelectedLibraryItemIds([]);
+      setResult(null);
+      setError(null);
+      setLastQuestion("");
+      clearNoteDraft();
+      return;
+    }
+
+    setLibraryItems((current) =>
+      current.some((item) => item.id === workspaceSelectedItem.id)
+        ? current.map((item) =>
+            item.id === workspaceSelectedItem.id ? workspaceSelectedItem : item,
+          )
+        : [workspaceSelectedItem, ...current],
+    );
+    setSelectedLibraryItemIds([workspaceSelectedItem.id]);
+    setResult(null);
+    setError(null);
+    setLastQuestion("");
+    clearNoteDraft();
+  }, [workspaceSelectedItem]);
+
   async function loadLibraryContexts() {
     setContextError(null);
     setLoadingContexts(true);
     try {
       const response = await listLibraryItems({ status: "indexed", limit: 100 });
-      setLibraryItems(response.items);
+      const indexedItems =
+        workspaceSelectedItem?.status === "indexed" &&
+        !response.items.some((item) => item.id === workspaceSelectedItem.id)
+          ? [workspaceSelectedItem, ...response.items]
+          : response.items;
+      setLibraryItems(indexedItems);
       setSelectedLibraryItemIds((current) =>
-        current.filter((itemId) => response.items.some((item) => item.id === itemId)),
+        current.filter((itemId) => indexedItems.some((item) => item.id === itemId)),
       );
     } catch (err) {
       setLibraryItems([]);
@@ -184,10 +221,16 @@ export default function RagQueryPanel() {
     <section className="panel">
       <div className="panel-heading">
         <div>
-          <h2>RAG Query</h2>
-          <p>Ask the local backend and inspect retrieved chunks.</p>
+          <h2>Agent Chat</h2>
+          <p>Ask across indexed PDFs and inspect retrieved source chunks.</p>
         </div>
       </div>
+
+      {workspaceSelectedItem && workspaceSelectedItem.status !== "indexed" && (
+        <p className="empty-state">
+          Selected PDF is not indexed yet. Agent Chat is using Global RAG.
+        </p>
+      )}
 
       <form className="form-grid" onSubmit={submitQuery}>
         <div className="field-group full-width">
@@ -217,8 +260,8 @@ export default function RagQueryPanel() {
               {libraryItems.length === 0 ? (
                 <p className="empty-state">
                   {loadingContexts
-                    ? "Loading indexed Library items..."
-                    : "No indexed Library items are available."}
+                    ? "Loading indexed PDF Library items..."
+                    : "No indexed PDF Library items are available."}
                 </p>
               ) : (
                 libraryItems.map((item) => (
@@ -246,7 +289,7 @@ export default function RagQueryPanel() {
               disabled={loading || loadingContexts}
               onClick={loadLibraryContexts}
             >
-              {loadingContexts ? "Loading..." : "Reload books"}
+              {loadingContexts ? "Loading..." : "Reload PDFs"}
             </button>
           </div>
         </div>
@@ -257,7 +300,7 @@ export default function RagQueryPanel() {
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             rows={4}
-            placeholder="Ask a question about indexed learning material..."
+            placeholder="Ask a question about indexed PDFs..."
           />
         </label>
 
@@ -504,9 +547,9 @@ function scopeDisplayLabel(scopeType: AgentChatScopeType, selectedItems: Pick<Li
     return "Global RAG";
   }
   if (scopeType === "single_book") {
-    return `Single Book: ${selectedItems[0]?.title || "selected book"}`;
+    return `Single PDF: ${selectedItems[0]?.title || "selected PDF"}`;
   }
-  return `Multi-Book: ${selectedItems.length} selected books`;
+  return `Multi-PDF: ${selectedItems.length} selected PDFs`;
 }
 
 function contextHelp(selectedItems: LibraryItem[]): string {
@@ -514,9 +557,9 @@ function contextHelp(selectedItems: LibraryItem[]): string {
     return "Queries use the global indexed knowledge base.";
   }
   if (selectedItems.length === 1) {
-    return `Book-scoped RAG: ${selectedItems[0].title}`;
+    return `PDF-scoped RAG: ${selectedItems[0].title}`;
   }
-  return `Multi-book RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
+  return `Multi-PDF RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
 }
 
 function compactSelectedTitles(selectedItems: Pick<LibraryItem, "title">[]): string[] {

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 26: Chat RAG Graph Boundary MVP.
+Stage 29B: Workspace Layout Refactor MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -83,18 +83,35 @@ Stage 26: Chat RAG Graph Boundary MVP.
 - Chat RAG Graph Boundary MVP: `POST /api/agent/chat` runs a minimal
   LangGraph workflow that orchestrates existing validation, RAG
   retrieval, memory, citation, prompt, LLM provider, and learning-event
-  services without replacing them (Stage 26, current)
+  services without replacing them (Stage 26, completed)
+- Agent Chat Frontend Integration MVP: the frontend Chat flow uses
+  `POST /api/agent/chat` while preserving global, single-book, and
+  multi-book behavior (Stage 27, completed)
+- Agent Chat Stabilization / Regression Polish: the frontend clarifies
+  scope display, citations, empty states, common errors, loading states,
+  and Chat-to-Notes compatibility (Stage 28, completed)
+- Frontend Bun Migration: the frontend uses Bun for dependency
+  management and script execution while keeping Tauri, React, Vite, and
+  the existing app architecture unchanged (Stage 29A, completed)
+- Workspace Layout Refactor MVP: the frontend now opens to a
+  PDF-centered Workspace with a collapsible/resizable PDF Library
+  Explorer, PDF Workspace placeholder, and docked Agent Chat panel
+  (Stage 29B, current)
 
 Real embedding provider integration (DeepSeek, OpenAI, or otherwise),
 semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
-logic, document parsing UI, repository analysis, and production
-packaging are planned but **not implemented yet**. Stage 26 is a graph
-boundary only. It does not add an agent planner, tool calling,
-multi-agent systems, streaming, reranking, hybrid search, BM25,
-full-text search, query expansion, real embedding providers, parser
-changes, whole-book synthesis, background jobs, authentication, or
-deployment.
+logic, embedded PDF rendering, document parsing UI, repository analysis,
+and production packaging are planned but **not implemented yet**. Stage
+29B is a frontend shell refactor only. It does not change
+`/api/agent/chat`, existing RAG endpoints, retrieval behavior,
+LangGraph behavior, memory behavior, learning event behavior, notes
+APIs, database schema, Tauri architecture, or Vite architecture. It
+also does not add an agent planner, tool calling, multi-agent systems,
+streaming, reranking, hybrid search, BM25, full-text search, query
+expansion, real embedding providers, parser changes, whole-book
+synthesis, background jobs, authentication, settings, theme management,
+or deployment.
 
 ## Setup
 
@@ -213,18 +230,18 @@ does not auto-start FastAPI.
 
 ```bash
 cd frontend
-npm install
-npm run dev
-npm run tauri dev
+bun install
+bun run dev
+bun run tauri dev
 ```
 
 Build the React frontend with:
 
 ```bash
-npm run build
+bun run build
 ```
 
-If `npm run dev` or `npm run tauri dev` reports a port conflict, stop
+If `bun run dev` or `bun run tauri dev` reports a port conflict, stop
 the process already using `127.0.0.1:1420` and rerun the command. The
 Vite dev server is intentionally pinned to that local port for Tauri
 development.
@@ -715,10 +732,10 @@ Frontend commands:
 
 ```bash
 cd frontend
-npm install
-npm run dev
-npm run tauri dev
-npm run build
+bun install
+bun run dev
+bun run tauri dev
+bun run build
 ```
 
 Stage 8 limitations:
@@ -821,12 +838,12 @@ shows an `Open` button in the desktop app. Clicking it asks Tauri to
 open that local path externally, for example with the operating
 system's default PDF viewer, text editor, or TeX editor.
 
-If you run only the browser dev server with `npm run dev`, local file
+If you run only the browser dev server with `bun run dev`, local file
 opening depends on Tauri APIs and should be tested with:
 
 ```bash
 cd frontend
-npm run tauri dev
+bun run tauri dev
 ```
 
 Stage 11 intentionally does **not** include internal PDF preview,
