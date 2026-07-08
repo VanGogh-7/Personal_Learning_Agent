@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.embeddings.providers import EmbeddingProviderError
 from app.graphs.chat_rag_graph import (
     ChatRAGGraphError,
     ChatRAGValidationError,
@@ -40,7 +41,7 @@ def agent_chat_endpoint(request: AgentChatRequest) -> AgentChatResponse:
         except SQLAlchemyError as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail="Database is unavailable") from exc
-        except (LLMConfigurationError, LLMProviderError) as exc:
+        except (EmbeddingProviderError, LLMConfigurationError, LLMProviderError) as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail=str(exc)) from exc
     finally:

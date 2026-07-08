@@ -1,10 +1,10 @@
 # Personal Learning Agent Frontend
 
-Stage 33 adds the Today Log learning-record view to the Workspace. The stack
-remains Bun + Tauri + React + Vite. The default page is the
-IDE-like Workspace with a collapsible/resizable PDF Library Explorer, a
-center embedded PDF Workspace, and a collapsible/resizable Agent Chat
-dock. The FastAPI backend must be started separately on
+Stage 42 simplifies the right Agent Chat dock for the selected PDF
+workflow. The stack remains Bun + Tauri + React + Vite. The default
+page is the IDE-like Workspace with a collapsible/resizable PDF Library
+Explorer, a center embedded PDF Workspace, and a collapsible/resizable
+Agent Chat dock. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -93,17 +93,18 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   resized by dragging their panel borders
 - Workspace panel visibility and widths persist in `localStorage` as
   `pla.workspace.layout`
-- Agent Chat dock preserves `POST /api/agent/chat`, global RAG,
-  one-book RAG, multi-book RAG, loading/error/empty states, citations,
-  and Chat-to-Notes compatibility
-- Selecting an indexed Library item in the Workspace prefers that item
-  as the current single-PDF Agent Chat scope
-- Agent Chat context selector supports zero, one, or many indexed
-  Library items. Zero sends `scope_type: "global"` to
-  `POST /api/agent/chat`, one sends `scope_type: "single_book"`, and
-  two or more send `scope_type: "multi_book"`
-- Agent Chat Sources section for structured RAG citations
-- Multi-book citations show source Library item metadata for each chunk
+- Agent Chat dock uses `POST /api/agent/chat` with a product request:
+  `message` plus the selected indexed Workspace item as
+  `selected_library_item_id` when available
+- Agent Chat no longer shows main-panel controls for RAG mode, `top_k`,
+  `session_id`, long-term memory, manual context selection, or
+  embedding/indexing debug details
+- Selecting an indexed Library item in the Workspace automatically uses
+  that item as the current PDF context for Agent Chat
+- Agent Chat Sources section displays normalized citation IDs, source
+  title, page/page range, chunk index, and chapter/section metadata when
+  returned by the backend
+- Citations show source Library item metadata for each chunk
 - Empty citation/retrieval results show a clear no relevant chunks message
 - Agent Chat `Create LaTeX Note` action for the latest RAG response
 - Inline note draft review/edit/save panel in Agent Chat
@@ -176,7 +177,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 33
+  Stage 42
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary

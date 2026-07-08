@@ -1,14 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   createChatNoteDraft,
   createNote,
-  listLibraryItems,
   queryAgentChat,
 } from "../api/client";
 import type {
   AgentChatRequest,
   AgentChatResponse,
-  AgentChatScopeType,
   ChatNoteDraftResponse,
   LibraryItem,
   Note,
@@ -21,115 +19,55 @@ export default function RagQueryPanel({
   workspaceSelectedItem?: LibraryItem | null;
 }) {
   const [question, setQuestion] = useState("");
-  const [topK, setTopK] = useState(5);
-  const [sessionId, setSessionId] = useState("");
-  const [includeLongTermMemory, setIncludeLongTermMemory] = useState(false);
-  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
-  const [selectedLibraryItemIds, setSelectedLibraryItemIds] = useState<string[]>([]);
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [result, setResult] = useState<AgentChatResponse | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [noteDraft, setNoteDraft] = useState<ChatNoteDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [contextError, setContextError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteSuccess, setNoteSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingContexts, setLoadingContexts] = useState(false);
   const [generatingNote, setGeneratingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
 
-  const selectedLibraryItems = useMemo(
-    () => libraryItems.filter((item) => selectedLibraryItemIds.includes(item.id)),
-    [libraryItems, selectedLibraryItemIds],
-  );
-  const activeScope = scopeTypeForSelection(selectedLibraryItemIds);
-
   useEffect(() => {
-    void loadLibraryContexts();
-  }, []);
-
-  useEffect(() => {
-    if (!workspaceSelectedItem) {
-      return;
-    }
-
-    if (workspaceSelectedItem.status !== "indexed") {
-      setSelectedLibraryItemIds([]);
-      setResult(null);
-      setError(null);
-      setLastQuestion("");
-      clearNoteDraft();
-      return;
-    }
-
-    setLibraryItems((current) =>
-      current.some((item) => item.id === workspaceSelectedItem.id)
-        ? current.map((item) =>
-            item.id === workspaceSelectedItem.id ? workspaceSelectedItem : item,
-          )
-        : [workspaceSelectedItem, ...current],
-    );
-    setSelectedLibraryItemIds([workspaceSelectedItem.id]);
+    setChatTurns([]);
     setResult(null);
-    setError(null);
     setLastQuestion("");
+    setError(null);
     clearNoteDraft();
-  }, [workspaceSelectedItem]);
-
-  async function loadLibraryContexts() {
-    setContextError(null);
-    setLoadingContexts(true);
-    try {
-      const response = await listLibraryItems({ status: "indexed", limit: 100 });
-      const indexedItems =
-        workspaceSelectedItem?.status === "indexed" &&
-        !response.items.some((item) => item.id === workspaceSelectedItem.id)
-          ? [workspaceSelectedItem, ...response.items]
-          : response.items;
-      setLibraryItems(indexedItems);
-      setSelectedLibraryItemIds((current) =>
-        current.filter((itemId) => indexedItems.some((item) => item.id === itemId)),
-      );
-    } catch (err) {
-      setLibraryItems([]);
-      setContextError(
-        err instanceof Error ? err.message : "Could not load indexed library items.",
-      );
-    } finally {
-      setLoadingContexts(false);
-    }
-  }
+  }, [workspaceSelectedItem?.id]);
 
   async function submitQuery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
-    if (!question.trim()) {
+    const submittedQuestion = question.trim();
+    if (!submittedQuestion) {
       setError("Question is required.");
-      return;
-    }
-    if (!Number.isInteger(topK) || topK < 1 || topK > 20) {
-      setError("top_k must be an integer between 1 and 20.");
       return;
     }
 
     setLoading(true);
     try {
       const payload: AgentChatRequest = {
-        question: question.trim(),
-        scope_type: activeScope,
-        library_item_id:
-          selectedLibraryItemIds.length === 1 ? selectedLibraryItemIds[0] : null,
-        library_item_ids:
-          selectedLibraryItemIds.length >= 2 ? selectedLibraryItemIds : [],
-        top_k: topK,
-        session_id: sessionId.trim() || undefined,
-        include_long_term_memory: includeLongTermMemory,
+        message: submittedQuestion,
       };
+      if (workspaceSelectedItem?.status === "indexed") {
+        payload.selected_library_item_id = workspaceSelectedItem.id;
+      }
       const response = await queryAgentChat(payload);
       setResult(response);
-      setLastQuestion(payload.question);
-      setSessionId(response.session_id);
+      setLastQuestion(payload.message);
+      setChatTurns((current) => [
+        ...current,
+        {
+          id: current.length + 1,
+          question: submittedQuestion,
+          answer: response.answer,
+        },
+      ]);
+      setQuestion("");
       clearNoteDraft();
     } catch (err) {
       setResult(null);
@@ -205,209 +143,64 @@ export default function RagQueryPanel({
     setNoteSuccess(null);
   }
 
-  function toggleLibraryItem(itemId: string) {
-    setSelectedLibraryItemIds((current) =>
-      current.includes(itemId)
-        ? current.filter((selectedId) => selectedId !== itemId)
-        : [...current, itemId],
-    );
-    setResult(null);
-    setError(null);
-    setLastQuestion("");
-    clearNoteDraft();
-  }
-
   return (
-    <section className="panel">
+    <section className="panel agent-chat-panel">
       <div className="panel-heading">
         <div>
           <h2>Agent Chat</h2>
-          <p>Ask across indexed PDFs and inspect retrieved source chunks.</p>
+          <p>{activeContextLabel(workspaceSelectedItem)}</p>
         </div>
       </div>
 
       {workspaceSelectedItem && workspaceSelectedItem.status !== "indexed" && (
         <p className="empty-state">
-          Selected PDF is not indexed yet. Agent Chat is using Global RAG.
+          Selected PDF is not indexed yet. This message will use the general chat route.
         </p>
       )}
 
-      <form className="form-grid" onSubmit={submitQuery}>
-        <div className="field-group full-width">
-          <span className="field-label">Context</span>
-          <div className="context-selector">
-            <div className="context-selector-header">
-              <div>
-                <strong>{scopeDisplayLabel(activeScope, selectedLibraryItems)}</strong>
-                <span>{contextHelp(selectedLibraryItems)}</span>
+      <div className="chat-thread" aria-live="polite">
+        {chatTurns.length === 0 && !loading ? (
+          <p className="empty-state">Ask a question about the selected PDF.</p>
+        ) : (
+          <>
+            {chatTurns.map((turn) => (
+              <div className="chat-turn" key={turn.id}>
+                <div className="chat-message user-message">
+                  <p>{turn.question}</p>
+                </div>
+                <div className="chat-message assistant-message">
+                  <div className="answer-text">{turn.answer}</div>
+                </div>
               </div>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={loading || selectedLibraryItemIds.length === 0}
-                onClick={() => {
-                  setSelectedLibraryItemIds([]);
-                  setResult(null);
-                  setError(null);
-                  setLastQuestion("");
-                  clearNoteDraft();
-                }}
-              >
-                Global RAG
-              </button>
-            </div>
-            <div className="context-book-list">
-              {libraryItems.length === 0 ? (
-                <p className="empty-state">
-                  {loadingContexts
-                    ? "Loading indexed PDF Library items..."
-                    : "No indexed PDF Library items are available."}
-                </p>
-              ) : (
-                libraryItems.map((item) => (
-                  <label key={item.id} className="context-book-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedLibraryItemIds.includes(item.id)}
-                      disabled={loading}
-                      onChange={() => toggleLibraryItem(item.id)}
-                    />
-                    <span>
-                      <strong>{item.title}</strong>
-                      <small>
-                        {item.author ? `${item.author} · ` : ""}
-                        status {item.status} · type {item.file_type || "unknown"}
-                      </small>
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={loading || loadingContexts}
-              onClick={loadLibraryContexts}
-            >
-              {loadingContexts ? "Loading..." : "Reload PDFs"}
-            </button>
-          </div>
-        </div>
+            ))}
+            {loading && <p className="empty-state">Sending...</p>}
+          </>
+        )}
+      </div>
 
-        <label className="full-width">
-          Question
+      <form className="chat-compose" onSubmit={submitQuery}>
+        <label>
+          <span className="sr-only">Message</span>
           <textarea
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            rows={4}
-            placeholder="Ask a question about indexed PDFs..."
+            rows={3}
+            placeholder="Ask about this PDF..."
           />
         </label>
-
-        <label>
-          top_k
-          <input
-            type="number"
-            min={1}
-            max={20}
-            value={topK}
-            onChange={(event) => setTopK(event.target.valueAsNumber)}
-          />
-        </label>
-
-        <label>
-          session_id
-          <input
-            value={sessionId}
-            onChange={(event) => setSessionId(event.target.value)}
-            placeholder="Optional"
-          />
-        </label>
-
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={includeLongTermMemory}
-            onChange={(event) => setIncludeLongTermMemory(event.target.checked)}
-          />
-          Include long-term memory
-        </label>
-
         <button type="submit" disabled={loading}>
-          {loading ? "Asking agent..." : "Submit query"}
+          {loading ? "Sending..." : "Send"}
         </button>
       </form>
 
-      {contextError && <p className="error">{contextError}</p>}
       {error && <p className="error">{error}</p>}
 
       {result && (
         <div className="response-block">
-          <h3>Answer</h3>
           <div className="scope-summary">
-            <strong>{scopeDisplayLabel(result.scope_type, result.selected_library_items)}</strong>
-            {result.scope_type === "multi_book" && result.selected_library_items.length > 0 && (
-              <div className="scope-chip-row">
-                {compactSelectedTitles(result.selected_library_items).map((title) => (
-                  <span key={title} className="tag-badge">
-                    {title}
-                  </span>
-                ))}
-              </div>
-            )}
+            <strong>{responseContextLabel(result)}</strong>
+            <span>{routeLabel(result.route)}</span>
           </div>
-          {result.scope_type === "single_book" && result.selected_library_items[0] && (
-            <div className="result-block">
-              <h3>Selected Book</h3>
-              <p>
-                {result.selected_library_items[0].title}
-                {result.selected_library_items[0].author
-                  ? ` by ${result.selected_library_items[0].author}`
-                  : ""}
-              </p>
-              <small>
-                status {result.selected_library_items[0].status} · type{" "}
-                {result.selected_library_items[0].file_type || "unknown"}
-              </small>
-            </div>
-          )}
-          {result.scope_type === "multi_book" && result.selected_library_items.length > 0 && (
-            <div className="result-block">
-              <h3>Selected Books</h3>
-              <ul className="plain-list">
-                {result.selected_library_items.map((item) => (
-                  <li key={item.id}>
-                    {item.title}
-                    {item.author ? ` by ${item.author}` : ""}
-                    <small>
-                      {" "}
-                      status {item.status} · type {item.file_type || "unknown"}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <p>{result.answer}</p>
-
-          <dl className="metadata-list">
-            <div>
-              <dt>session_id</dt>
-              <dd>{result.session_id}</dd>
-            </div>
-            <div>
-              <dt>retrieved</dt>
-              <dd>{result.total_retrieved}</dd>
-            </div>
-            <div>
-              <dt>recent turns</dt>
-              <dd>{result.memory.used_recent_turns}</dd>
-            </div>
-            <div>
-              <dt>long-term memories</dt>
-              <dd>{result.memory.used_long_term_memories}</dd>
-            </div>
-          </dl>
 
           <div className="result-block">
             <div className="panel-heading compact-heading">
@@ -459,11 +252,8 @@ export default function RagQueryPanel({
                 </label>
                 <p className="muted compact-note">
                   {noteDraft.library_item_id
-                    ? `Will save with library_item_id ${noteDraft.library_item_id}.`
+                    ? "Will save with the selected book."
                     : "Will save without an associated book."}
-                  {noteDraft.source_session_id
-                    ? ` Source session: ${noteDraft.source_session_id}.`
-                    : ""}
                 </p>
                 <div className="button-row full-width">
                   <button type="button" disabled={savingNote} onClick={saveNoteDraft}>
@@ -491,7 +281,6 @@ export default function RagQueryPanel({
                       <span>
                         [{citation.citation_id}] {sourceTitle(citation)}
                       </span>
-                      <span>score {citation.score.toFixed(4)}</span>
                     </div>
                     <small className="citation-meta">{citationMetadata(citation)}</small>
                     <p>{citation.excerpt || "No excerpt available."}</p>
@@ -500,38 +289,17 @@ export default function RagQueryPanel({
               </ul>
             )}
           </div>
-
-          <h3>Retrieved Chunks</h3>
-          {result.retrieved_chunks.length === 0 ? (
-            <p className="empty-state">
-              No relevant indexed chunks were retrieved for this question.
-            </p>
-          ) : (
-            <ul className="item-list">
-              {result.retrieved_chunks.map((chunk) => (
-                <li key={chunk.chunk_id}>
-                  <div className="item-title">
-                    <span>{chunk.document_title || "Untitled document"}</span>
-                    <span>score {chunk.score.toFixed(4)}</span>
-                  </div>
-                  <p>{preview(chunk.content)}</p>
-                  <small>
-                    {chunk.citation.library_title ? `${chunk.citation.library_title} · ` : ""}
-                    chunk {chunk.chunk_index} · chars {chunk.char_start}-{chunk.char_end}
-                  </small>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
     </section>
   );
 }
 
-function preview(content: string): string {
-  return content.length > 260 ? `${content.slice(0, 260)}...` : content;
-}
+type ChatTurn = {
+  id: number;
+  question: string;
+  answer: string;
+};
 
 function sourceTitle(citation: RagCitation): string {
   return (
@@ -542,41 +310,40 @@ function sourceTitle(citation: RagCitation): string {
   );
 }
 
-function scopeDisplayLabel(scopeType: AgentChatScopeType, selectedItems: Pick<LibraryItem, "title">[]): string {
-  if (scopeType === "global") {
-    return "Global RAG";
+function activeContextLabel(item?: LibraryItem | null): string {
+  if (!item) {
+    return "Ask a question. Selecting a PDF adds book context automatically.";
   }
-  if (scopeType === "single_book") {
-    return `Single PDF: ${selectedItems[0]?.title || "selected PDF"}`;
+  if (item.status !== "indexed") {
+    return `${item.title} is selected but not indexed.`;
   }
-  return `Multi-PDF: ${selectedItems.length} selected PDFs`;
+  return `Using ${item.title}`;
 }
 
-function contextHelp(selectedItems: LibraryItem[]): string {
-  if (selectedItems.length === 0) {
-    return "Queries use the global indexed knowledge base.";
+function responseContextLabel(result: AgentChatResponse): string {
+  if (result.selected_library_items.length === 0) {
+    return "General chat";
   }
-  if (selectedItems.length === 1) {
-    return `PDF-scoped RAG: ${selectedItems[0].title}`;
-  }
-  return `Multi-PDF RAG: ${selectedItems.map((item) => item.title).join(", ")}`;
+  return result.selected_library_items.map((item) => item.title).join(", ");
 }
 
-function compactSelectedTitles(selectedItems: Pick<LibraryItem, "title">[]): string[] {
-  const titles = selectedItems.map((item) => item.title);
-  if (titles.length <= 3) {
-    return titles;
+function routeLabel(route: AgentChatResponse["route"]): string {
+  if (route === "local_only") {
+    return "Local library";
   }
-  return [...titles.slice(0, 3), `+${titles.length - 3} more`];
+  if (route === "web_only") {
+    return "Web route";
+  }
+  return "Local library and web route";
 }
 
 function citationMetadata(citation: RagCitation): string {
   const parts = [
-    citation.library_author ? `Author: ${citation.library_author}` : null,
-    citation.document_title ? `Document: ${citation.document_title}` : null,
-    citation.document_source_path ? `Path: ${citation.document_source_path}` : null,
     citationPageLabel(citation),
     `Chunk: ${citation.chunk_index}`,
+    citation.chapter_title ? `Chapter: ${citation.chapter_title}` : null,
+    citation.section_title ? `Section: ${citation.section_title}` : null,
+    citation.document_title ? `Document: ${citation.document_title}` : null,
   ];
   return parts.filter(Boolean).join(" · ");
 }
@@ -593,16 +360,6 @@ function citationPageLabel(citation: RagCitation): string | null {
   return null;
 }
 
-function scopeTypeForSelection(selectedIds: string[]): AgentChatScopeType {
-  if (selectedIds.length === 0) {
-    return "global";
-  }
-  if (selectedIds.length === 1) {
-    return "single_book";
-  }
-  return "multi_book";
-}
-
 function formatAgentChatError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   const normalized = message.toLowerCase();
@@ -611,16 +368,13 @@ function formatAgentChatError(error: unknown): string {
     return "Backend unavailable. Make sure the FastAPI backend is running at http://127.0.0.1:8081.";
   }
   if (normalized.includes("scope_type")) {
-    return "The selected chat scope is invalid. Reload the page and try again.";
+    return "The chat request is invalid. Reload the page and try again.";
   }
   if (
     normalized.includes("not been indexed") ||
     normalized.includes("no indexed chunks")
   ) {
     return "The selected book is not indexed or has no searchable chunks.";
-  }
-  if (normalized.includes("library_item_ids must not be empty")) {
-    return "Select at least one indexed book for multi-book chat.";
   }
   if (normalized.includes("library item not found")) {
     return "One selected book could not be found. Reload the book list and try again.";

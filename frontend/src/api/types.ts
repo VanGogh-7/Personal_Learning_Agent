@@ -36,6 +36,9 @@ export interface RagCitation {
   page_number: number | null;
   page_start: number | null;
   page_end: number | null;
+  section_type?: string | null;
+  chapter_title?: string | null;
+  section_title?: string | null;
   score: number;
   excerpt: string;
   content: string;
@@ -50,6 +53,9 @@ export interface RetrievedChunk {
   page_number: number | null;
   page_start: number | null;
   page_end: number | null;
+  section_type?: string | null;
+  chapter_title?: string | null;
+  section_title?: string | null;
   content: string;
   char_start: number;
   char_end: number;
@@ -91,16 +97,29 @@ export interface MultiBookRagQueryResponse extends RagQueryResponse {
 }
 
 export type AgentChatScopeType = "global" | "single_book" | "multi_book";
+export type AgentChatRoute = "local_only" | "web_only" | "both";
 
-export interface AgentChatRequest extends RagQueryRequest {
-  scope_type: AgentChatScopeType;
-  library_item_id?: string | null;
-  library_item_ids: string[];
+export interface AgentChatRequest {
+  message: string;
+  selected_library_item_id?: string | null;
+  selected_library_item_ids?: string[];
 }
 
 export interface AgentChatResponse extends RagQueryResponse {
   scope_type: AgentChatScopeType;
+  route: AgentChatRoute;
   selected_library_items: SelectedLibraryItem[];
+  web_sources?: WebSource[];
+  local_summary?: string | null;
+  web_summary?: string | null;
+}
+
+export interface WebSource {
+  source_id: string;
+  title: string;
+  url: string;
+  excerpt: string;
+  provider: string;
 }
 
 export interface LongTermMemoryCreateRequest {

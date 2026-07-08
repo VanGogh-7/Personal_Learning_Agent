@@ -4,6 +4,7 @@ from app.agents.local_library import LocalLibraryAgentResult
 from app.agents.router import AgentRoute
 from app.agents.web_research import WebResearchResult
 from app.llm.providers import DETERMINISTIC_ANSWER_MARKER, LLMProvider
+from app.rag.citations import ChunkCitationResult, format_citation_source
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,9 @@ def synthesize_agent_answer(
                 deterministic_answer=answer,
                 local_summary=local_summary,
                 web_summary=web_summary,
+                local_citations=local_result.citations
+                if local_result is not None
+                else [],
                 local_citation_count=(
                     len(local_result.citations) if local_result is not None else 0
                 ),
@@ -70,6 +74,7 @@ def build_synthesis_prompt(
     deterministic_answer: str,
     local_summary: str | None,
     web_summary: str | None,
+    local_citations: list[ChunkCitationResult] | None = None,
     local_citation_count: int,
     web_source_count: int,
 ) -> str:
@@ -78,6 +83,8 @@ def build_synthesis_prompt(
         "Synthesize a final learning answer from the fixed agent outputs.",
         "Use only the provided local and web summaries.",
         "If evidence is missing, say so clearly.",
+        "When using local Library evidence, cite claims with the provided [S#] IDs.",
+        "Do not invent source IDs or alternate source labels.",
         "",
         "Question:",
         question.strip(),
@@ -89,6 +96,13 @@ def build_synthesis_prompt(
 
     if local_summary:
         lines.extend(["", "Local Library Agent summary:", local_summary.strip()])
+
+    if local_citations:
+        lines.extend(["", "Local Library sources:"])
+        for citation in local_citations:
+            lines.append(format_citation_source(citation))
+            lines.append("Text:")
+            lines.append(citation.content.strip())
 
     if web_summary:
         lines.extend(["", "Web Research Agent summary:", web_summary.strip()])

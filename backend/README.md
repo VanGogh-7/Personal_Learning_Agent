@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 40: Citation Formatting and Answer Grounding Polish.
+Stage 42: Frontend Agent Chat Simplification.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -160,23 +160,33 @@ Stage 40: Citation Formatting and Answer Grounding Polish.
   context now uses normalized `[S#]` source IDs, asks real LLM answers
   to ground book claims in retrieved chunks, and surfaces page/section
   metadata in structured citations and `scripts/ask_book.py` Sources
-  output (Stage 40, current)
+  output (Stage 40, completed)
+- Backend Agent Chat Product API Polish: `POST /api/agent/chat` accepts
+  a simple `message` plus optional selected Library item IDs, infers
+  local RAG scope without frontend debug controls, and keeps the
+  existing response/citation contract backward compatible (Stage 41,
+  completed)
+- Frontend Agent Chat Simplification: the existing frontend Agent Chat
+  dock now sends the Stage 41 product request shape, automatically uses
+  the selected indexed PDF context, hides low-level RAG/debug controls,
+  and displays normalized Sources without backend behavior changes
+  (Stage 42, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 40 is a backend-only answer/citation
-polish pass. It keeps `/api/agent/chat` as the Agent Chat API and preserves its
-existing request/response compatibility. It does not change frontend
-workspace behavior, Tauri architecture, Vite architecture, local
-retrieval algorithms, chunking, memory behavior, learning-event
-semantics, or Notes APIs. It does not add frontend settings UI, auth,
-autonomous planning, broad tool calling, open-ended multi-agent systems,
-web browsing, streaming, reranking, hybrid search, BM25, full-text
-search, query expansion, OCR, annotations, selected-text workflows,
-whole-book synthesis, background jobs, theme management, deployment,
-provider behavior, retrieval ranking, complex theorem/definition/proof
-parsing, OCR, or ML-based layout parsing.
+**not implemented yet**. Stage 42 is a frontend Agent Chat
+simplification pass on top of the Stage 41 backend product API. It does
+not change backend routes, database schema, Tauri architecture, Vite
+architecture, local retrieval algorithms, chunking, memory behavior,
+learning-event semantics, Notes APIs, provider behavior, or response
+contracts. It does not add frontend settings UI, auth, autonomous
+planning, broad tool calling, open-ended multi-agent systems, web
+browsing, streaming, reranking, hybrid search, BM25, full-text search,
+query expansion, OCR, annotations, selected-text workflows, whole-book
+synthesis, background jobs, theme management, deployment, retrieval
+ranking, complex theorem/definition/proof parsing, OCR, or ML-based
+layout parsing.
 
 ## Setup
 
@@ -1159,8 +1169,8 @@ Manual smoke path:
 1. Register a Library item with `file_type: "pdf"` and a local
    `file_path`.
 2. Run `POST /api/library/items/{item_id}/index`.
-3. Ask through `POST /api/agent/chat` with `scope_type: "single_book"`
-   and that `library_item_id`.
+3. Ask through `POST /api/agent/chat` with `message` and
+   `selected_library_item_id`.
 4. Verify the response contains an answer, retrieved chunks, structured
    citations, and page metadata when available.
 
@@ -1311,18 +1321,17 @@ Request:
 
 ```json
 {
-  "question": "What is a vector space?",
-  "scope_type": "multi_book",
-  "library_item_id": null,
-  "library_item_ids": [
-    "00000000-0000-0000-0000-000000000000",
-    "11111111-1111-1111-1111-111111111111"
-  ],
-  "top_k": 5,
-  "session_id": "optional-session-id",
-  "include_long_term_memory": false
+  "message": "What does this book say about complete metric spaces?",
+  "selected_library_item_id": "00000000-0000-0000-0000-000000000000"
 }
 ```
+
+For multi-book requests, send `selected_library_item_ids`. The backend
+infers `single_book` or `multi_book` scope from those selected IDs.
+Older fields such as `question`, `scope_type`, `library_item_id`,
+`library_item_ids`, `top_k`, `session_id`, and
+`include_long_term_memory` remain optional compatibility/debug fields;
+the simplified frontend Agent Chat does not need to send them.
 
 Response:
 
@@ -1355,16 +1364,16 @@ Response:
 }
 ```
 
-Graph node sequence:
+Current graph node sequence:
 
 ```text
 validate_input
 -> resolve_scope
 -> load_memory
--> retrieve_chunks
--> build_citations
--> build_prompt
--> generate_answer
+-> route_question
+-> run_local_library_agent
+-> run_web_research_agent
+-> synthesize_answer
 -> save_memory
 -> record_learning_event
 -> format_response
@@ -1390,9 +1399,9 @@ Existing RAG endpoints remain available and unchanged:
 - `POST /api/rag/query/library-item`
 - `POST /api/rag/query/library-items`
 
-The frontend Chat page still uses the existing RAG endpoints in Stage
-26. Switching the UI to `/api/agent/chat`, adding graph visualization,
-or adding frontend graph settings is left for a future stage.
+Stage 42 does not change graph topology, retrieval ranking, chunking,
+embedding providers, or LLM provider boundaries. The frontend consumes
+the simplified Stage 41 request shape without needing debug fields.
 
 Stage 26 tests remain deterministic. The default LLM provider is still
 deterministic and requires no API key; real LLM use remains opt-in

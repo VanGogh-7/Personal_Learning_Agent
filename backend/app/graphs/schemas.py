@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.agents.router import AgentRoute
 from app.rag.schemas import (
@@ -24,7 +24,10 @@ class WebSource(BaseModel):
 
 
 class AgentChatRequest(BaseModel):
-    question: str
+    message: str | None = None
+    question: str | None = None
+    selected_library_item_id: str | None = None
+    selected_library_item_ids: list[str] = Field(default_factory=list)
     scope_type: AgentChatScope = "global"
     library_item_id: str | None = None
     library_item_ids: list[str] = Field(default_factory=list)
@@ -32,12 +35,58 @@ class AgentChatRequest(BaseModel):
     session_id: str | None = None
     include_long_term_memory: bool = False
 
-    @field_validator("question")
+    @model_validator(mode="before")
     @classmethod
-    def question_must_not_be_blank(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("question must not be empty")
-        return value
+    def normalize_product_request(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if normalized.get("question") is None and normalized.get("message") is not None:
+            normalized["question"] = normalized["message"]
+        if (
+            normalized.get("library_item_id") is None
+            and normalized.get("selected_library_item_id") is not None
+        ):
+            normalized["library_item_id"] = normalized["selected_library_item_id"]
+        if (
+            not normalized.get("library_item_ids")
+            and normalized.get("selected_library_item_ids")
+        ):
+            normalized["library_item_ids"] = normalized["selected_library_item_ids"]
+
+        if "scope_type" not in normalized:
+            if normalized.get("library_item_ids"):
+                normalized["scope_type"] = "multi_book"
+            elif normalized.get("library_item_id"):
+                normalized["scope_type"] = "single_book"
+            else:
+                normalized["scope_type"] = "global"
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_and_sync_product_fields(self) -> "AgentChatRequest":
+        question = self.question or self.message
+        if question is None or not question.strip():
+            raise ValueError("message must not be empty")
+        question = question.strip()
+        self.question = question
+        self.message = self.message.strip() if self.message and self.message.strip() else question
+
+        if self.library_item_id is not None:
+            self.library_item_id = self.library_item_id.strip() or None
+        if self.selected_library_item_id is not None:
+            self.selected_library_item_id = self.selected_library_item_id.strip() or None
+        if self.library_item_id is None and self.selected_library_item_id is not None:
+            self.library_item_id = self.selected_library_item_id
+        if self.selected_library_item_id is None and self.library_item_id is not None:
+            self.selected_library_item_id = self.library_item_id
+
+        item_ids = self.library_item_ids or self.selected_library_item_ids
+        normalized_ids = _normalize_item_ids(item_ids)
+        self.library_item_ids = normalized_ids
+        self.selected_library_item_ids = normalized_ids
+        return self
 
     @field_validator("top_k")
     @classmethod
@@ -63,19 +112,25 @@ class AgentChatRequest(BaseModel):
         stripped = value.strip()
         return stripped or None
 
+    @field_validator("selected_library_item_id")
+    @classmethod
+    def selected_library_item_id_must_not_be_blank_if_provided(
+        cls, value: str | None
+    ) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
     @field_validator("library_item_ids")
     @classmethod
     def normalize_library_item_ids(cls, value: list[str]) -> list[str]:
-        normalized: list[str] = []
-        seen: set[str] = set()
-        for item_id in value:
-            stripped = item_id.strip()
-            if not stripped:
-                raise ValueError("library_item_ids must not contain empty values")
-            if stripped not in seen:
-                normalized.append(stripped)
-                seen.add(stripped)
-        return normalized
+        return _normalize_item_ids(value)
+
+    @field_validator("selected_library_item_ids")
+    @classmethod
+    def normalize_selected_library_item_ids(cls, value: list[str]) -> list[str]:
+        return _normalize_item_ids(value)
 
 
 class AgentChatResponse(BaseModel):
@@ -91,3 +146,16 @@ class AgentChatResponse(BaseModel):
     total_retrieved: int
     session_id: str
     memory: MemoryMetadata
+
+
+def _normalize_item_ids(value: list[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item_id in value:
+        stripped = item_id.strip()
+        if not stripped:
+            raise ValueError("library_item_ids must not contain empty values")
+        if stripped not in seen:
+            normalized.append(stripped)
+            seen.add(stripped)
+    return normalized

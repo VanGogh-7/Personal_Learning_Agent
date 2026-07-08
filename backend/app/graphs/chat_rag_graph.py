@@ -116,7 +116,7 @@ def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChat
     """Run the Chat RAG graph for one request using an external transaction boundary."""
     graph = build_chat_rag_graph(session)
     initial_state: ChatRAGState = {
-        "question": request.question,
+        "question": request.question or request.message or "",
         "session_id": request.session_id or create_session_id(),
         "scope_type": request.scope_type,
         "library_item_id": request.library_item_id,
@@ -216,7 +216,13 @@ def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
 
 
 def route_question_node(state: ChatRAGState) -> ChatRAGState:
-    return {"route": route_question(state["question"])}
+    route = route_question(state["question"])
+    if state.get("scope_type") in {"single_book", "multi_book"}:
+        if route == "both":
+            route = "local_only"
+        elif route == "web_only":
+            route = "both"
+    return {"route": route}
 
 
 def run_local_library_agent(state: ChatRAGState, session: Session) -> ChatRAGState:

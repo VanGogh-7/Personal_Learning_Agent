@@ -135,3 +135,49 @@ def test_synthesis_handles_both() -> None:
     assert f"Web research: {web_result.summary}" in result.answer
     assert result.local_summary == local_result.summary
     assert result.web_summary == web_result.summary
+
+
+def test_synthesis_prompt_includes_local_citation_ids_for_real_provider() -> None:
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Analysis",
+        document_source_path="/tmp/analysis.pdf",
+        library_item_id=uuid.uuid4(),
+        library_title="Analysis",
+        library_author="Author",
+        chunk_index=7,
+        content="Banach spaces are complete normed vector spaces.",
+        char_start=0,
+        char_end=49,
+        page_start=10,
+        page_end=11,
+        score=0.05,
+    )
+    local_result = run_local_library_agent(
+        None,  # type: ignore[arg-type]
+        question="What does the selected book say about Banach spaces?",
+        scope_type="global",
+        library_item_id=None,
+        library_item_ids=[],
+        top_k=1,
+        retrieve_global=lambda session, question, top_k: [chunk],
+    )
+    prompts: list[str] = []
+
+    class RecordingProvider:
+        def generate(self, prompt: str) -> str:
+            prompts.append(prompt)
+            return "Provider answer [S1]."
+
+    result = synthesize_agent_answer(
+        question="What does the selected book say about Banach spaces?",
+        route="local_only",
+        local_result=local_result,
+        llm_provider=RecordingProvider(),
+    )
+
+    assert result.answer == "Provider answer [S1]."
+    assert "cite claims with the provided [S#] IDs" in prompts[0]
+    assert "[S1]; Analysis; pp. 10-11; chunk 7" in prompts[0]
+    assert "Text:\nBanach spaces are complete normed vector spaces." in prompts[0]

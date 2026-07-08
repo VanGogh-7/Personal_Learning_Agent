@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 40: Citation Formatting and Answer Grounding Polish.
+Stage 42: Frontend Agent Chat Simplification.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -27,13 +27,17 @@ Stage 38A classifies chunks by section type and excludes known front/back
 matter from default retrieval. Stage 38B polishes the manual reindex and
 filtered retrieval baseline workflow. Stage 39 adds larger readable
 born-digital math-PDF chunks with lightweight heading metadata. Stage 40
-polishes answer grounding and normalizes local RAG citation formatting:
+polishes answer grounding and normalizes local RAG citation formatting.
+Stage 41 makes `/api/agent/chat` accept the simplified product request
+shape expected by the final Agent Chat. Stage 42 updates the right
+Agent Chat dock to use that product API as a clean chat box for the
+currently selected PDF context:
 
 ```text
 PDF -> page-aware extraction -> section classification -> math-PDF chunking
     -> heading metadata -> Zhipu embeddings -> pgvector
     -> body-default retrieval -> DeepSeek answer with [S#] citations
-    -> normalized Sources metadata
+    -> normalized Sources metadata -> product Agent Chat response
 ```
 
 Deterministic/mock mode remains the default for local development and
@@ -71,32 +75,21 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 40 Does
+## What Stage 42 Does
 
-- Reuses the existing embedding and LLM provider abstractions.
-- Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
-  network calls.
-- Keeps `EMBEDDING_PROVIDER=mock` as the default for tests and local
-  deterministic runs.
-- Preserves existing Zhipu embedding, DeepSeek answer generation,
-  chunking, section filtering, and pgvector retrieval behavior.
-- Keeps `scripts/index_pdf.py`, `scripts/search_book.py`, and
-  `scripts/eval_retrieval.py` working without changing their retrieval
-  behavior.
-- Labels retrieved prompt context with deterministic `[S1]`, `[S2]`,
-  `[S3]` source IDs.
-- Instructs real LLM answers to cite book-supported claims with the
-  same `[S#]` IDs shown in the Sources list.
-- Instructs the LLM to say when retrieved context is weak, indirect, or
-  insufficient, and to distinguish explanatory rephrasing from claims
-  explicitly supported by the book.
-- Carries existing `section_type`, `chapter_title`, and `section_title`
-  metadata into structured citation responses when available.
-- Prints a normalized `Sources` list from `scripts/ask_book.py` with
-  title, page/range, chunk index, section metadata, and score.
-- Keeps `/api/agent/chat` request and response compatibility.
-- Adds tests with mocked providers/clients only; no real API key is
-  required for tests.
+- Keeps the existing IDE-like layout: PDF Library Explorer, embedded
+  PDF Workspace, and right Agent Chat dock.
+- Simplifies the right Agent Chat dock to chat history, message input,
+  send/loading/error states, and readable Sources.
+- Removes the main UI controls for RAG mode, `top_k`, `session_id`,
+  long-term memory, manual context selection, and retrieval debug
+  details.
+- Sends `POST /api/agent/chat` with `message` plus the selected indexed
+  Workspace Library item as `selected_library_item_id` when available.
+- Lets the backend route gracefully when no indexed PDF is selected.
+- Displays normalized citation IDs and source metadata including title,
+  page/page range, chunk index, chapter, and section when returned.
+- Preserves Chat-to-Notes and the existing backend/API contracts.
 
 Manual single-book smoke test:
 
@@ -123,19 +116,15 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 40 Does Not Do
+## What Stage 42 Does Not Do
 
-No frontend changes, settings UI, auth/user accounts, tool-calling
-framework, autonomous planner, web browsing implementation, new RAG
-algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
-frontend PDF viewer changes. `scripts/search_book.py` does not call the
-LLM provider or generate answers. `scripts/eval_retrieval.py` does not
-call the LLM provider, change chunking, or add a complex benchmark
-framework. Stage 40 does not change database schema, chunking,
-embedding providers, LLM provider boundaries, retrieval ranking,
-LangGraph topology, frontend behavior, web research behavior, complex
-theorem/definition/proof parsing, ML-based layout parsing, OCR,
-reranking, or hybrid search.
+No backend code changes, settings UI, embedding provider settings,
+database schema changes, provider changes, chunking/retrieval changes,
+reranking, hybrid search, new agent graph behavior, web search
+expansion, PDF viewer redesign, citation-to-page navigation, OCR,
+annotations, auth/user accounts, tool-calling framework, or autonomous
+planner. Stage 42 does not expose low-level retrieval or memory controls
+in the main Agent Chat UI.
 
 ## Commands
 

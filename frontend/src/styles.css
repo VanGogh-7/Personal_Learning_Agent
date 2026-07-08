@@ -312,61 +312,6 @@ label {
   align-items: center;
 }
 
-.context-selector {
-  display: grid;
-  gap: 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  padding: 12px;
-}
-
-.context-selector-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.context-selector-header div {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.context-selector-header span {
-  color: #64748b;
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.context-book-list {
-  display: grid;
-  gap: 8px;
-  max-height: 220px;
-  overflow: auto;
-}
-
-.context-book-option {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #f8fafc;
-  padding: 10px;
-}
-
-.context-book-option input {
-  width: auto;
-  margin-top: 0.15rem;
-}
-
-.context-book-option span {
-  display: grid;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
 .button-row {
   display: flex;
   flex-wrap: wrap;
@@ -407,6 +352,76 @@ label {
   border-top: 1px solid #e2e8f0;
   margin-top: 18px;
   padding-top: 18px;
+}
+
+.agent-chat-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.chat-thread {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 180px;
+}
+
+.chat-message {
+  max-width: 92%;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.chat-turn {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-message p {
+  margin: 0;
+}
+
+.user-message {
+  justify-self: end;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.assistant-message {
+  justify-self: start;
+  background: #ffffff;
+  color: #111827;
+}
+
+.answer-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.chat-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.chat-compose label {
+  min-width: 0;
+}
+
+.chat-compose textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .scope-summary {
@@ -1173,6 +1188,7 @@ label {
   .library-workspace,
   .notes-workspace,
   .chat-note-draft,
+  .chat-compose,
   .detail-grid,
   .future-grid,
   .input-with-action {

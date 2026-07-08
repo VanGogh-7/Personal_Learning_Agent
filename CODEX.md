@@ -59,9 +59,11 @@ Stage 37: Retrieval Quality Baseline — completed.
 Stage 38A: Retrieval Filtering for Front Matter and Back Matter — completed.
 Stage 38B: Filtered Retrieval Baseline and Indexing Workflow Polish — completed.
 Stage 39: Chunk Optimization v1 for Mathematical PDFs — completed.
-Stage 40: Citation Formatting and Answer Grounding Polish — current.
+Stage 40: Citation Formatting and Answer Grounding Polish — completed.
+Stage 41: Backend Agent Chat Product API Polish — completed.
+Stage 42: Frontend Agent Chat Simplification — current.
 
-Current active stage: Stage 40: Citation Formatting and Answer Grounding Polish.
+Current active stage: Stage 42: Frontend Agent Chat Simplification.
 
 Do not implement the full product at once.
 
@@ -104,7 +106,16 @@ Project stage roadmap:
 33. Today Log / Calendar MVP — handled separately
 34. Backend PDF-to-RAG Pipeline MVP — completed
 35. Backend Dual-Agent LangGraph MVP — completed
-36. Real LLM Provider Integration — current
+36. Real LLM Provider Integration — completed
+36A. Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — completed
+36C. Single-Book RAG Observability Polish — completed
+37. Retrieval Quality Baseline — completed
+38A. Retrieval Filtering for Front Matter and Back Matter — completed
+38B. Filtered Retrieval Baseline and Indexing Workflow Polish — completed
+39. Chunk Optimization v1 for Mathematical PDFs — completed
+40. Citation Formatting and Answer Grounding Polish — completed
+41. Backend Agent Chat Product API Polish — completed
+42. Frontend Agent Chat Simplification — current
 
 ---
 
@@ -435,6 +446,29 @@ asked to cite book-supported claims with those IDs, weak or indirect
 context should be stated clearly, and `scripts/ask_book.py` prints a
 normalized Sources list with page, chunk, section, heading, and score
 metadata when available.
+
+Stage 41 is Backend Agent Chat Product API Polish. It keeps frontend
+code unchanged but lets `POST /api/agent/chat` accept a product-level
+request with `message` and optional `selected_library_item_id` or
+`selected_library_item_ids`. The backend infers local RAG scope from
+selected Library items, keeps older debug fields optional for backward
+compatibility, prefers local-library RAG for selected-book requests, and
+preserves normalized citations/page/chunk/heading metadata in the
+existing response shape. It does not change chunking, retrieval ranking,
+embedding providers, LLM provider boundaries, web research behavior, or
+LangGraph topology.
+
+Stage 42 is Frontend Agent Chat Simplification. It keeps the existing
+Workspace layout but simplifies the right Agent Chat dock into a product
+chat box for the selected PDF context. The frontend sends
+`POST /api/agent/chat` with `message` and, when the Workspace selection
+is indexed, `selected_library_item_id`. The main UI no longer exposes
+RAG mode, `top_k`, `session_id`, long-term memory, manual debug toggles,
+or embedding/indexing details. Normalized Sources remain visible with
+citation ID, title/source, page/page range, chunk, chapter, and section
+metadata when returned. Stage 42 does not change backend code, database
+schema, retrieval ranking, chunking, providers, web behavior, LangGraph
+topology, settings UI, or PDF viewer behavior.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -1045,6 +1079,15 @@ Frontend:
   retrieval/chunking/provider/frontend behavior unchanged while
   normalizing `[S#]` source IDs in prompts and ask-book Sources output,
   and carrying page/section/heading metadata through citation responses
+- Stage 41 Backend Agent Chat Product API Polish adds the simple
+  `message` plus selected Library item request shape to
+  `POST /api/agent/chat`, infers single/multi-book local RAG scope, and
+  keeps debug fields optional/backward-compatible without changing
+  frontend code or retrieval behavior
+- Stage 42 Frontend Agent Chat Simplification removes low-level RAG and
+  memory controls from the right Agent Chat dock, sends only `message`
+  plus selected Library item context to `/api/agent/chat`, and keeps
+  normalized Sources visible in the existing Workspace layout
 
 Planned later:
 - Production-quality agent workflows

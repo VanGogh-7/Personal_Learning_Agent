@@ -14,6 +14,7 @@ import app.graphs.chat_rag_graph as chat_rag_graph_module
 from app.api.agent_routes import agent_chat_endpoint
 from app.main import app
 from app.embeddings.mock import MockEmbeddingProvider
+from app.embeddings.providers import EmbeddingProviderError
 from app.graphs.schemas import AgentChatRequest
 from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED
 from app.library.service import create_library_item
@@ -59,7 +60,17 @@ def agent_chat_session(monkeypatch):
         engine.dispose()
 
 
-def _create_indexed_item(session: Session, title: str, content: str) -> LibraryItem:
+def _create_indexed_item(
+    session: Session,
+    title: str,
+    content: str,
+    *,
+    page_start: int | None = None,
+    page_end: int | None = None,
+    section_type: str = "body",
+    chapter_title: str | None = None,
+    section_title: str | None = None,
+) -> LibraryItem:
     item_result = create_library_item(
         session,
         title=title,
@@ -82,6 +93,11 @@ def _create_indexed_item(session: Session, title: str, content: str) -> LibraryI
             content=content,
             char_start=0,
             char_end=len(content),
+            page_start=page_start,
+            page_end=page_end,
+            section_type=section_type,
+            chapter_title=chapter_title,
+            section_title=section_title,
             embedding=MockEmbeddingProvider().embed_text(content),
         )
     )
@@ -182,6 +198,121 @@ def test_agent_chat_http_endpoint_works(monkeypatch, agent_chat_session) -> None
     assert data["total_retrieved"] == 1
     assert data["citations"][0]["citation_id"] == "S1"
     assert data["web_sources"][0]["source_id"] == "W1"
+
+
+def test_agent_chat_product_request_message_only_uses_defaults(
+    monkeypatch, agent_chat_session
+) -> None:
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Global Notes",
+        document_source_path="/tmp/global.txt",
+        chunk_index=0,
+        content="Product message request works without debug fields.",
+        char_start=0,
+        char_end=50,
+        page_start=2,
+        page_end=2,
+        score=0.01,
+    )
+    captured: dict[str, int] = {}
+
+    def fake_retrieve(session, question, top_k):
+        captured["top_k"] = top_k
+        return [chunk]
+
+    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fake_retrieve)
+
+    response = agent_chat_endpoint(AgentChatRequest(message="Explain this library topic."))
+
+    assert response.scope_type == "global"
+    assert response.session_id
+    assert captured["top_k"] == 5
+    assert response.total_retrieved == 1
+    assert response.citations[0].citation_id == "S1"
+    assert response.citations[0].page_number == 2
+    assert response.memory.used_long_term_memories == 0
+
+
+def test_agent_chat_product_selected_library_item_prefers_local_rag(
+    agent_chat_session,
+) -> None:
+    selected = _create_indexed_item(
+        agent_chat_session,
+        "Analysis",
+        "A Banach space is a complete normed vector space.",
+        page_start=42,
+        page_end=43,
+        chapter_title="II Convergence",
+        section_title="II.6 Completeness",
+    )
+    other = _create_indexed_item(
+        agent_chat_session,
+        "Botany",
+        "Plants convert sunlight into chemical energy.",
+    )
+    selected_id = selected.id
+    other_id = other.id
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            message="What does this book say about Banach spaces?",
+            selected_library_item_id=str(selected_id),
+        )
+    )
+
+    assert response.scope_type == "single_book"
+    assert response.route == "local_only"
+    assert response.selected_library_items[0].id == str(selected_id)
+    assert response.total_retrieved == 1
+    assert response.web_sources == []
+    assert response.citations[0].citation_id == "S1"
+    assert response.citations[0].library_item_id == str(selected_id)
+    assert response.citations[0].page_start == 42
+    assert response.citations[0].page_end == 43
+    assert response.citations[0].chapter_title == "II Convergence"
+    assert response.citations[0].section_title == "II.6 Completeness"
+    assert response.retrieved_chunks[0].citation == response.citations[0]
+
+    other_document_ids = {
+        str(document.id)
+        for document in agent_chat_session.execute(
+            select(Document).where(Document.library_item_id == other_id)
+        ).scalars()
+    }
+    assert response.retrieved_chunks[0].document_id not in other_document_ids
+
+
+def test_agent_chat_product_selected_library_items_infers_multi_book_scope(
+    agent_chat_session,
+) -> None:
+    selected_a = _create_indexed_item(
+        agent_chat_session,
+        "Linear Algebra",
+        "Vector spaces have bases.",
+    )
+    selected_b = _create_indexed_item(
+        agent_chat_session,
+        "Functional Analysis",
+        "Banach spaces are complete.",
+    )
+
+    request = AgentChatRequest(
+        message="What do these PDFs say about spaces?",
+        selected_library_item_ids=[str(selected_a.id), str(selected_a.id), str(selected_b.id)],
+    )
+    response = agent_chat_endpoint(request)
+
+    assert request.scope_type == "multi_book"
+    assert request.library_item_ids == [str(selected_a.id), str(selected_b.id)]
+    assert response.scope_type == "multi_book"
+    assert response.route == "local_only"
+    assert [item.id for item in response.selected_library_items] == [
+        str(selected_a.id),
+        str(selected_b.id),
+    ]
+    assert [citation.citation_id for citation in response.citations] == ["S1", "S2"]
 
 
 def test_agent_chat_web_only_route_skips_local_retrieval(
@@ -321,6 +452,29 @@ def test_agent_chat_provider_configuration_error_is_clean(
 
     assert exc_info.value.status_code == 503
     assert exc_info.value.detail == "LLM_PROVIDER=deepseek requires DEEPSEEK_API_KEY."
+
+
+def test_agent_chat_embedding_provider_error_is_clean(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: (_ for _ in ()).throw(
+            EmbeddingProviderError("Zhipu embedding provider request failed.")
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        agent_chat_endpoint(
+            AgentChatRequest(
+                message="Explain derivatives",
+                session_id="embedding-error-session",
+            )
+        )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == "Zhipu embedding provider request failed."
 
 
 def test_agent_chat_single_book_scope_returns_only_selected_chunks(
@@ -471,6 +625,11 @@ def test_agent_chat_rejects_invalid_scope_type() -> None:
 def test_agent_chat_rejects_blank_question() -> None:
     with pytest.raises(ValidationError):
         AgentChatRequest(question="   ", scope_type="global")
+
+
+def test_agent_chat_product_request_rejects_blank_message() -> None:
+    with pytest.raises(ValidationError):
+        AgentChatRequest(message="   ")
 
 
 def test_agent_chat_rejects_missing_single_book_id(agent_chat_session) -> None:
