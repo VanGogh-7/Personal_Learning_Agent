@@ -37,7 +37,8 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 - **Stage 36 (Real LLM Provider Integration) is completed.**
 - **Stage 36A (Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke
   Test) is completed.**
-- **Stage 36C (Single-Book RAG Observability Polish) is current.**
+- **Stage 36C (Single-Book RAG Observability Polish) is completed.**
+- **Stage 37 (Retrieval Quality Baseline) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
@@ -48,8 +49,10 @@ Stage 36 wires the backend LLM provider boundary into Agent Chat
 synthesis. Stage 36A adds a real Zhipu embedding provider and
 backend-only scripts for one-book PDF RAG smoke testing. Stage 36C adds
 a retrieval-only `scripts/search_book.py` diagnostic script for
-single-book RAG quality inspection. The existing `/api/agent/chat`
-endpoint remains the Agent Chat API:
+single-book RAG quality inspection. Stage 37 adds
+`scripts/retrieval_eval_queries.json` and `scripts/eval_retrieval.py`
+for repeatable retrieval-only baseline checks. The existing
+`/api/agent/chat` endpoint remains the Agent Chat API:
 
 ```text
 User question -> Router -> Local/Web evidence -> Synthesis prompt -> configured LLM provider
@@ -88,7 +91,7 @@ alembic upgrade head
   embeddings.
 - API keys must never be committed, logged, or exposed to the frontend.
 
-Stage 36C backend smoke commands:
+Stage 37 backend smoke commands:
 
 ```bash
 cd backend
@@ -96,6 +99,7 @@ alembic upgrade head
 python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
+python scripts/eval_retrieval.py --library-item-id <library_item_id>
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```

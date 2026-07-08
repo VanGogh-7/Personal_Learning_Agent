@@ -54,9 +54,10 @@ Stage 34: Backend PDF-to-RAG Pipeline MVP — completed.
 Stage 35: Backend Dual-Agent LangGraph MVP — completed.
 Stage 36: Real LLM Provider Integration — completed.
 Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — completed.
-Stage 36C: Single-Book RAG Observability Polish — current.
+Stage 36C: Single-Book RAG Observability Polish — completed.
+Stage 37: Retrieval Quality Baseline — current.
 
-Current active stage: Stage 36C: Single-Book RAG Observability Polish.
+Current active stage: Stage 37: Retrieval Quality Baseline.
 
 Do not implement the full product at once.
 
@@ -381,6 +382,14 @@ Stage 36C is Single-Book RAG Observability Polish. It adds backend-only
 single-book retrieval, including scores, title metadata, chunk IDs or
 indexes, page ranges, and snippets. It does not call the LLM provider,
 generate answers, alter retrieval algorithms, add reranking, or change
+frontend UI.
+
+Stage 37 is Retrieval Quality Baseline. It adds backend-only
+`scripts/retrieval_eval_queries.json` and `scripts/eval_retrieval.py` to
+run a small repeatable single-book retrieval-only query set, print top
+chunks with scores and page/snippet diagnostics, and summarize simple
+expected-keyword hits. It does not call the LLM provider, change
+chunking, change database schema, add reranking/hybrid search, or add
 frontend UI.
 
 Allowed in Stage 22:
@@ -970,6 +979,12 @@ Frontend:
   `scripts/search_book.py` to print ranked retrieval diagnostics for one
   Library item without LLM generation. It preserves existing retrieval
   behavior and keeps tests on deterministic/mock providers
+- Stage 37 Retrieval Quality Baseline adds backend-only
+  `scripts/retrieval_eval_queries.json` and `scripts/eval_retrieval.py`
+  for a lightweight repeatable single-book retrieval baseline. It prints
+  top-k chunks, page/snippet presence, and simple expected-keyword hit
+  summaries without LLM generation, schema changes, chunking changes, or
+  frontend changes
 
 Planned later:
 - Production-quality agent workflows

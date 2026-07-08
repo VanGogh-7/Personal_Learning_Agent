@@ -1,0 +1,102 @@
+[
+  {
+    "id": "sets-functions-relations",
+    "query": "sets functions and relations",
+    "expected_keywords": ["set", "function", "relation", "map"]
+  },
+  {
+    "id": "natural-numbers-countability",
+    "query": "natural numbers induction and countability",
+    "expected_keywords": ["natural numbers", "induction", "countable", "uncountable"]
+  },
+  {
+    "id": "groups-rings-fields-polynomials",
+    "query": "groups rings fields and polynomials",
+    "expected_keywords": ["group", "ring", "field", "polynomial"]
+  },
+  {
+    "id": "real-complex-numbers-vector-spaces",
+    "query": "real numbers complex numbers and vector spaces",
+    "expected_keywords": ["real numbers", "complex numbers", "vector space", "absolute value"]
+  },
+  {
+    "id": "sequences-and-limits",
+    "query": "sequences convergence and limits",
+    "expected_keywords": ["sequence", "converges", "limit", "subsequence"]
+  },
+  {
+    "id": "metric-spaces",
+    "query": "metric spaces",
+    "expected_keywords": ["metric space", "distance", "open", "neighborhood"]
+  },
+  {
+    "id": "normed-vector-spaces",
+    "query": "normed vector spaces",
+    "expected_keywords": ["normed vector space", "norm", "metric", "vector space"]
+  },
+  {
+    "id": "complete-metric-spaces",
+    "query": "complete metric spaces",
+    "expected_keywords": ["complete", "metric space", "Cauchy sequence", "converges"]
+  },
+  {
+    "id": "banach-spaces",
+    "query": "Banach spaces in normed vector spaces",
+    "expected_keywords": ["Banach space", "complete", "normed vector space"]
+  },
+  {
+    "id": "series-and-power-series",
+    "query": "series absolute convergence and power series",
+    "expected_keywords": ["series", "absolute convergence", "power series", "radius"]
+  },
+  {
+    "id": "continuous-functions-metric-spaces",
+    "query": "continuous functions between metric spaces",
+    "expected_keywords": ["continuous", "metric space", "function", "open"]
+  },
+  {
+    "id": "topology-open-closed-sets",
+    "query": "topology open sets closed sets and neighborhoods",
+    "expected_keywords": ["topology", "open", "closed", "neighborhood"]
+  },
+  {
+    "id": "compactness-metric-spaces",
+    "query": "compactness in metric spaces",
+    "expected_keywords": ["compact", "metric space", "open cover", "sequentially compact"]
+  },
+  {
+    "id": "connectedness-functions-on-real-line",
+    "query": "connectedness and continuous functions on real intervals",
+    "expected_keywords": ["connected", "continuous", "interval", "real"]
+  },
+  {
+    "id": "elementary-functions",
+    "query": "exponential logarithm trigonometric functions and polar coordinates",
+    "expected_keywords": ["exponential", "logarithm", "trigonometric", "polar coordinates"]
+  },
+  {
+    "id": "differentiability-mean-value-taylor",
+    "query": "differentiability mean value theorem and Taylor theorem",
+    "expected_keywords": ["differentiable", "mean value theorem", "Taylor", "remainder"]
+  },
+  {
+    "id": "banach-fixed-point-newton-method",
+    "query": "Banach fixed point theorem contractions and Newton method",
+    "expected_keywords": ["fixed point", "contraction", "Banach", "Newton"]
+  },
+  {
+    "id": "uniform-convergence-sequences-functions",
+    "query": "uniform convergence of sequences of functions",
+    "expected_keywords": ["uniform convergence", "sequence of functions", "continuous", "differentiable"]
+  },
+  {
+    "id": "analytic-functions-power-series",
+    "query": "analytic functions and power series",
+    "expected_keywords": ["analytic", "power series", "Taylor", "radius"]
+  },
+  {
+    "id": "polynomial-approximation-stone-weierstrass-banach-algebras",
+    "query": "polynomial approximation Stone-Weierstrass theorem and Banach algebras",
+    "expected_keywords": ["polynomial approximation", "Stone-Weierstrass", "Banach algebra", "dense"]
+  }
+]

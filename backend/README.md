@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 36C: Single-Book RAG Observability Polish.
+Stage 37: Retrieval Quality Baseline.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -140,12 +140,15 @@ Stage 36C: Single-Book RAG Observability Polish.
   36A, completed)
 - Single-Book RAG Observability Polish: `scripts/search_book.py` prints
   ranked single-book retrieval diagnostics without LLM answer generation
-  (Stage 36C, current)
+  (Stage 36C, completed)
+- Retrieval Quality Baseline: `scripts/eval_retrieval.py` runs a small
+  repeatable single-book retrieval-only query set and summarizes keyword
+  hits, page metadata, and snippet presence (Stage 37, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 36C is a backend-only observability pass.
+**not implemented yet**. Stage 37 is a backend-only retrieval baseline pass.
 It keeps `/api/agent/chat` as the Agent Chat API and preserves its
 existing request/response compatibility. It does not change frontend
 workspace behavior, Tauri architecture, Vite architecture, local
@@ -464,15 +467,16 @@ streaming responses, function/tool calling, agent planning, LangGraph,
 MCP, frontend provider settings, background
 jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
 
-## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C)
+## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C/37)
 
 Stage 36A adds an opt-in real embedding provider for backend-only
 single-book PDF RAG smoke tests. Stage 36C adds retrieval-only
-observability output for the same single-book path:
+observability output for the same single-book path. Stage 37 adds a
+small repeatable retrieval-only baseline query set:
 
 ```text
 local PDF -> page-aware extraction -> chunking -> Zhipu embedding
--> pgvector -> single-book retrieval -> search diagnostics
+-> pgvector -> single-book retrieval -> baseline diagnostics
                                   \-> DeepSeek answer -> citations
 ```
 
@@ -512,6 +516,7 @@ alembic upgrade head
 python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
+python scripts/eval_retrieval.py --library-item-id <library_item_id>
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
@@ -523,6 +528,11 @@ the `library_item_id`, `document_id`, `chunk_count`,
 The search script runs retrieval only and prints ranked chunks with
 score, title metadata, chunk ID/index, page range, and snippets. It does
 not call the LLM provider or generate an answer.
+The eval script loads `scripts/retrieval_eval_queries.json`, runs
+retrieval only for each query, prints the top chunks, and summarizes
+expected-keyword hits plus whether page metadata and snippets are
+present. It is intentionally a lightweight baseline, not a benchmark
+framework.
 
 Stage 36A adds Alembic revision
 `9d4a6f1b2c30_set_document_chunk_embedding_dimension_2048`, which

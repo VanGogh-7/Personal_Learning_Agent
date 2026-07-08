@@ -1,0 +1,810 @@
+Retrieval baseline
+Library item: 3542bb34-b0e1-4af8-954b-6ddf594c3b5f
+Queries: 20
+Top K: 5
+
+[sets-functions-relations] sets functions and relations
+keyword hits: 4/4 (set, function, relation, map)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.842765
+   chunk: 99 (4a337449-9249-443b-862d-8911b1217ef2)
+   pages: p. 36
+   snippet: 22 I Foundations 4 Relations and Operations In order to describe relationships between elements of a setX it is useful to have a simple set theoretical meaning for the word ‘relation’: A (binary)relation on X is simply a subset R ⊆ X × X. Instead of (x, y) ∈ R, we usually writexRy or x ∼ R y. A relation R on X is reﬂexive if xRx for all x ∈ X,t h a ti s ,i fR contains the diagonal ∆X := { (x, x); x ∈ X } . It is transitive if (xRy)∧ (yRz)=⇒ xRz . If xRy =⇒ yRx holds, then R is symmetric. Let...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.853678
+   chunk: 221 (8e08323a-6135-4880-ad7c-47ee285305b4)
+   pages: p. 76
+   snippet: 62 I Foundations 8 Rings, Fields and Polynomials In this section we consider sets on which two operations are deﬁned. Here we as- sume that, with respect to one of the operations, the set forms an Abelian group and that the two operations satisfy an appropriate ‘distributive law’. This leads to the concepts of ‘rings’ and ‘ﬁelds’, which formalize the rules of arithmetic. As particularly important examples of rings we consider power series rings and polyno- mial rings in one (and many) indeter...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.863482
+   chunk: 81 (872145f7-88d0-4206-9790-5f1caf2d2dc5)
+   pages: p. 29
+   snippet: I.3 Functions 15 3 Functions Functions are of fundamental importance for all mathematics. Of course, this con- cept has undergone many changes on the way to its modern meaning. An important step in its development was the removal of any connection to arithmetic, algorith- mic or geometric ideas. This lead (neglecting certain formal hair-splitting discussed in Remark 3.1) to the set theoretical deﬁnition which we present below. In this section X, Y , U and V are arbitrary sets. A function or m...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.865617
+   chunk: 198 (711e63b7-16b1-449c-9bb4-a875b5267800)
+   pages: p. 68
+   snippet: y set and SX the set of all bijections from X to itself. Then SX := (SX,◦) is a group with identity element id X when ◦ denotes the composition of functions. Further, the inverse functionf −1 is the inverse off ∈ SX in the group. In view of Exercise 4.3, SX is, in general, not commutative. WhenX is ﬁnite, the elements ofSX are called permutations (see Section 6) andSX is called the permutation group of X. (d) Let X be a nonempty set and (G,⊙) a group. With the induced operation⊙ as in Example...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.865792
+   chunk: 14 (33c5679a-c96b-47f1-964b-cf940cca71b7)
+   pages: p. 8
+   snippet: Contents Preface ...................................... v Chapter I Foundations 1 Fundamentals of Logic ........................... 3 2S e t s ...................................... 8 E l e m e n t a r y F a c t s .............................. 8 T h e P o w e r S e t................................ 9 Complement, Intersection and Union ................... 9 P r o d u c t s................................... 1 0 Families of Sets ............................... 1 2 3 Functions ....................
+
+[natural-numbers-countability] natural numbers induction and countability
+keyword hits: 2/4 (natural numbers, induction)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.838033
+   chunk: 141 (8887279f-7bfc-4fc3-b5ba-89b150facbd7)
+   pages: p. 49
+   snippet: I.5 The Natural Numbers 35 5.4 Proposition For each m ∈ N× and n ∈ N, there are unique l,k ∈ N such that n = km + ℓ and ℓ<m. Proof (a) We verify ﬁrst the existence statement. Fix m ∈ N× and set N := {n ∈ N ; ∃k,ℓ ∈ N : n = km + ℓ, ℓ < m} . Our goal is to prove that N = N. Clearly 0 is in N because 0 = 0 · m +0 b y Theorem 5.3(i) and (iv). Now suppose that n ∈ N. Then there are k,ℓ ∈ N with n = km + ℓand ℓ<m from which followsn +1= km +( ℓ+1 ) .I fℓ+1 <m then n + 1 is inN. On the other hand, i...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.847487
+   chunk: 171 (33a14548-8a1b-406c-adbc-3397934c2a42)
+   pages: p. 60
+   snippet: 46 I Foundations 6 Countability In the previous section we saw that ‘inﬁnite sets’ are necessary for the construction of the natural numbers. However, the bijection N → 2N, n ↦→2n, which suggests that there are exactly as many even numbers as natural numbers, encourages caution in dealing with inﬁnity. How can there be room for the odd numbers 1,3,5,... in N? In this section we consider the concept of inﬁnity again, and, in particular, we show that there is more than one kind of inﬁnity. A se...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.851701
+   chunk: 188 (bb59a627-af5d-4f54-ad02-88412b6b5884)
+   pages: p. 65
+   snippet: I.6 Countability 51 2 Prove the following: (a) Let m, n∈ N×. Then there is a bijective function from{1,...,m } to {1,...,n } if and only if m = n. (b) If M is an inﬁnite system, then Num(M)= ∞ (Hint: Exercise 1). 3 Show that the number ofm element subsets of an n element set is (n m ) . (Hint: Let N be an n element set and M an m element subset of N. From Proposition 6.3 deduce that there are m!( n − m)! bijections from {1,...,n } to N such that {1,...,m } goes to M.) 4 Let M and N be ﬁnite s...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.854832
+   chunk: 121 (47eec5cb-2f38-45ac-acda-ea344f286163)
+   pages: p. 43
+   snippet: I.5 The Natural Numbers 29 5 The Natural Numbers In 1888, R. Dedekind published the book ‘Was sind and was sollen die Zahlen?’ (What are the numbers and what should they be?) [Ded95] about the set theoret- ical foundation of the natural number system. It is a milestone in the development of this subject, and indeed one of the high points of the history of mathematics. Starting in this section with a simple and ‘natural’ axiom system for the nat- ural numbers, we will construct in later sectio...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.869292
+   chunk: 168 (2018272d-ddfe-49e6-bd85-df3fbdeda41a)
+   pages: p. 59
+   snippet: I.5 The Natural Numbers 45 8 (a) Let n ∈ N×. Show that none of the n consecutive numbers (n +1 ) !+2, (n +1 ) !+3,..., (n +1 ) !+(n +1 ) is prime. Hence there are arbitrarily large gaps in the set of prime numbers. (b) Show that there is no greatest prime number. (Hint: Suppose that there is a greatest prime number and let {p0,...,p m} be the set of all prime numbers. Consider q := p0 · ··· · pm +1 . ) 9 The famous American mathematician M.I. Stake has ﬁnally found a mathematical proof of Tho...
+
+[groups-rings-fields-polynomials] groups rings fields and polynomials
+keyword hits: 4/4 (group, ring, field, polynomial)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.773031
+   chunk: 221 (8e08323a-6135-4880-ad7c-47ee285305b4)
+   pages: p. 76
+   snippet: 62 I Foundations 8 Rings, Fields and Polynomials In this section we consider sets on which two operations are deﬁned. Here we as- sume that, with respect to one of the operations, the set forms an Abelian group and that the two operations satisfy an appropriate ‘distributive law’. This leads to the concepts of ‘rings’ and ‘ﬁelds’, which formalize the rules of arithmetic. As particularly important examples of rings we consider power series rings and polyno- mial rings in one (and many) indeter...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.818431
+   chunk: 257 (e58fef51-5a2f-4102-b03e-59ce47cae9a6)
+   pages: p. 89
+   snippet: I.8 Rings, Fields and Polynomials 75 Polynomial Functions Let p =∑n k=0 pkXk be a polynomial over R. Then we deﬁne the value of p at x ∈ R by p(x): = n∑ k=0 pkxk ∈ R. This deﬁnes a function p : R → R, x ↦→p(x) , the polynomial function, p ∈ RR, corresponding to p ∈ R[X]. 8.14 Remarks (a) The polynomial function corresponding to the constant poly- nomial a is the constant function (x ↦→a) ∈ RR. The polynomial function corre- sponding to X is the identity function idR ∈ RR. (b) Let R be commuta...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.824194
+   chunk: 241 (70a0621a-d040-4fb4-9dc5-a4824dad83b2)
+   pages: p. 83
+   snippet: I.8 Rings, Fields and Polynomials 69 (f) Let K′be a ﬁeld and ϕ : K → K′a homomorphism with ϕ ̸=0 .T h e n ϕ(1K)=1 K′ and ϕ(a−1)=ϕ( a)−1 ,a ∈ K× . Proof Since ϕ is a group homomorphism from K× to K′×,t h i sf o l l o w sf r o mR e - mark 7.6(a). ■ When we use the words ‘homomorphism’, ‘isomorphism’, etc. in connection with ﬁelds, we mean, of course, ‘ring homomorphism’, ‘ring isomorphism’, etc. and not group homomorphism. The following example shows that ﬁelds do, in fact, exist and therefore...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.834237
+   chunk: 275 (fe707f38-eeca-4010-b05e-d768a3ce1fc3)
+   pages: p. 95
+   snippet: I.8 Rings, Fields and Polynomials 81 2 For a ring R with unity, show that (1− X)∑ k Xk = (∑ k Xk) (1− X)=1i n R[[X]] . Remark ∑ k Xk is called a geometric series. 3 Show that a polynomial ring in one indeterminate over a ﬁeld has no zero divisors. 4 Show that a ﬁnite ﬁeld cannot be ordered. 5 Prove Remarks 8.20(a) and (b). 6 Let R be a ring with unity. A subring I is called an ideal of R if RI = IR = I.A n ideal is proper if it is a proper subset of R. Show the following: (a) An ideal I is pr...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.836594
+   chunk: 222 (f3addb06-fff4-4e98-8c6e-3a46b3e7448c)
+   pages: p. 76
+   snippet: ly well by polynomials’, a claim that we will make more precise later. Rings At r i p l e(R, +,·) consisting of a nonempty set R and operations, addition +a n d multiplication · , is called a ring if: (R1)( R, +) is an Abelian group. (R2) Multiplication is associative. (R3)T h e distributive law holds: (a + b) · c = a · c + b · c, c · (a + b)= c · a + c· b, a , b , c ∈ R. Here we make the usual convention that multiplication takes precedence over ad- dition. For example,a · b + c means (a · b...
+
+[real-complex-numbers-vector-spaces] real numbers complex numbers and vector spaces
+keyword hits: 2/4 (complex numbers, vector space)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.721528
+   chunk: 21 (2ede590d-4025-4abc-afa7-268deb87b283)
+   pages: p. 10
+   snippet: Contents xi 11 The Complex Numbers ........................... 103 C o n s t r u c t i n g t h e C o m p l e x N u m b e r s .................... 1 0 3 E l e m e n t a r y P r o p e r t i e s ........................... 1 0 4 Computation with Complex Numbers ................... 1 0 6 Balls in K .................................. 1 0 8 12 Vector Spaces, Aﬃne Spaces and Algebras ................ 111 V e c t o r S p a c e s ................................ 1 1 1 L i n e a r F u n c t i o n s ......
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.811748
+   chunk: 347 (962dc76e-bd56-4b1a-aa83-7da447846940)
+   pages: p. 119
+   snippet: I.11 The Complex Numbers 105 11.2 Remarks (a) If z = x + iy ∈ R + iR and w = a + ib ∈ R + iR,t h e nz + w, −z and zw are given by the formulas in (11.1), and if z ̸=0 ,t h e nz−1 =1 /z is given by (11.2). (b) The functions C → R, z ↦→Re z and C → R, z ↦→Im z are well deﬁned, surjective, and z =R ez + i Im z. (c) Let X be a set and f : X → C a ‘complex valued function’. Then Re f : X → R ,x ↦→Re ( f(x) ) and Im f : X → R ,x ↦→Im ( f(x) ) deﬁne two ‘real valued functions’, thereal partand theim...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.815476
+   chunk: 1199 (c43392dd-0fd4-4473-bdba-ca9b4db6168a)
+   pages: p. 431
+   snippet: Index 421 position vector, 118 positive deﬁnite form, 154, 270 homogeneous, 148 power, 42 complex, 294 principal value of the, 294 summation, 126 power series, 210 expansion, 378 formal, 71 formal in m indeterminates, 78 preimage, 19 prime factorization, 36 number, 36 principal value, 294 of the logarithm, 294 of the power, 294 principle of induction, 29 well ordering, 35 product Cartesian, 10, 49 Cauchy, 204 direct, 54, 63 Euclidean inner, 154 inner, 153 metric, 133 of functions, 225 of metr...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.819983
+   chunk: 23 (65e74494-229f-4f8a-926a-950c5993b936)
+   pages: p. 10
+   snippet: e s s o f t h e L i m i t .......................... 1 3 7 S u b s e q u e n c e s ................................ 1 3 8 2 Real and Complex Sequences ....................... 141 N u l l S e q u e n c e s ............................... 1 4 1 E l e m e n t a r y R u l e s.............................. 1 4 1 T h e C o m p a r i s o n T e s t............................ 1 4 3 C o m p l e x S e q u e n c e s............................. 1 4 4 3 Normed Vector Spaces ........................... 14...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.823739
+   chunk: 348 (63687332-69dc-4c8b-a401-1d778e021efe)
+   pages: p. 119
+   snippet: cture of C. This means that we can represent complex numbers as vectors in the coordinate plane.1 The addition of complex numbers is then the same as vector addition and can be done geometrically using the ‘parallelogram rule’. As usual, we identify a vectorz with the tip of its arrow and so considerz to be a ‘point’ of the set R2 whenever we use this graphic representation. /DB /CA/CT /DB /CX /C1/D1 /DB /DE /B7 /DB /DE /CA/CT /DE /DE imaginary axis (iR) real axis (R) In Section III.6 we will...
+
+[sequences-and-limits] sequences convergence and limits
+keyword hits: 4/4 (sequence, converges, limit, subsequence)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.855908
+   chunk: 701 (bcd2a292-7077-485e-a613-cc08ed9f29a9)
+   pages: p. 248
+   snippet: the limits of certain sequences in A. 2.9 Proposition An element x of X is a limit point of A i fa n do n l yi ft h e r ei sa sequence (xk) in A\{x} which converges to x. Proof Let x be a limit point ofA.F o re a c hk ∈ N×, choose some elementxk ̸=x in B(x,1/k). Then (xk)i sas e q u e n c ei nA\{x} such that xk → x. Conversely, let (xk) be a sequence in A\{x} such that xk → x. Then, for each neighborhood U of x,t h e r ei ss o m ek ∈ N such that xk ∈ U. This means that xk ∈ U ∩ ( A\{x} ) . He...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.859905
+   chunk: 436 (210a7bf1-e00b-4a6b-bc22-4e0c77d40a3f)
+   pages: p. 150
+   snippet: 136 II Convergence The following examples are rather simple. For more complicated examples we need the methods to be developed starting in Section 4. 1.8 Examples (a) For the real sequence (1/n)n∈N× , we have lim(1/n)=0 . Proof Let ε>0. By Corollary I.10.7, there is some N ∈ N× such that 1/N < ε. Then 1/n ≤ 1/N < ε for all n ≥ N, that is, 1/n ∈ (0,ε) ⊆ B(0,ε ) for all n ≥ N. ■ (b) For the complex sequence (zn) deﬁned by zn := n +2 n +1 + i 2n n +2 , we have limzn =1+2 i. Proof Let ε> 0. By Co...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.860955
+   chunk: 443 (7b5fbe30-53cc-4c62-988d-610b52bd449f)
+   pages: p. 152
+   snippet: onstant subsequences,( (−1)2k) k∈N =( 1,1,1,... )a n d ( (−1)2k+1) k∈N =( −1,−1,−1,... ). ■ 1.15 Proposition If (xn) is a convergent sequence with limit a,t h e ne a c hs u b s e - quence (xnk )k∈N of (xn) is convergent with limk→∞ xnk = a. Proof Let (xnk )k∈N be a subsequence of (xn)a n dU a neighborhood ofa. Because a = limxn,t h e r ei ss o m eN such that xn ∈ U for all n ≥ N. From the deﬁnition of a subsequence, nk ≥ k for all k ∈ N,a n ds o ,i np a r t i c u l a r ,nk ≥ N for all k ≥ N....
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.863984
+   chunk: 1078 (9d5869e1-f340-4536-8a8f-845066c4c016)
+   pages: p. 388
+   snippet: + ( f(x) − fNx (x) ) + ( fNx (x)− fNx (y) ) for all x, y∈ X and Nx ∈ N.) 4 Show by example that, in Dini’s theorem, the continuity of the limit function and the monotone convergence are necessary hypotheses. 5 Let (fn) be a sequence of monotone functions on a compact intervalI which converges pointwise to a continuous function f. Show that f is monotone and that (fn)c o n v e r g e s uniformly to f. 6 Consider a sequence of real valued functions (fn)o n X satisfying the following con- ditions...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.869821
+   chunk: 461 (ffcfb667-70a9-45ac-b6ae-799b0857e035)
+   pages: p. 158
+   snippet: complex sequences. 2.10 Proposition Let (xn) be a convergent sequence in K such that lim xn = a. Then (|xn|) converges and lim|xn| = |a|. Proof Let ε> 0. Then there is some N such that |xn − a| <ε for all n ≥ N. From the reversed triangle inequality we have ⏐⏐|xn|−| a| ⏐ ⏐≤| x n − a| <ε, n ≥ N. Thus |xn|∈ BR(|a|,ε) for all n ≥ N.T h i si m p l i e st h a t(|xn|) converges to |a|. ■
+
+[metric-spaces] metric spaces
+keyword hits: 3/4 (metric space, distance, open)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.824674
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.838636
+   chunk: 426 (04a137ca-199c-440e-b2c1-f4d7916dc8a2)
+   pages: p. 146
+   snippet: the distance between two points. To investigate the convergence of sequences in an arbitrary set X, we ﬁrst need to endow X with a structure which permits the ‘distance’ between two elements in X to be determined. Metric Spaces Let X be a set. A functiond : X × X → R + is called ametric on X if the following hold: (M1) d(x, y)=0 ⇐ ⇒x = y. (M2) d(x, y)=d( y,x ), x, y∈ X (symmetry). (M3) d(x, y) ≤ d(x, z)+ d(z,y ), x, y, z∈ X (triangle inequality). If d is a metric onX,t h e n(X,d ) is called a...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.852241
+   chunk: 501 (8fb0e5a2-f5b5-412e-ab56-714dd3089ca2)
+   pages: p. 174
+   snippet: articular, for eachα ∈ K×, the function E → R+, x ↦→∥αx∥is a norm on E. 2 Suppose that a sequence (xn) in a normed vector space E =( E, ∥·∥)c o n v e r g e st ox. Prove that the sequence (∥xn∥)i n[ 0,∞)c o n v e r g e st o∥x∥. 3 Verify the claims of Remark 3.4(a). 4 Prove that the parallelogram identity, 2(∥x∥2 + ∥y∥2)= ∥x+ y∥2 + ∥x− y∥2 ,x , y ∈ E, holds in any inner product space ( E, (·|· ) ) . 5 For which λ := (λ1,...,λ m) ∈ Km is (·|· )λ : Km × Km → K , (x, y) ↦→ m∑ k=1 λkxkyk a scalar p...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.855586
+   chunk: 733 (1d59ded8-b425-48e5-a8c0-86f545cbc847)
+   pages: p. 259
+   snippet: sistent with those introduced already for metric spaces. Finally, the interior ˚A and boundary ∂A of A ⊆ X are deﬁned exactly as for metric spaces. It is then easy to check that Propositions 2.12 and 2.14, as well as Corollaries 2.13 and 2.15 remain true. Thus we have A =c l (A)a n d˚A =i n t (A). (c) Propositions 2.9 and 2.11, and Corollary 2.10 are not true in general topological spaces. Even so, the following is always true: If A is closed and ( xk) is a convergent sequence in A with lim x...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.883668
+   chunk: 806 (b7dac5c2-20ee-4c2e-b112-1ffca807be2c)
+   pages: p. 282
+   snippet: s y is an interior point ofX\M and, since y ∈ X\M is arbitrary, X\M is open. This implies that M is closed in X. ■ 4.11 Corollary An open subset of a normed vector space is connected if and only if it is path connected. Proof This follows from Proposition 4.8 and Theorem 4.10. ■ Connectivity in General Topological Spaces To end this section we analyze the above proofs for their dependence on the existence of am e t r i c . 4.12 Remarks (a) The deﬁnitions of ‘connected’ and ‘path connected’ de...
+
+[normed-vector-spaces] normed vector spaces
+keyword hits: 4/4 (normed vector space, norm, metric, vector space)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.809430
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.812607
+   chunk: 501 (8fb0e5a2-f5b5-412e-ab56-714dd3089ca2)
+   pages: p. 174
+   snippet: articular, for eachα ∈ K×, the function E → R+, x ↦→∥αx∥is a norm on E. 2 Suppose that a sequence (xn) in a normed vector space E =( E, ∥·∥)c o n v e r g e st ox. Prove that the sequence (∥xn∥)i n[ 0,∞)c o n v e r g e st o∥x∥. 3 Verify the claims of Remark 3.4(a). 4 Prove that the parallelogram identity, 2(∥x∥2 + ∥y∥2)= ∥x+ y∥2 + ∥x− y∥2 ,x , y ∈ E, holds in any inner product space ( E, (·|· ) ) . 5 For which λ := (λ1,...,λ m) ∈ Km is (·|· )λ : Km × Km → K , (x, y) ↦→ m∑ k=1 λkxkyk a scalar p...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.824477
+   chunk: 497 (e67b83fb-2544-4a90-996b-fbb065323852)
+   pages: p. 173
+   snippet: II.3 Normed Vector Spaces 159 Conversely, if U ∈U E1 (a), then there is some δ> 0 such that BE1 (a, δ) ⊆ U.S e t r := δ/K > 0. Then, from (3.11), we have BE(a, r) ⊆ U, and hence U ∈U E(a). Thus we have shown that UE1 (a) ⊆U E(a). ■ (e) Using the bijection C ∋z = x + iy ← →(x, y) ∈ R2 , the complex numbers C := R + iR can be identiﬁed with the set R2 (or even with the Abelian group ( R2,+), as Remark I.11.2(c) shows). More generally, for m ∈ N×, the sets Cm and R2m can be identiﬁed using the b...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.832496
+   chunk: 493 (c5907762-0b2a-4f25-aebe-23c6d7966a2d)
+   pages: p. 171
+   snippet: II.3 Normed Vector Spaces 157 We now have two norms on the vector spaceKm, namely the maximum norm |x|∞ =m a x 1≤j≤m |xj| ,x =( x1,...,x m) ∈ Km , and the Euclidean norm |·|. We deﬁne a further norm by |x|1 := m∑ j=1 |xj| ,x =( x1,...,x m) ∈ Km . Checking that this is, in fact, a norm is easy and left to the reader. The next proposition shows, using a further application of the Cauchy-Schwarz inequality, that the Euclidean norm is ‘comparable’ with the norms |·| 1 and |·| ∞. 3.12 Proposition...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.836140
+   chunk: 382 (d049340d-0673-4ddb-9b3a-e4eb82101df8)
+   pages: p. 131
+   snippet: a short introduction to aﬃne spaces. This will allow us to use, without further comment, the language which is most convenient for the given situation. Let V be a K-vector space and E a nonempty set whose elements we call points.T h e nE is called an aﬃne space over V if there is a function V × E → E, (v,P ) ↦→P + v with following properties: (AS 1) P +0= P, P ∈ E. (AS2) P +( v + w)=( P + v)+ w, P ∈ E, v,w ∈ V . (AS3)F o r e a c hP,Q ∈ E there is a unique v ∈ V such that Q = P + v. The unique...
+
+[complete-metric-spaces] complete metric spaces
+keyword hits: 4/4 (complete, metric space, Cauchy sequence, converges)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.838472
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.845433
+   chunk: 544 (462a9c9e-03f4-4a5a-a28b-adb2e95cd135)
+   pages: p. 190
+   snippet: imit x. Suppose that ε> 0. Then there is someN such that d(xn,xm) <ε /2 for all m, n≥ N. There is also some K such that d(xnk ,x) <ε /2 for all k ≥ K. Set M := max{K,N }.T h e n d(xn,x) ≤ d(xn,xnM )+d( xnM ,x) < ε 2 + ε 2 = ε, n ≥ M, that is, (xn) converges to x. ■ Banach Spaces A metric space X is called complete if every Cauchy sequence in X converges. A complete normed vector space is called a Banach space. Using the Bolzano- Weierstrass theorem we can show that complete metric spaces exis...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.871085
+   chunk: 733 (1d59ded8-b425-48e5-a8c0-86f545cbc847)
+   pages: p. 259
+   snippet: sistent with those introduced already for metric spaces. Finally, the interior ˚A and boundary ∂A of A ⊆ X are deﬁned exactly as for metric spaces. It is then easy to check that Propositions 2.12 and 2.14, as well as Corollaries 2.13 and 2.15 remain true. Thus we have A =c l (A)a n d˚A =i n t (A). (c) Propositions 2.9 and 2.11, and Corollary 2.10 are not true in general topological spaces. Even so, the following is always true: If A is closed and ( xk) is a convergent sequence in A with lim x...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.882596
+   chunk: 562 (5acfcf68-7041-4def-aef9-bfdb79595191)
+   pages: p. 195
+   snippet: ) be a complete metric space and (xn) a sequence in X. Suppose that d(xn+1,x n) ≤ αd(xn,x n−1) ,n ∈ N× , for some α ∈ (0, 1). Prove that (xn) converges. 3 Show that every sequence in R has a monotone subsequence. 4 Prove the following (see Exercise 3.7): (a) Every closed subset of a complete metric space is a complete metric space (with the induced metric). (b) Every closed subspace of a Banach space is itself a Banach space (with the induced norm). (c) ℓ∞, c and c0 are Banach spaces. (d) Let...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.886767
+   chunk: 418 (e9c56950-a394-4baa-9802-b5985f05e5f4)
+   pages: p. 143
+   snippet: der completeness ofR,w e derive our ﬁrst concrete convergence criteria. These allow us to calculate the limits of a number of important sequences. In addition, from the order completeness ofR, we derive a fundamental existence principle, the Bolzano- Weierstrass theorem. Section 6 is devoted to the concept of completeness in metric spaces. Special- ization to normed vector spaces leads to the deﬁnition of a Banach space. The basic example of such a space is Km, but we also show that sets of b...
+
+[banach-spaces] Banach spaces in normed vector spaces
+keyword hits: 3/3 (Banach space, complete, normed vector space)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.878876
+   chunk: 544 (462a9c9e-03f4-4a5a-a28b-adb2e95cd135)
+   pages: p. 190
+   snippet: imit x. Suppose that ε> 0. Then there is someN such that d(xn,xm) <ε /2 for all m, n≥ N. There is also some K such that d(xnk ,x) <ε /2 for all k ≥ K. Set M := max{K,N }.T h e n d(xn,x) ≤ d(xn,xnM )+d( xnM ,x) < ε 2 + ε 2 = ε, n ≥ M, that is, (xn) converges to x. ■ Banach Spaces A metric space X is called complete if every Cauchy sequence in X converges. A complete normed vector space is called a Banach space. Using the Bolzano- Weierstrass theorem we can show that complete metric spaces exis...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.892386
+   chunk: 477 (fcecb40f-5b29-4d47-904a-8c976eceac0a)
+   pages: p. 165
+   snippet: II.3 Normed Vector Spaces 151 triangle inequality for the norms ∥·∥j that ∥x+ y∥∞ =m a x 1≤j≤m ∥xj + yj∥j ≤ max 1≤j≤m (∥xj∥j + ∥yj∥j) ≤∥x∥∞ + ∥y∥∞ for all x, y∈ E,t h a ti s ,( N3) holds. Consequently (3.1) deﬁnes a norm on the product vector space E. The last claim is clear. ■ (d) For m ∈ N×, Km is a normed vector space with the maximum norm |x|∞ := max 1≤j≤m |xj| ,x =( x1,...,x m) ∈ Km . In the case m =1 , ( K1,|·| ∞)=( K,|·|)= K. Proof This is a special case of (c). ■ The Space of Bounded...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.906980
+   chunk: 493 (c5907762-0b2a-4f25-aebe-23c6d7966a2d)
+   pages: p. 171
+   snippet: II.3 Normed Vector Spaces 157 We now have two norms on the vector spaceKm, namely the maximum norm |x|∞ =m a x 1≤j≤m |xj| ,x =( x1,...,x m) ∈ Km , and the Euclidean norm |·|. We deﬁne a further norm by |x|1 := m∑ j=1 |xj| ,x =( x1,...,x m) ∈ Km . Checking that this is, in fact, a norm is easy and left to the reader. The next proposition shows, using a further application of the Cauchy-Schwarz inequality, that the Euclidean norm is ‘comparable’ with the norms |·| 1 and |·| ∞. 3.12 Proposition...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.908301
+   chunk: 418 (e9c56950-a394-4baa-9802-b5985f05e5f4)
+   pages: p. 143
+   snippet: der completeness ofR,w e derive our ﬁrst concrete convergence criteria. These allow us to calculate the limits of a number of important sequences. In addition, from the order completeness ofR, we derive a fundamental existence principle, the Bolzano- Weierstrass theorem. Section 6 is devoted to the concept of completeness in metric spaces. Special- ization to normed vector spaces leads to the deﬁnition of a Banach space. The basic example of such a space is Km, but we also show that sets of b...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.908577
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+
+[series-and-power-series] series absolute convergence and power series
+keyword hits: 4/4 (series, absolute convergence, power series, radius)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.851340
+   chunk: 595 (f3d762fb-4e20-485b-b114-d2bb3d6ff020)
+   pages: p. 209
+   snippet: II.8 Absolute Convergence 195 8 Absolute Convergence Since series are a special type of sequences, the rules which we have derived for general sequences apply also to series. But because the summands of a series belong to some underlying normed vector space, we can derive other rules which make use of this fact. For example, for a given series ∑xn, we can investigate the series ∑|xn|. Even though the convergence of a sequence ( yn) implies the convergence of the sequence of its norms (|yn|),...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.858360
+   chunk: 601 (e0816f29-bab6-4d7a-b4b0-68840b8a18cb)
+   pages: p. 211
+   snippet: II.8 Absolute Convergence 197 8.4 Examples (a) For m ≥ 2, ∑ k k−m converges in R. Proof Because m ≥ 2w eh a v ek−m ≤ k−2 for all k ∈ N×. Example 7.1(b) shows that∑k−2 is a convergent majorant for ∑k−m. ■ (b) For any z ∈ C such that |z| < 1, the series ∑zk converges absolutely. Proof We have |zk| = |z|k for all k ∈ N. Because of |z| < 1 and Example 7.4, the geo- metric series ∑|z|k is a convergent majorant for ∑zk. ■ Using the majorant criterion we can derive other important tests for the conv...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.859677
+   chunk: 640 (fda8e925-3fe6-4958-8305-16745b61f0e8)
+   pages: p. 227
+   snippet: he harmonic series ∑1/k diverges. Thus we have−1 ∈ dom(a)a n d1 /∈ dom(a). (iii) Let x ∈ K be such that |x| = 1. Then the majorant criterion of Theorem 8.3 and Example 7.1(b) ensure the absolute convergence of ∑k−2xk. Consequently dom(a)= ¯BK. ■ Addition and Multiplication of Power Series From Section I.8 we know thatK[[X] ] is a ring when addition is deﬁned ‘termwise’ and multiplication is deﬁned by convolution. The following proposition shows that these operations are compatible with the ad...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.872051
+   chunk: 646 (e3a1d39d-ced6-4c42-b59c-d2dafaede1a3)
+   pages: p. 229
+   snippet: he sequence of zeros con- verges, cannot be omitted. (d) Let a =∑akXk be a real power series, that is, an element of R[[X] ]. Because R[[X]]⊆ C[[X]] , a can also be considered as a complex power series. If we denote by aC the function represented bya ∈ C[[X]] , t h e naC ⊇ a,t h a ti s ,aC is an extension of a. In view of Theorem 9.2, the radius of convergenceρa is independent of whether a is thought of as a real or complex power series. Hence (−ρa,ρa)=d o m (a)∩ ρaBC ⊆ ρaBC ⊆ dom(aC) . Thus...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.876664
+   chunk: 638 (1ab3d92b-807b-4e2e-8000-699b3cca0c16)
+   pages: p. 226
+   snippet: the power series a has the value 0 when not otherwise stated. 4Note that Proposition 9.4 cannot be used here. Why not?
+
+[continuous-functions-metric-spaces] continuous functions between metric spaces
+keyword hits: 4/4 (continuous, metric space, function, open)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.818385
+   chunk: 669 (342ea730-2d1c-4c0a-8b98-fe1cd33c17ef)
+   pages: p. 238
+   snippet: 224 III Continuous Functions (o) A function f between metric spaces X and Y is isometric (or an isometry)i f d ( f(x),f (x′) ) = d(x, x′) for allx, x′∈ X,t h a ti s ,i ff ‘preserves distances’. Clearly, such a function is Lipschitz continuous and is a bijection fromX to its imagef(X). If E and F are normed vector spaces and T : E → F is linear, then T is isometric if and only if ∥Tx∥= ∥x∥for all x ∈ E. If, in addition, T is surjective then T is an isometric isomorphism from E to F,a n dT −1 i...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.827901
+   chunk: 743 (c21e9276-fdfc-4431-8765-d52ccebcd93c)
+   pages: p. 262
+   snippet: 248 III Continuous Functions 11 Let T1 and T2 be topologies on a set X. Prove or disprove that T1 ∪T 2 and T1 ∩T 2 are topologies on X. 12 Let X and Y be metric spaces. Prove that f : X → Y is continuous ⇐ ⇒f(A) ⊆ f(A),A ⊆ X. 13 Let A and B be closed subsets of a metric spaceX. Suppose that Y is a metric space and g : A → Y and h : B → Y are continuous functions such that g|A ∩ B = h|A∩ B if A∩ B ̸=∅ . Show that the function f : A∪ B → Y, x ↦→ { g(x) ,x ∈ A, h(x) ,x ∈ B, is continuous. 14 A f...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.837187
+   chunk: 670 (91af94b0-ebc3-4321-b75f-c5083e9707a8)
+   pages: p. 238
+   snippet: a function could be deﬁned using sequences: A function f : X → Y between metric spaces X and Y is called sequentially continuous at x ∈ X, if, for every sequence (xk)i n X such that limxk = x,w eh a v el i mf(xk)= f(x). 1.4 Theorem (sequence criterion) Let X, Y be metric spaces. Then a function f : X → Y is continuous at x if and only if it is sequentially continuous at x. Proof ‘=⇒’L e t(xk) be a sequence in X such that xk → x.L e tV be a neighbor- hood of f(x)i n Y . By supposition there is...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.844344
+   chunk: 666 (a416b2b1-e324-434b-85fe-b9fe16285167)
+   pages: p. 237
+   snippet: III.1 Continuity 223 (k) If A ⊆ X and f : X → Y is continuous at x0 ∈ A,t h e nf|A : A → Y is con- tinuous at x0.H e r eA has the metric induced from X. Proof This follows directly from the continuity of f and the deﬁnition of the induced metric. ■ (l) Let M ⊆ X be a nonempty subset of X.F o re a c hx∈ X, d(x, M): = i n f m∈M d(x, m) is called the distance from x to M.T h edistance function d(·,M ): X → R ,x ↦→d(x, M) is Lipschitz continuous. Proof Let x, y∈ X. From the triangle inequality we...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.850945
+   chunk: 678 (4d0ad37e-580b-49be-9577-e735c6ea9c3b)
+   pages: p. 241
+   snippet: III.1 Continuity 227 1.9 Examples In the following, X is a metric space and E is a normed vector space. (a) Let f : X → E be continuous at x0. Then the norm of f, ∥f∥: X → R ,x ↦→∥f(x)∥, is continuous at x0. Proof By Example 1.3(j), ∥·∥: E → R is Lipschitz continuous. Since∥f∥= ∥·∥◦f,t h e claim follows from Theorem 1.8. ■ (b) Let g : R → X be continuous. Then the function ˆg : E → X, x ↦→g(∥x∥)i s continuous. Proof It suﬃces to note that ˆg = g ◦∥·∥is a composition of continuous functions. ■...
+
+[topology-open-closed-sets] topology open sets closed sets and neighborhoods
+keyword hits: 4/4 (topology, open, closed, neighborhood)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.829041
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.831162
+   chunk: 693 (7183a690-a1f0-490e-b521-c5fd00d291c1)
+   pages: p. 246
+   snippet: en if and only if A is a neighborhood of each of its points. 2.2 Example The open ball B(a, r)i so p e n . Proof For x0 ∈ B(a, r), set s := d(x0,a ). Then ε := r − s is positive. For all x ∈ B(x0,ε)w e have d(x, a) ≤ d(x, x0)+ d(x0,a ) <ε + s = r, and so B(x0,ε ) is contained in B(a, r). This shows that x0 is an interior point of B(a, r). ■ /D6 /CP /D7 /DC /BC Ꜽ 2.3 Remarks (a) The concepts ‘interior point’ and ‘open set’ depend on the surrounding metric space X. It is sometimes useful to mak...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.831309
+   chunk: 29 (842e68d5-0471-4de3-91b3-1247ca668556)
+   pages: p. 12
+   snippet: Contents xiii 2 The Fundamentals of Topology ...................... 232 O p e n S e t s .................................. 2 3 2 C l o s e d S e t s ................................. 2 3 3 T h e C l o s u r e o f a S e t ............................ 2 3 5 T h e I n t e r i o r o f a S e t ............................ 2 3 6 The Boundary of a Set ........................... 2 3 7 The Hausdorﬀ Condition .......................... 2 3 7 E x a m p l e s ................................... 2 3 8 A...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.835204
+   chunk: 708 (3ce60b51-987e-4053-9244-9323de432bfe)
+   pages: p. 251
+   snippet: III.2 The Fundamentals of Topology 237 2.14 Proposition Let A be a subset of a metric space X.T h e n˚A =i n t (A). Proof (i) For eacha ∈ ˚A, there is an open neighborhoodU of a such that U ⊆ A. Thus a ∈ U ⊆ int(A) ,a n ds ow eh a v ep r o v e dt h a t˚A ⊆ int(A). (ii) Conversely, leta ∈ int(A). Then there is an open subsetO of A such that a ∈ O.T h u sO is a neighborhood of a which is contained in A,t h a ti s ,a is an interior point of A.T h u sw eh a v et h ei n c l u s i o ni n t (A) ⊆ ˚A...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.843495
+   chunk: 431 (c55ecbea-3674-4994-b52e-9caaeb4ddf01)
+   pages: p. 148
+   snippet: 134 II Convergence A subset U of a metric space X is called a neighborhood of a ∈ X if there is some r> 0 such that B(a, r) ⊆ U.T h eset of all neighborhoods of the point a is denoted by U(a), that is, U(a): = UX(a): = {U ⊆ X ; U is a neighborhood of a}⊆P (X) . /BU /B4/CP/BN /D6 /B5 /CG /CD 1.4 Examples Let X be a metric space and a ∈ X. (a) For each ε>0, B(a, ε)a n d ¯B(a, ε) are neighborhoods of a called the open and the closed ε-neighborhoods of a. (b) Obviously X is in U(a). If U1,U 2 ∈U...
+
+[compactness-metric-spaces] compactness in metric spaces
+keyword hits: 4/4 (compact, metric space, open cover, sequentially compact)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.840174
+   chunk: 751 (5f072d36-1c16-4c24-bf35-ef64dcc64e66)
+   pages: p. 265
+   snippet: III.3 Compactness 251 By Proposition 2.4, U and V :=⋂m j=0 Vyj are open and disjoint. ThusV is a neighborhood of x0 such that V ⊆ Kc,t h a ti s ,x0 is an interior point of Kc.S i n c e this holds for each x0 ∈ Kc, Kc is open and K is closed. (ii) To verify the boundedness of K,ﬁ xs o m ex0 in X. Since, by Exam- ple 2.2, B(x0,k )i so p e na n dK ⊆⋃∞ k=1 B(x0,k )= X, the compactness of K im- plies that there are k0,...,k m ∈ N such that K ⊆⋃m j=0 B(x0,kj). In particular, K ⊆ B(x0,N )w h e r eN...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.864994
+   chunk: 768 (f3a9266c-6c65-4a05-b8b5-0294b237b264)
+   pages: p. 270
+   snippet: ) → 0 for all k →∞ .H e n c et h e sequence (ak)c o n v e r g e st ok0. Because A is closed, k0 is in A, contradicting A∩ K = ∅. Therefore we have d(k0,A )=d( K,A ) > 0. ■ (d) The compactness of K is necessary in (c). Proof The sets A := R ×{ 0} and B := { (x, y) ∈ R2 ; xy =1 } are closed but not com- pact in R2. Since d ( (n, 0), (n, 1/n) ) =1 /n for n ∈ N×,w eh a v ed(A, B)=0 . ■ Total Boundedness With the practical importance of the concept of compactness amply demonstrated by the above ex...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.871170
+   chunk: 758 (e91b7e9e-f6f3-4dcb-ba94-140d35834780)
+   pages: p. 267
+   snippet: III.3 Compactness 253 3.6 Theorem Let X and Y be metric spaces and f : X → Y continuous. If X is compact, then f(X) is compact. That is, continuous images of compact sets are compact. Proof Let {Oα ; α ∈ A} be an open cover of f(X)i n Y . By Theorem 2.20, for each α ∈ A, f −1(Oα) is an open subset of X. Hence { f −1(Oα); α ∈ A } is an open cover of the compact space X and there are α0,...,α m ∈ A such that X = ⋃m k=0 f −1(Oαk ). It follows that f(X) ⊆⋃m k=0 Oαk ,t h a ti s ,{Oα0 ,...,O αm} is...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.886363
+   chunk: 756 (6b6cab6b-5cc3-42a5-b0b3-557001bda754)
+   pages: p. 266
+   snippet: <ε /2. Thus, for each x ∈ BM ,w eh a v e d(x,x) ≤ d(x, xM )+ d(xM ,x) < 1 M + ε 2 < ε 2 + ε 2 = ε, that is, BM ⊆ B(x, ε) ⊆ Oα. This contradicts our choice of BM and so the cover {Oα ; α ∈ A} must have a ﬁnite subcover. ■ Sequential Compactness We say that a subsetK ⊆ X is sequentially compact if every sequence in K has a subsequence which converges to an element of K. The relationship between the cluster points of a sequence and convergent sub- sequences (see Proposition II.1.17) makes possib...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.889723
+   chunk: 697 (f99d2d05-bb66-4b18-8a2a-37fadc5c222f)
+   pages: p. 247
+   snippet: rmed vector space with metric induced from the norm, then T is called the norm topology. (b) Let (X,∥·∥) be a normed vector space, and∥·∥1 an o r mo nX which is equiv- alent to ∥·∥.L e t T∥·∥ and T∥·∥1 be the norm topologies induced from (X, ∥·∥) and (X,∥·∥1). By Remark 2.3(b), T∥·∥ and T∥·∥1 coincide, that is, equivalent norms induce the same topology on X. ■ Closed Sets A subset A of the metric space X is called closed in X if Ac is open1 in X. 2.6 Proposition (i) ∅ and X are closed. (ii) A...
+
+[connectedness-functions-on-real-line] connectedness and continuous functions on real intervals
+keyword hits: 4/4 (connected, continuous, interval, real)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.799518
+   chunk: 792 (0972e399-c5d7-4566-a199-e31291a629a1)
+   pages: p. 278
+   snippet: 264 III Continuous Functions set X has property E,t h a ti s ,E(x) holds for all x ∈ X.S e t O := { x ∈ X ; E(x)i st r u e } . Then it suﬃces to show that the set O is nonempty, open and closed, since then, by Proposition 4.2, O = X. ■ Connectivity in R The next proposition describes all connected subsets of R and also provides our ﬁrst concrete examples of nontrivial connected sets. 4.4 Theorem A subset of R is connected if and only if it is an interval. Proof Because of Example 4.1(a) we ca...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.823928
+   chunk: 797 (7f1813e3-8339-43ce-abf5-2ad000a95c67)
+   pages: p. 279
+   snippet: eorem 2.20, Uj is open in X for j =1 ,2. Moreover U1 ∪ U2 = X, U 1 ∩ U2 = ∅ and Uj ̸=∅ ,j =1 ,2 , which is not possible for the connected set X. ■ 4.6 Corollary Continuous images of intervals are connected. We will demonstrate in the next two sections that Theorems 4.4 and 4.5 are extremely useful tools for the investigation of real functions. Already we note the following easy consequence of these theorems. 4.7 Theorem (generalized intermediate value theorem) Let X be a connected metric spac...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.838990
+   chunk: 692 (7d0c65ec-5a38-40d4-88a3-3f8af8eca180)
+   pages: p. 246
+   snippet: 232 III Continuous Functions 2 The Fundamentals of Topology For a deeper understanding of continuous functions, we introduce in this section some of the basic concepts of topological spaces. The main result is Theorem 2.20 which characterizes continuous functions as structure preserving functions between topological spaces. Open Sets In the following, X := (X,d ) is a metric space. An element a of a subset A of X is called an interior point of A i ft h e r ei san e i g h b o r h o o dU of a s...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.844072
+   chunk: 796 (276c0c2f-b941-4b57-8741-6e3e3afd4da7)
+   pages: p. 279
+   snippet: III.4 Connectivity 265 The Generalized Intermediate Value Theorem Connected sets have the property that their images under continuous functions are also connected. This important fact can be proved easily using the results of Section 2. 4.5 Theorem Let X and Y be metric spaces and f : X → Y continuous. If X is connected, then so is f(X).T h a ti s ,continuous images of connected sets are connected. Proof Suppose, to the contrary, that f(X) is not connected. Then there are nonempty subsets V 1...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.847175
+   chunk: 767 (02ab6207-fb90-4ae0-8ee1-d0498f4468d7)
+   pages: p. 270
+   snippet: 256 III Continuous Functions Proof By the fundamental theorem of algebra, p(z1)=0f o rs o m e z1 ∈ C.B yT h e o - rem I.8.17, there is some p1 ∈ C[X] such that p =( X − z1)p1 and deg(p1)=d e g (p)− 1. A simple induction argument ﬁnishes the proof. ■ (c) Let A and K be disjoint subsets of a metric space with K compact and A closed. Then the distance d(K,A ) from K to A is positive, that is, d(K,A ): = i n f k∈K d(k,A ) > 0 . Proof By Examples 1.3(k) and (l), the real valued function d(·,A ) is...
+
+[elementary-functions] exponential logarithm trigonometric functions and polar coordinates
+keyword hits: 3/4 (exponential, logarithm, trigonometric)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.818821
+   chunk: 864 (0cfdcf6a-3253-40c5-b535-dc3294cc40bd)
+   pages: p. 307
+   snippet: III.6 The Exponential and Related Functions 293 (d) (polar coordinate representation of the plane) For each ( x, y) ∈ R2 \{ (0,0) } there are unique real numbers r> 0a n dα ∈ [0,2π) such that x = r cos α and y = r sin α. Proof Let x, y∈ R with z := x + iy ∈ C×.S e t r := |z| = √ x2 + y2 > 0a n d α := argN (z) ∈ [0, 2π) . Then, by Theorem 6.20 and Euler’s formula, we have x + iy = z = reiα = r cos α + ir sin α, from which the claim follows. ■ (e) For all z ∈ C, |ez| = eRe z. Proof This follows...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.835903
+   chunk: 32 (2b97b34f-8600-407f-be24-c46cfaf4d8aa)
+   pages: p. 12
+   snippet: elated Functions ................. 277 E u l e r ’ s F o r m u l a............................... 2 7 7 T h e R e a l E x p o n e n t i a l F u n c t i o n ...................... 2 8 0 The Logarithm and Power Functions ................... 2 8 1 The Exponential Function on iR ..................... 2 8 3 The Deﬁnition of π a n d i t s C o n s e q u e n c e s................. 2 8 5 The Tangent and Cotangent Functions .................. 2 8 9 T h e C o m p l e x E x p o n e n t i a l F u n c t i...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.888120
+   chunk: 839 (0b9ff248-54d4-4028-9836-9b3d756e606e)
+   pages: p. 297
+   snippet: III.6 The Exponential and Related Functions 283 6.9 Proposition For all α> 0, lim x→∞ log x xα =0 and lim x→0+ xα log x =0 . In particular, the logarithm function increases more slowly than any (arbitrarily small) positive power function. Proof Since the logarithm is increasing, it follows from Proposition 6.5(iii) that lim x→∞ log x xα = lim x→∞ log x eα log x = lim y→∞ y eαy = 1 α lim t→∞ t et =0 . For the second limit we have lim x→0+ xα log x = lim y→∞ (1 y )α log 1 y = − lim y→∞ log y yα...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.902626
+   chunk: 993 (f0b5f14b-14f4-4b53-b91c-f9dcfc9acd3f)
+   pages: p. 357
+   snippet: IV.3 Taylor’s Theorem 343 (c) (a characterization of the exponential function by its functional equation) If f : C → C satisﬁes f(z + w)=f (z)f(w) ,z , w ∈ C , (3.6) and lim z→0 f(z)− 1 z = b for some b ∈ C , (3.7) then f(z)=e bz for all z ∈ C. Proof From (3.6), we have f(0) = f(0)2,a n ds of(0) ∈{ 0,1}.B u t ,i ff(0) = 0, t h e n ,b y( 3 . 6 ) ,f(z)=f (z)f(0) = 0 for all z ∈ C,t h a ti s ,f = 0. This contradicts (3.7), and so we must have f(0) = 1. For each z ∈ C, (3.6) implies f(z + h) − f(...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.913206
+   chunk: 831 (cdc52bbc-0e51-497b-ad9e-d0746b35b2be)
+   pages: p. 293
+   snippet: III.6 The Exponential and Related Functions 279 (b) From (a) and Euler’s formula (6.1) we get cos(z)= eiz + e−iz 2 , sin(z)= eiz − e−iz 2i ,z ∈ C . (6.3) (c) For w,z ∈ C,w eh a v e ez ̸=0,e −z =1 /ez ,e z−w = ez/ew , ez = ez . Proof From the addition theorem we get eze−z = ez−z = e0 =1 ,f r o mw h i c ht h eﬁ r s t three claims follow. By Example 1.3(i), the function C → C, w ↦→w is continuous. Theorem 1.4 then implies that ez = lim n→∞ n∑ k=0 zk k! = lim n→∞ n∑ k=0 zk k! = ez for all z ∈ C....
+
+[differentiability-mean-value-taylor] differentiability mean value theorem and Taylor theorem
+keyword hits: 4/4 (differentiable, mean value theorem, Taylor, remainder)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.798756
+   chunk: 34 (6807f729-e455-4bc5-801b-458558e9fc6d)
+   pages: p. 13
+   snippet: gher Derivatives .............................. 3 0 7 One-Sided Diﬀerentiability ......................... 3 1 3 2 The Mean Value Theorem and its Applications ............. 317 E x t r e m a ................................... 3 1 7 T h e M e a n V a l u e T h e o r e m ......................... 3 1 8 Monotonicity and Diﬀerentiability ..................... 3 1 9 Convexity and Diﬀerentiability....................... 3 2 2 The Inequalities of Young, H¨o l d e r a n d M i n k o w s k i.............
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.800850
+   chunk: 980 (72691b4b-8c9f-44a5-8af2-e59838ba1321)
+   pages: p. 352
+   snippet: 338 IV Diﬀerentiation in One Variable Then h(0) = Rn(f,a )(x)a n dh(1) = 0, and also h′(t)= [ f (n)(a) − f (n)( a + t(x− a) )](1 − t)n−1 (n − 1)! (x − a)n ,t ∈ (0,1) . The mean value theorem for vector valued functions (Theorem 2.18) implies ∥Rn(f,a )(x)∥= ∥h(1)− h(0)∥≤ sup 0<t<1 ∥h′(t)∥ ≤ sup 0<t<1 f (n)( a + t(x − a) ) − f (n)(a)   (n − 1)! |x − a|n , which was to be proved. ■ 3.3 Corollary (qualitative version of Taylor’s theorem) With the hypotheses of Theorem 3.2, f(x)= n∑ k=0 f (k)(...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.820019
+   chunk: 972 (dcbcc147-194c-419d-a5d5-b09bd76a1792)
+   pages: p. 349
+   snippet: IV.3 Taylor’s Theorem 335 3 Taylor’s Theorem In this chapter we have already seen that, for a functionf, being diﬀerentiable at ap o i n ta and being approximately linear at a are the same property. In addition, using the mean value theorem, we showed how f ′ determines certain local and global properties of f. This suggests an obvious question: Can any smooth function f : D → E be approximated by a polynomial near a point a ∈ D? If so, what does this approxi- mation say about the local and g...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.845503
+   chunk: 932 (758f9ca8-be93-44dc-9e52-eeab294df0b3)
+   pages: p. 333
+   snippet: IV.2 The Mean Value Theorem and its Applications 319 2.4 Theorem (mean value theorem) If f ∈ C ( [a, b], R ) is diﬀerentiable on (a, b), then there is some ξ ∈ (a, b) such that f(b)= f(a)+ f ′(ξ)(b − a) . Proof Set g(x): =f (x) − f(b) − f(a) b − a x, x ∈ [a, b] . Then g :[ a, b] → R satisﬁes the hypotheses of Rolle’s theorem. Thus there is some ξ ∈ (a, b) such that 0= g′(ξ)=f ′(ξ) − f(b) − f(a) b − a , which proves the claim. ■ Geometrically, the mean value theorem says that there is (at leas...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.847918
+   chunk: 890 (7f824f82-6bde-4f85-91b9-25f3ba2a02be)
+   pages: p. 318
+   snippet: 304 IV Diﬀerentiation in One Variable (c) (i) Suppose that K = E = R and f : X ⊆ R → R is a function which is diﬀer- entiable at a. Consider f as a function from C to C, that is, set fC : X ⊆ C → C ,f C(x): = f(x) ,x ∈ X. Then fC is also diﬀerentiable at a and f ′ C(a)=f ′(a). (ii) Now suppose that K = E = C and f : X ⊆ C → C is a function which is diﬀerentiable at a ∈ Y := X ∩ R. Suppose also that a is a limit point of Y and f(Y ) ⊆ R.T h e nf|Y : Y → R is diﬀerentiable at a and (f|Y )′(a)=...
+
+[banach-fixed-point-newton-method] Banach fixed point theorem contractions and Newton method
+keyword hits: 4/4 (fixed point, contraction, Banach, Newton)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.828170
+   chunk: 1016 (c4fc4cd1-29f9-4066-9d2b-bbd8866d8115)
+   pages: p. 365
+   snippet: constant less than 1. (b) Let E be a normed vector space and X ⊆ K convex and perfect. Suppose that f : X → E is diﬀerentiable and sup X ∥f′(x)∥< 1. Then it follows from the mean value theorem for vector valued functions (Theorem 2.18) that f is a con- traction. ■ The Banach Fixed Point Theorem The following theorem is the main result of this section and has innumerable applications, especially in applied mathematics. 4.3 Theorem (contraction theorem, Banach ﬁxed point theorem) Suppose that X...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.843181
+   chunk: 1021 (a86425d5-6057-474f-8385-02a0bd78a849)
+   pages: p. 367
+   snippet: e help of the previous remark we can derive a useful ‘local version’ of the Banach ﬁxed point theorem. 4.5 Proposition Let E be a Banach space and X := ¯BE(x0,r ) with x0 ∈ E and r> 0. Suppose that f : X → E is a contraction with contraction constantq which satisﬁes ∥f(x0) − x0∥≤ (1 − q)r.T h e nf has a unique ﬁxed point and the method of successive approximations converges if x0 is the initial value. Proof Since X is a closed subset of a Banach space, X is a complete met- ric space. Thus, by...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.890573
+   chunk: 1013 (129e6418-39bb-4f1f-9be8-92cf6cc3ab92)
+   pages: p. 364
+   snippet: is section, the Banach ﬁxed point theorem, is, in fact, of considerable importance beyond the needs of this section, as we will see in later chapters. Fixed Points and Contractions Let f : X → Y be a function between sets X and Y with X ⊆ Y .A ne l e m e n t a ∈ X such that f(a)= a is called a ﬁxed point of f. 4.1 Remarks (a) Suppose that E is a vector space, X ⊆ E and f : X → E.S e t g(x): = f(x)+x for all x ∈ X.T h e na∈ X is a zero of f if and only if a is a ﬁxed point of g. Thus determini...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.898360
+   chunk: 1020 (6e041460-8958-49a6-bdc0-f5e2454eb2bf)
+   pages: p. 367
+   snippet: then each step doubles the num- ber of correct decimal places in the approximation. In practice, c is often larger than 1 and so this eﬀect is partly diminished. (c) In applications the following situation often occurs: Suppose that E is a Ba- nach space, X is a closed subset of E and f : X → E is a contraction such that f(X) ⊆ X. Then, since X is a complete metric space (see Exercise II.6.4), all the statements of the contraction theorem hold for f. (d) The hypothesis of (b), that f(X) ⊆ X,...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.912115
+   chunk: 1028 (fd16e3ea-55b2-4138-852d-2fe19bf74106)
+   pages: p. 370
+   snippet: 356 IV Diﬀerentiation in One Variable and so x1 can be calculated from the equation f(x0)+ f ′(x0)(x1 − x0)=0 : x1 = x0 − f(x0) f ′(x0) . Iteration of this procedure is called Newton’s method: xn+1 = xn − f(xn) f ′(xn) ,n ∈ N ,x 0 ∈ [a, b] . The hypotheses in (4.4) do not suﬃce to ensure the convergence xn → ξ,a st h e following graph illustrates: /DC /BF /DC /BD /DC /BC /DC /BE /CU Deﬁne g :[ a, b] → R by g(x): = x− f(x)/f ′(x) . (4.5) Then ξ is clearly a ﬁxed point ofg, and Newton’s method...
+
+[uniform-convergence-sequences-functions] uniform convergence of sequences of functions
+keyword hits: 3/4 (uniform convergence, sequence of functions, continuous)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.780404
+   chunk: 1042 (f7a6a890-12db-4274-b769-174d9cc1dc90)
+   pages: p. 376
+   snippet: V.1 Uniform Convergence 363 1 Uniform Convergence For sequences of functions, several diﬀerent kinds of convergence are possible de- pending on whether we are interested in the pointwise behavior, or the ‘global’ behavior, of the functions involved. In this section, we introduce both pointwise and uniform convergence and study the relations between them. The results we derive in this section form the foundation on which all deeper investigations into analysis are built. Throughout this sectio...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.805466
+   chunk: 1065 (32cb6621-dc8e-44ed-866e-fde518958bcd)
+   pages: p. 384
+   snippet: V.2 Continuity and Diﬀerentiability for Sequences of Functions 371 2.3 Remarks (a) Any uniformly convergent sequence of functions is locally uni- formly convergent. (b) Any locally uniformly convergent sequence of functions converges pointwise. (c) If X is compact and ( fn) converges locally uniformly, then ( fn)c o n v e r g e s uniformly. Proof By (b), the (pointwise) limit functionf of (fn) is well deﬁned. Letε> 0. Because (fn) converges locally uniformly, for each x ∈ X, there is an open...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.819439
+   chunk: 1061 (86ff73ee-136c-4fa1-aa35-808a908bed39)
+   pages: p. 382
+   snippet: that, in (b), the boundedness of one of the limit functions is necessary. 8 Let (fn) be a uniformly convergent sequence of K-valued functions on X with limit function f. Suppose that there is some α> 0 such that |fn(x)|≥ α> 0 ,n ∈ N ,x ∈ X. Show that (1/fn) converges uniformly to 1/f. 9 Let (fn) be a uniformly convergent sequence of E-valued functions on X,a n dF a Banach space. Suppose that fn(X) ⊆ D for all n ∈ N and g : D → F is uniformly con- tinuous. Show that (g ◦ fn) is uniformly conve...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.820774
+   chunk: 1078 (9d5869e1-f340-4536-8a8f-845066c4c016)
+   pages: p. 388
+   snippet: + ( f(x) − fNx (x) ) + ( fNx (x)− fNx (y) ) for all x, y∈ X and Nx ∈ N.) 4 Show by example that, in Dini’s theorem, the continuity of the limit function and the monotone convergence are necessary hypotheses. 5 Let (fn) be a sequence of monotone functions on a compact intervalI which converges pointwise to a continuous function f. Show that f is monotone and that (fn)c o n v e r g e s uniformly to f. 6 Consider a sequence of real valued functions (fn)o n X satisfying the following con- ditions...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.827034
+   chunk: 1066 (5936ebba-8dbc-4149-98b2-ebc5e47b750d)
+   pages: p. 384
+   snippet: X such that X is covered by Uxj ,0 ≤ j ≤ m.F o r N := max { N(x0),...,N (xm) } ,w et h e nh a v e |fn(x)− f(x)| <ε, x ∈ X, n ≥ N. This shows that (fn) converges uniformly to f. ■ 2.4 Theorem (continuity of the limits of sequences of functions) If a sequence of continuous functions (fn) converges locally uniformly to f,t h e nf is also continu- ous. In other words, locally uniform limits of continuous functions are continuous. Proof Since the continuity off is a local property, the claim follo...
+
+[analytic-functions-power-series] analytic functions and power series
+keyword hits: 3/4 (analytic, power series, radius)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.768688
+   chunk: 37 (b2d4eb70-e4ef-452d-b82b-f4b45b9edab9)
+   pages: p. 14
+   snippet: ............................. 3 7 3 3 Analytic Functions ............................. 377 Diﬀerentiability of Power Series ...................... 3 7 7 A n a l y t i c i t y.................................. 3 7 8 Antiderivatives of Analytic Functions ................... 3 8 0 The Power Series Expansion of the Logarithm .............. 3 8 1 T h e B i n o m i a l S e r i e s ............................. 3 8 2 The Identity Theorem for Analytic Functions .............. 3 8 6 4 Polynomial Appro...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.786361
+   chunk: 1113 (2e47f0ff-b06e-408e-a3f3-b3ca0b646e81)
+   pages: p. 402
+   snippet: V.3 Analytic Functions 389 6 Let f ∈ Cω(ρB) be represented by∑akXk on ρB for some ρ> 0. Suppose that (xn) is a null sequence in (ρB)\{0}. Show that the following are equivalent: (i) f is even. (ii) f(xn)= f(−xn), n ∈ N. (iii) a2m+1 =0 , m ∈ N. Formulate an analogous characterization of odd analytic functions on ρB. 7 Prove the formulas (3.4). 8 Show that (α + β k ) = k∑ ℓ=0 (α ℓ )( β k − ℓ ) for all α, β∈ C and k ∈ N. 9 Verify that the functions (a) sinh : C → C,c o s h :C → C,t a n h :C\iπ(Z...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.788048
+   chunk: 1082 (1eb9cc56-ce67-4399-8d4c-d970d5a339b8)
+   pages: p. 390
+   snippet: V.3 Analytic Functions 377 3 Analytic Functions In this section we study power series again. These are, of course, series of functions having a particularly simple form. We know already that a power series converges locally uniformly on its disk of convergence. We show in this section that such a series can be diﬀerentiated ‘termwise’ and that the result is again a power series with the same radius of convergence as the original series. It follows directly from this that a power series repres...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.797594
+   chunk: 1085 (7d3fe921-70f4-4336-93a2-64ff99d39750)
+   pages: p. 391
+   snippet: 378 V Sequences of Functions Analyticity Let D be open in K. A function f : D → K is called analytic (on D) if, for each x0 ∈ D,t h e r ei ss o m er = r(x0) > 0 such that B(x0,r ) ⊆ D and a power series∑ k akXk with radius of convergence ρ ≥ r, such that f(x)= ∞∑ k=0 ak(x − x0)k ,x ∈ B(x0,r ) . In this case, we say that∑ k ak(X − x0)k is the power series expansion forf at x0. The set of all analytic functions on D is denoted by Cω(D, K), or by Cω(D)i f no misunderstanding is possible. Further...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.803622
+   chunk: 1105 (8ea4ed03-4e80-407c-9e14-00234cb1aa30)
+   pages: p. 399
+   snippet: nalytic Functions To close this section we prove an importantglobal property of analytic functions: If an analytic function is zero on an open subset of its domain D,t h e ni ti sz e r o on all of D. 3.13 Theorem (identity theorem for analytic functions) Let D be a domain in K and f ∈ Cω(D, K). If the set of zeros of f has a limit point in D,t h e nf is zero on D. Proof Set Y := { x ∈ D ; ∃ (xn)i nD \{x} such that lim xn = x and f(xn)=0f o r n ∈ N } . By supposition, Y is nonempty. Since f is...
+
+[polynomial-approximation-stone-weierstrass-banach-algebras] polynomial approximation Stone-Weierstrass theorem and Banach algebras
+keyword hits: 2/4 (polynomial approximation, Banach algebra)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.748452
+   chunk: 1116 (b4794bf3-4edc-4f1b-8b2f-8fb4adb7c2bb)
+   pages: p. 403
+   snippet: fact lies behind the great importance of Taylor’s theorem, particularly for numerical mathemat- ics which considers the derivation of eﬃcient algorithms for the approximation of functions and solutions of equations. In this section we investigate the problem of the global approximation of functions by polynomials. The main result of this section, the Stone- Weierstrass theorem, guarantees the existence of such polynomials for arbitrary continuous functions on compact subsets of Rn. Banach Alg...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.796130
+   chunk: 1125 (6cdb9190-5224-4617-b106-9883c3e0a8d3)
+   pages: p. 406
+   snippet: V.4 Polynomial Approximation 393 The Stone- Weierstrass Theorem As preparation for the proof of the Stone- Weierstrass theorem, we prove the fol- lowing two lemmas. 4.5 Lemma |t| = ∞∑ k=0 (1/2 k ) (t2 − 1)k ,t ∈ [−1,1] , and this series is norm convergent on [−1,1]. Proof Set x := t2 − 1f o rt ∈ [−1,1]. Then |t| = √ t2 = √ 1+t 2 − 1= √ 1+ x, and so the claim follows from Theorem 3.10. ■ 4.6 Lemma Let X be a compact metric space and A a closed subalgebra of C(X, R) containing 1.I f f and g are...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.839972
+   chunk: 1119 (403227da-caa0-433d-905f-20028bfe8421)
+   pages: p. 404
+   snippet: V.4 Polynomial Approximation 391 (d) In a Banach algebra A, the multiplication operation A× A → A,( a, b) ↦→ab is continuous. Proof For all (a, b) and (a0,b 0)i n A× A we have ∥ab− a0b0∥≤∥a − a0∥∥b∥+ ∥a0∥∥b − b0∥, from which the claim follows easily (see the proof of Example III.1.3(m)). ■ (e) If B is a subalgebra of a Banach algebra A,t h e nB is a Banach algebra. Proof For a, b∈ B, there are sequences ( an)a n d( bn) such that an → a and bn → b in A. From Proposition II.2.2 and Remark II.3....
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.841610
+   chunk: 1041 (551cabb9-2073-413c-bd8d-a1c910137513)
+   pages: p. 375
+   snippet: 362 V Sequences of Functions The last section considers the approximation of continuous functions by poly- nomials. Whereas the Taylor polynomial provides a local approximation, here we are interested in uniform approximations. The main result is the Stone- Weierstrass theorem. In addition, we take a ﬁrst look at the behavior of periodic functions, and prove that the Banach algebra of continuous 2 π-periodic functions is isomorphic to the Banach algebra of continuous functions on the unit cir...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.854720
+   chunk: 1155 (c46db9d6-422f-4164-a3ed-3d0412f2374d)
+   pages: p. 416
+   snippet: V.4 Polynomial Approximation 403 10 Let D0(R, K) be the set of all absolutely convergent trigonometric series witha0 =0 (see (4.11)). Show the following: (a) D0(R, K) is a subalgebra of C2π(R, K). (b) Each f ∈ D0(R, K)h a sa2 π-periodic antiderivative. (c) Each f ∈ D0(R, R)h a saz e r oi n( 0, 2π). (d) Claim (c) is false for functions in D0(R, C). 11 For n ∈ N and 0 ≤ k ≤ n, the (elementary) Bernstein polynomial Bn,k is deﬁned by Bn,k := (n k ) Xk(1− X)n−k . Show the following: (a) For each n...
+
+Summary:
+queries: 20
+keyword hits: 69/79
+queries with page metadata: 20/20
+queries with snippets: 20/20

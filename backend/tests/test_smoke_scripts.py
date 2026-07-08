@@ -1,3 +1,5 @@
+import json
+
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -6,6 +8,9 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
 from scripts.ask_book import ask_book
+from scripts.eval_retrieval import evaluate_retrieval
+from scripts.eval_retrieval import load_eval_queries
+from scripts.eval_retrieval import main as eval_retrieval_main
 from scripts.index_pdf import index_pdf_file
 from scripts.search_book import main as search_book_main
 from scripts.search_book import search_book
@@ -189,5 +194,119 @@ def test_search_book_cli_prints_ranked_chunks(tmp_path, capsys, monkeypatch) -> 
         assert "chunk:" in output
         assert "pages: p. 1" in output
         assert "snippet:" in output
+    finally:
+        _close_script_session(session)
+
+
+def test_retrieval_eval_default_query_file_has_expected_shape() -> None:
+    queries = load_eval_queries("scripts/retrieval_eval_queries.json")
+
+    assert len(queries) >= 8
+    assert {query.id for query in queries} >= {
+        "metric-spaces",
+        "complete-metric-spaces",
+        "banach-spaces",
+        "compactness-metric-spaces",
+    }
+    assert all(query.query for query in queries)
+    assert all(query.expected_keywords for query in queries)
+
+
+def test_eval_retrieval_runs_queries_and_keyword_summary(tmp_path) -> None:
+    session = _create_script_session()
+    try:
+        pdf_path = tmp_path / "analysis.pdf"
+        pdf_path.write_bytes(
+            make_pdf_bytes(
+                [
+                    "Metric spaces use a distance function and neighborhoods.",
+                    "Complete metric spaces make every Cauchy sequence converge.",
+                    "Banach spaces are complete normed vector spaces.",
+                ]
+            )
+        )
+        indexed = index_pdf_file(pdf_path, session=session)
+        queries_file = tmp_path / "queries.json"
+        queries_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "complete",
+                        "query": "complete metric spaces",
+                        "expected_keywords": ["complete", "Cauchy sequence"],
+                    },
+                    {
+                        "id": "banach",
+                        "query": "Banach spaces",
+                        "expected_keywords": ["Banach", "normed vector spaces"],
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        summary = evaluate_retrieval(
+            library_item_id=indexed.library_item_id,
+            queries_file=queries_file,
+            top_k=3,
+            session=session,
+        )
+
+        assert summary.library_item_id == indexed.library_item_id
+        assert [result.query.id for result in summary.results] == ["complete", "banach"]
+        assert all(len(result.chunks) == 3 for result in summary.results)
+        assert all(result.page_metadata_count == 3 for result in summary.results)
+        assert all(result.snippet_source_count == 3 for result in summary.results)
+        assert summary.results[0].matched_keywords == ["complete", "Cauchy sequence"]
+        assert summary.results[1].matched_keywords == ["Banach", "normed vector spaces"]
+    finally:
+        _close_script_session(session)
+
+
+def test_eval_retrieval_cli_prints_baseline_summary(tmp_path, capsys, monkeypatch) -> None:
+    session = _create_script_session()
+    try:
+        pdf_path = tmp_path / "analysis.pdf"
+        pdf_path.write_bytes(
+            make_pdf_bytes(["A Banach space is a complete normed vector space."])
+        )
+        indexed = index_pdf_file(pdf_path, session=session)
+        queries_file = tmp_path / "queries.json"
+        queries_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": "banach",
+                        "query": "Banach spaces",
+                        "expected_keywords": ["Banach", "complete"],
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        monkeypatch.setattr("scripts.eval_retrieval.get_db_session", lambda: session)
+
+        exit_code = eval_retrieval_main(
+            [
+                "--library-item-id",
+                str(indexed.library_item_id),
+                "--queries-file",
+                str(queries_file),
+                "--top-k",
+                "1",
+                "--max-snippet-chars",
+                "40",
+            ]
+        )
+
+        output = capsys.readouterr().out
+        assert exit_code == 0
+        assert "Retrieval baseline" in output
+        assert "[banach] Banach spaces" in output
+        assert "keyword hits: 2/2" in output
+        assert "page metadata present: 1/1 chunks" in output
+        assert "snippets present: 1/1 chunks" in output
+        assert "Summary:" in output
     finally:
         _close_script_session(session)
