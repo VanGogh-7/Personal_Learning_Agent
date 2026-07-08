@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 37: Retrieval Quality Baseline.
+Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -22,11 +22,13 @@ the Agent Chat synthesis path. Stage 36A adds a real Zhipu embedding
 provider and backend-only scripts for a single-book PDF RAG smoke test.
 Stage 36C adds retrieval-only search output for inspecting single-book
 RAG quality before answer generation. Stage 37 adds a small repeatable
-retrieval eval query set for comparing future retrieval changes:
+retrieval eval query set for comparing future retrieval changes.
+Stage 38A classifies chunks by section type and excludes known front/back
+matter from default retrieval:
 
 ```text
 PDF -> page-aware extraction -> chunking -> Zhipu embeddings
--> pgvector -> single-book retrieval -> baseline diagnostics
+-> section classification -> pgvector -> body-default retrieval
                               \-> DeepSeek answer -> citations
 ```
 
@@ -65,7 +67,7 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 37 Does
+## What Stage 38A Does
 
 - Reuses the existing embedding and LLM provider abstractions.
 - Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
@@ -82,6 +84,11 @@ Do not commit real `.env` files or expose API keys to the frontend.
 - Adds `scripts/retrieval_eval_queries.json` and
   `scripts/eval_retrieval.py` for a lightweight retrieval-only baseline
   with keyword hit summaries.
+- Adds `document_chunks.section_type` metadata and lightweight PDF page
+  heuristics for `body`, `contents`, `index`, `bibliography`, `preface`,
+  and `unknown`.
+- Excludes known non-body chunks from default retrieval, with
+  `--include-non-body` on retrieval scripts for debugging.
 - Keeps `/api/agent/chat` request and response compatibility.
 - Adds tests with mocked providers/clients only; no real API key is
   required for tests.
@@ -95,7 +102,7 @@ Manual single-book smoke test:
 conda activate pla
 cd backend
 alembic upgrade head
-python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
+python scripts/index_pdf.py "../Analysis.pdf" --reindex
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
 python scripts/eval_retrieval.py --library-item-id <library_item_id>
@@ -113,15 +120,15 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 37 Does Not Do
+## What Stage 38A Does Not Do
 
 No frontend changes, settings UI, auth/user accounts, tool-calling
 framework, autonomous planner, web browsing implementation, new RAG
 algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
 frontend PDF viewer changes. `scripts/search_book.py` does not call the
 LLM provider or generate answers. `scripts/eval_retrieval.py` does not
-call the LLM provider, change chunking, change schema, or add a complex
-benchmark framework.
+call the LLM provider, change chunking, or add a complex benchmark
+framework. Stage 38A does not add ML-based document layout parsing.
 
 ## Commands
 

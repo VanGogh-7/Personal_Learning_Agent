@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.vector_search import search_similar_chunks, search_similar_chunks_for_documents
+from app.db.vector_search import DEFAULT_EXCLUDED_SECTION_TYPES
 from app.embeddings.base import EmbeddingProvider
 from app.embeddings.providers import get_embedding_provider
 from app.models.document import Document
@@ -28,6 +29,7 @@ class RetrievedChunkResult:
     library_author: str | None = None
     page_start: int | None = None
     page_end: int | None = None
+    section_type: str = "unknown"
 
 
 @dataclass
@@ -153,6 +155,7 @@ def retrieve_relevant_chunks(
     question: str,
     top_k: int = 5,
     embedding_provider: EmbeddingProvider | None = None,
+    include_non_body: bool = False,
 ) -> list[RetrievedChunkResult]:
     """Embed the question and retrieve the most similar document chunks.
 
@@ -162,7 +165,13 @@ def retrieve_relevant_chunks(
     provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
 
-    similar_chunks = search_similar_chunks(session, query_embedding, limit=top_k)
+    exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
+    similar_chunks = search_similar_chunks(
+        session,
+        query_embedding,
+        limit=top_k,
+        exclude_section_types=exclude_section_types,
+    )
     if not similar_chunks:
         return []
 
@@ -211,6 +220,7 @@ def retrieve_relevant_chunks(
                 char_end=chunk.char_end,
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
+                section_type=chunk.section_type,
                 score=chunk.distance,
             )
         )
@@ -224,6 +234,7 @@ def retrieve_relevant_chunks_for_library_item(
     question: str,
     top_k: int = 5,
     embedding_provider: EmbeddingProvider | None = None,
+    include_non_body: bool = False,
 ) -> tuple[LibraryItemRagContext, list[RetrievedChunkResult]]:
     """Retrieve chunks only from documents associated with one Library item."""
     item = session.get(LibraryItem, library_item_id)
@@ -239,8 +250,13 @@ def retrieve_relevant_chunks_for_library_item(
     provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
     document_ids = [document.id for document in documents]
+    exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
     similar_chunks = search_similar_chunks_for_documents(
-        session, query_embedding, document_ids=document_ids, limit=top_k
+        session,
+        query_embedding,
+        document_ids=document_ids,
+        limit=top_k,
+        exclude_section_types=exclude_section_types,
     )
     if not similar_chunks:
         raise LibraryItemRagError("Library item has no indexed chunks to search.")
@@ -272,6 +288,7 @@ def retrieve_relevant_chunks_for_library_item(
                 char_end=chunk.char_end,
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
+                section_type=chunk.section_type,
                 score=chunk.distance,
             )
         )
@@ -285,6 +302,7 @@ def retrieve_relevant_chunks_for_library_items(
     question: str,
     top_k: int = 5,
     embedding_provider: EmbeddingProvider | None = None,
+    include_non_body: bool = False,
 ) -> tuple[list[LibraryItemRagContext], list[RetrievedChunkResult]]:
     """Retrieve chunks only from documents associated with selected Library items."""
     deduped_item_ids = list(dict.fromkeys(library_item_ids))
@@ -340,8 +358,13 @@ def retrieve_relevant_chunks_for_library_items(
 
     provider = embedding_provider or get_embedding_provider()
     query_embedding = provider.embed_text(question)
+    exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
     similar_chunks = search_similar_chunks_for_documents(
-        session, query_embedding, document_ids=document_ids, limit=top_k
+        session,
+        query_embedding,
+        document_ids=document_ids,
+        limit=top_k,
+        exclude_section_types=exclude_section_types,
     )
     if not similar_chunks:
         raise LibraryItemRagError("Selected library items have no indexed chunks to search.")
@@ -381,6 +404,7 @@ def retrieve_relevant_chunks_for_library_items(
                 char_end=chunk.char_end,
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
+                section_type=chunk.section_type,
                 score=chunk.distance,
             )
         )

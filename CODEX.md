@@ -55,9 +55,10 @@ Stage 35: Backend Dual-Agent LangGraph MVP — completed.
 Stage 36: Real LLM Provider Integration — completed.
 Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — completed.
 Stage 36C: Single-Book RAG Observability Polish — completed.
-Stage 37: Retrieval Quality Baseline — current.
+Stage 37: Retrieval Quality Baseline — completed.
+Stage 38A: Retrieval Filtering for Front Matter and Back Matter — current.
 
-Current active stage: Stage 37: Retrieval Quality Baseline.
+Current active stage: Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
 
 Do not implement the full product at once.
 
@@ -391,6 +392,15 @@ chunks with scores and page/snippet diagnostics, and summarize simple
 expected-keyword hits. It does not call the LLM provider, change
 chunking, change database schema, add reranking/hybrid search, or add
 frontend UI.
+
+Stage 38A is Retrieval Filtering for Front Matter and Back Matter. It
+adds lightweight `document_chunks.section_type` metadata populated by
+simple PDF indexing heuristics for body, contents, index, bibliography,
+preface, and unknown sections. Default retrieval excludes known
+non-body chunks, while backend scripts expose `--include-non-body` for
+debugging. It does not change embedding providers, LLM providers,
+chunking behavior, retrieval algorithms, frontend UI, or add ML-based
+layout parsing.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -985,6 +995,11 @@ Frontend:
   top-k chunks, page/snippet presence, and simple expected-keyword hit
   summaries without LLM generation, schema changes, chunking changes, or
   frontend changes
+- Stage 38A Retrieval Filtering for Front Matter and Back Matter adds
+  `document_chunks.section_type`, classifies PDF pages/chunks with simple
+  heuristics, and excludes known non-body sections from default retrieval.
+  `scripts/search_book.py` and `scripts/eval_retrieval.py` support
+  `--include-non-body` for debugging
 
 Planned later:
 - Production-quality agent workflows

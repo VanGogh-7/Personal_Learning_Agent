@@ -70,7 +70,7 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
 
     assert set(table.columns.keys()) == {
         "id", "document_id", "chunk_index", "content", "char_start",
-        "char_end", "page_start", "page_end", "created_at", "embedding",
+        "char_end", "page_start", "page_end", "section_type", "created_at", "embedding",
     }
     assert not table.c.document_id.nullable
     assert not table.c.content.nullable
@@ -78,6 +78,7 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
     assert not table.c.char_end.nullable
     assert table.c.page_start.nullable
     assert table.c.page_end.nullable
+    assert not table.c.section_type.nullable
 
     fk_targets = {fk.target_fullname for fk in table.c.document_id.foreign_keys}
     assert fk_targets == {"documents.id"}

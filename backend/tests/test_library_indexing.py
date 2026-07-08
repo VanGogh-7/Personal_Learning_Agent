@@ -5,9 +5,13 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.embeddings.base import EMBEDDING_DIMENSION
-from app.library.indexing import LibraryIndexingError, index_library_item
 from app.library.service import create_library_item
 from app.ingestion.pdf import PDFPageText
+from app.library.indexing import (
+    LibraryIndexingError,
+    classify_pdf_section_type,
+    index_library_item,
+)
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
@@ -130,6 +134,7 @@ def test_index_library_item_pdf_creates_page_aware_chunks(indexing_session, tmp_
     ).scalars().all()
     assert [chunk.page_start for chunk in chunks] == [1, 2]
     assert [chunk.page_end for chunk in chunks] == [1, 2]
+    assert [chunk.section_type for chunk in chunks] == ["body", "body"]
     assert chunks[0].content == "Derivatives measure local linear change."
 
 
@@ -157,6 +162,63 @@ def test_index_library_item_pdf_strips_nul_bytes_before_storage(
         select(DocumentChunk).where(DocumentChunk.document_id == result.document_id)
     ).scalars().all()
     assert [chunk.content for chunk in chunks] == ["Metric spaces"]
+
+
+def test_index_library_item_pdf_classifies_non_body_sections(
+    indexing_session, tmp_path, monkeypatch
+) -> None:
+    file_path = tmp_path / "analysis.pdf"
+    file_path.write_bytes(b"%PDF placeholder")
+    item = create_library_item(
+        indexing_session,
+        title="Analysis",
+        file_path=str(file_path),
+        file_type="pdf",
+    )
+
+    monkeypatch.setattr(
+        "app.library.indexing.extract_pdf_pages",
+        lambda path: [
+            PDFPageText(
+                page_number=1,
+                text=(
+                    "Contents\n"
+                    "Chapter I Foundations ........ 3\n"
+                    "Chapter II Convergence ........ 131\n"
+                    "Chapter III Continuous Functions ........ 219\n"
+                ),
+            ),
+            PDFPageText(page_number=2, text="Preface\nThis book grew from lectures."),
+            PDFPageText(page_number=3, text="I.1 Fundamentals of Logic\nA statement is..."),
+            PDFPageText(page_number=4, text="Index 421\nBanach space, 176\ncompact, 250"),
+            PDFPageText(page_number=5, text="metric, 401\nnormed vector, 148\nopen, 232"),
+        ],
+    )
+
+    result = index_library_item(indexing_session, item.item_id)
+
+    assert result is not None
+    chunks = indexing_session.execute(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == result.document_id)
+        .order_by(DocumentChunk.chunk_index)
+    ).scalars().all()
+    assert [chunk.section_type for chunk in chunks] == [
+        "contents",
+        "preface",
+        "body",
+        "index",
+        "index",
+    ]
+
+
+def test_classify_pdf_section_type_uses_lightweight_heuristics() -> None:
+    assert classify_pdf_section_type("Contents\nChapter I Foundations .... 3") == "contents"
+    assert classify_pdf_section_type("x Contents\n6 Countability .... 46") == "contents"
+    assert classify_pdf_section_type("Index 421\nBanach space, 176") == "index"
+    assert classify_pdf_section_type("Bibliography\n[1] Some reference") == "bibliography"
+    assert classify_pdf_section_type("Preface\nThis book...") == "preface"
+    assert classify_pdf_section_type("II.6 Completeness\nA metric space is...") == "body"
 
 
 def test_index_library_item_invalid_pdf_sets_failed_status(indexing_session, tmp_path) -> None:

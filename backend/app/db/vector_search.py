@@ -9,6 +9,7 @@ from app.embeddings.base import EMBEDDING_DIMENSION
 from app.models.document_chunk import DocumentChunk
 
 MAX_SEARCH_LIMIT = 100
+DEFAULT_EXCLUDED_SECTION_TYPES = ("contents", "index", "bibliography", "preface")
 
 
 @dataclass
@@ -22,6 +23,7 @@ class SimilarChunkResult:
     distance: float
     page_start: int | None = None
     page_end: int | None = None
+    section_type: str = "unknown"
 
 
 def _validate_embedding_dimension(embedding: Sequence[float]) -> None:
@@ -51,7 +53,11 @@ def set_chunk_embedding(session: Session, chunk_id: uuid.UUID, embedding: Sequen
     session.flush()
 
 
-def build_similarity_query(query_embedding: Sequence[float], limit: int = 5) -> Select:
+def build_similarity_query(
+    query_embedding: Sequence[float],
+    limit: int = 5,
+    exclude_section_types: Sequence[str] = DEFAULT_EXCLUDED_SECTION_TYPES,
+) -> Select:
     """Build (without executing) a query for the nearest chunks by L2 distance.
 
     Only chunks with a stored embedding are considered.
@@ -61,19 +67,25 @@ def build_similarity_query(query_embedding: Sequence[float], limit: int = 5) -> 
 
     distance = DocumentChunk.embedding.l2_distance(list(query_embedding))
 
-    return (
+    stmt = (
         select(DocumentChunk, distance.label("distance"))
         .where(DocumentChunk.embedding.is_not(None))
         .order_by(distance)
         .limit(limit)
     )
+    if exclude_section_types:
+        stmt = stmt.where(DocumentChunk.section_type.not_in(list(exclude_section_types)))
+    return stmt
 
 
 def search_similar_chunks(
-    session: Session, query_embedding: Sequence[float], limit: int = 5
+    session: Session,
+    query_embedding: Sequence[float],
+    limit: int = 5,
+    exclude_section_types: Sequence[str] = DEFAULT_EXCLUDED_SECTION_TYPES,
 ) -> list[SimilarChunkResult]:
     """Return the chunks with embeddings closest to query_embedding (L2 distance)."""
-    stmt = build_similarity_query(query_embedding, limit)
+    stmt = build_similarity_query(query_embedding, limit, exclude_section_types)
     rows = session.execute(stmt).all()
 
     return [
@@ -86,6 +98,7 @@ def search_similar_chunks(
             char_end=chunk.char_end,
             page_start=chunk.page_start,
             page_end=chunk.page_end,
+            section_type=chunk.section_type,
             distance=float(distance),
         )
         for chunk, distance in rows
@@ -97,6 +110,7 @@ def search_similar_chunks_for_documents(
     query_embedding: Sequence[float],
     document_ids: Sequence[uuid.UUID],
     limit: int = 5,
+    exclude_section_types: Sequence[str] = DEFAULT_EXCLUDED_SECTION_TYPES,
 ) -> list[SimilarChunkResult]:
     """Return nearest embedded chunks restricted to a set of documents.
 
@@ -111,12 +125,16 @@ def search_similar_chunks_for_documents(
     if not document_ids:
         return []
 
+    stmt = (
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id.in_(list(document_ids)))
+        .where(DocumentChunk.embedding.is_not(None))
+    )
+    if exclude_section_types:
+        stmt = stmt.where(DocumentChunk.section_type.not_in(list(exclude_section_types)))
+
     rows = (
-        session.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id.in_(list(document_ids)))
-            .where(DocumentChunk.embedding.is_not(None))
-        )
+        session.execute(stmt)
         .scalars()
         .all()
     )
@@ -140,6 +158,7 @@ def search_similar_chunks_for_documents(
             char_end=chunk.char_end,
             page_start=chunk.page_start,
             page_end=chunk.page_end,
+            section_type=chunk.section_type,
             distance=float(distance),
         )
         for chunk, distance in scored[:limit]

@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    String,
     Text,
     UniqueConstraint,
     func,
@@ -45,6 +46,7 @@ class DocumentChunk(Base):
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    section_type: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

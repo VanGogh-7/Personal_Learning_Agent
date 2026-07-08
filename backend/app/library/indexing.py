@@ -1,4 +1,5 @@
 import hashlib
+import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,12 @@ from app.models.library_item import LibraryItem
 SUPPORTED_LIBRARY_INDEX_TYPES = {"txt", "md", "pdf"}
 DEFAULT_INDEX_CHUNK_SIZE = 800
 DEFAULT_INDEX_CHUNK_OVERLAP = 100
+SECTION_BODY = "body"
+SECTION_CONTENTS = "contents"
+SECTION_INDEX = "index"
+SECTION_BIBLIOGRAPHY = "bibliography"
+SECTION_PREFACE = "preface"
+SECTION_UNKNOWN = "unknown"
 
 
 class LibraryIndexingError(ValueError):
@@ -41,6 +48,7 @@ class IndexChunk:
     char_end: int
     page_start: int | None = None
     page_end: int | None = None
+    section_type: str = SECTION_UNKNOWN
 
 
 def index_library_item(
@@ -81,6 +89,7 @@ def index_library_item(
                     char_end=chunk.char_end,
                     page_start=chunk.page_start,
                     page_end=chunk.page_end,
+                    section_type=chunk.section_type,
                     embedding=embedding,
                 )
             )
@@ -154,6 +163,7 @@ def _prepare_index_chunks(path: Path, file_type: str) -> tuple[list[IndexChunk],
             content=chunk.content,
             char_start=chunk.char_start,
             char_end=chunk.char_end,
+            section_type=SECTION_BODY,
         )
         for chunk in chunk_text(
             text,
@@ -167,8 +177,17 @@ def _prepare_index_chunks(path: Path, file_type: str) -> tuple[list[IndexChunk],
 def _chunk_pdf_pages(pages: list[PDFPageText]) -> list[IndexChunk]:
     chunks: list[IndexChunk] = []
     next_index = 0
+    current_section_type = SECTION_UNKNOWN
 
     for page in pages:
+        detected_section_type = classify_pdf_section_type(page.text)
+        section_type = _resolve_pdf_page_section_type(
+            page.text,
+            detected_section_type=detected_section_type,
+            current_section_type=current_section_type,
+        )
+        if section_type != SECTION_UNKNOWN:
+            current_section_type = section_type
         page_chunks = chunk_text(
             page.text,
             chunk_size=DEFAULT_INDEX_CHUNK_SIZE,
@@ -183,6 +202,7 @@ def _chunk_pdf_pages(pages: list[PDFPageText]) -> list[IndexChunk]:
                     char_end=chunk.char_end,
                     page_start=page.page_number,
                     page_end=page.page_number,
+                    section_type=section_type,
                 )
             )
             next_index += 1
@@ -207,6 +227,81 @@ def _content_hash(text: str) -> str:
 
 def _clean_text_for_storage(text: str) -> str:
     return text.replace("\x00", "")
+
+
+def classify_pdf_section_type(text: str) -> str:
+    normalized = _normalize_for_section_detection(text)
+    if not normalized:
+        return SECTION_UNKNOWN
+
+    first_line = normalized.splitlines()[0]
+    first_words = " ".join(normalized.split()[:12])
+
+    if re.match(r"^([ivxlcdm]+\s+)?contents\b", first_line):
+        return SECTION_CONTENTS
+    if re.match(r"^table of contents\b", first_line):
+        return SECTION_CONTENTS
+    if _looks_like_contents_page(normalized):
+        return SECTION_CONTENTS
+    if re.match(r"^(index|name index|subject index)\b", first_line):
+        return SECTION_INDEX
+    if re.match(r"^(bibliography|references)\b", first_line):
+        return SECTION_BIBLIOGRAPHY
+    if re.match(r"^(preface|foreword|introduction to the .*edition)\b", first_line):
+        return SECTION_PREFACE
+    if " preface " in f" {first_words} ":
+        return SECTION_PREFACE
+
+    return SECTION_BODY
+
+
+def _resolve_pdf_page_section_type(
+    text: str,
+    *,
+    detected_section_type: str,
+    current_section_type: str,
+) -> str:
+    non_body_sections = {
+        SECTION_CONTENTS,
+        SECTION_INDEX,
+        SECTION_BIBLIOGRAPHY,
+        SECTION_PREFACE,
+    }
+    if detected_section_type in non_body_sections:
+        return detected_section_type
+    if (
+        current_section_type in non_body_sections
+        and detected_section_type == SECTION_BODY
+        and not _looks_like_body_start(text)
+    ):
+        return current_section_type
+    return detected_section_type
+
+
+def _normalize_for_section_detection(text: str) -> str:
+    lines = [" ".join(line.strip().split()) for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    return "\n".join(lines).casefold()
+
+
+def _looks_like_contents_page(normalized: str) -> bool:
+    dot_leaders = normalized.count("...")
+    has_many_numbered_headings = len(re.findall(r"\b\d+\s+[a-z]", normalized)) >= 4
+    has_contents_heading = "contents" in normalized[:120]
+    return has_contents_heading and (dot_leaders >= 3 or has_many_numbered_headings)
+
+
+def _looks_like_body_start(text: str) -> bool:
+    normalized = _normalize_for_section_detection(text)
+    if not normalized:
+        return False
+    first_line = normalized.splitlines()[0]
+    first_words = " ".join(normalized.split()[:10])
+    return bool(
+        re.match(r"^(chapter\s+[ivxlcdm]+|[ivxlcdm]+\.\d+)\b", first_line)
+        or re.match(r"^\d+\s+[ivxlcdm]+\s+[a-z]", first_line)
+        or re.search(r"\b[ivxlcdm]+\.\d+\s+[a-z]", first_words)
+    )
 
 
 def _get_or_create_document(

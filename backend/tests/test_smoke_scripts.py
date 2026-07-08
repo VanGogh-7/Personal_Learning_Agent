@@ -145,17 +145,34 @@ def test_search_book_script_runs_retrieval_without_answer_generation(tmp_path) -
             )
         )
         indexed = index_pdf_file(pdf_path, session=session)
+        indexed_chunks = session.execute(
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == indexed.document_id)
+            .order_by(DocumentChunk.chunk_index)
+        ).scalars().all()
+        indexed_chunks[0].section_type = "index"
+        session.flush()
 
         summary = search_book(
             "complete metric spaces",
             library_item_id=indexed.library_item_id,
-            top_k=2,
+            top_k=3,
+            session=session,
+        )
+        unfiltered_summary = search_book(
+            "complete metric spaces",
+            library_item_id=indexed.library_item_id,
+            top_k=3,
+            include_non_body=True,
             session=session,
         )
 
         assert summary.library_item_id == indexed.library_item_id
         assert summary.query == "complete metric spaces"
         assert len(summary.chunks) == 2
+        assert {chunk.section_type for chunk in summary.chunks} == {"body"}
+        assert len(unfiltered_summary.chunks) == 3
+        assert "index" in {chunk.section_type for chunk in unfiltered_summary.chunks}
         assert all(chunk.score >= 0 for chunk in summary.chunks)
         assert {chunk.library_title for chunk in summary.chunks} == {"metric-spaces"}
         assert {chunk.page_start for chunk in summary.chunks}.issubset({1, 2, 3})
@@ -191,6 +208,7 @@ def test_search_book_cli_prints_ranked_chunks(tmp_path, capsys, monkeypatch) -> 
         assert "Retrieved chunks:" in output
         assert "1. functional-analysis" in output
         assert "score:" in output
+        assert "section: body" in output
         assert "chunk:" in output
         assert "pages: p. 1" in output
         assert "snippet:" in output
@@ -307,6 +325,7 @@ def test_eval_retrieval_cli_prints_baseline_summary(tmp_path, capsys, monkeypatc
         assert "keyword hits: 2/2" in output
         assert "page metadata present: 1/1 chunks" in output
         assert "snippets present: 1/1 chunks" in output
+        assert "section: body" in output
         assert "Summary:" in output
     finally:
         _close_script_session(session)

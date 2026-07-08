@@ -38,7 +38,8 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 - **Stage 36A (Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke
   Test) is completed.**
 - **Stage 36C (Single-Book RAG Observability Polish) is completed.**
-- **Stage 37 (Retrieval Quality Baseline) is current.**
+- **Stage 37 (Retrieval Quality Baseline) is completed.**
+- **Stage 38A (Retrieval Filtering for Front Matter and Back Matter) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
@@ -51,8 +52,10 @@ backend-only scripts for one-book PDF RAG smoke testing. Stage 36C adds
 a retrieval-only `scripts/search_book.py` diagnostic script for
 single-book RAG quality inspection. Stage 37 adds
 `scripts/retrieval_eval_queries.json` and `scripts/eval_retrieval.py`
-for repeatable retrieval-only baseline checks. The existing
-`/api/agent/chat` endpoint remains the Agent Chat API:
+for repeatable retrieval-only baseline checks. Stage 38A adds
+`document_chunks.section_type` metadata and filters known front/back
+matter from default retrieval. The existing `/api/agent/chat` endpoint
+remains the Agent Chat API:
 
 ```text
 User question -> Router -> Local/Web evidence -> Synthesis prompt -> configured LLM provider
@@ -91,12 +94,12 @@ alembic upgrade head
   embeddings.
 - API keys must never be committed, logged, or exposed to the frontend.
 
-Stage 37 backend smoke commands:
+Stage 38A backend smoke commands:
 
 ```bash
 cd backend
 alembic upgrade head
-python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
+python scripts/index_pdf.py "../Analysis.pdf" --reindex
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
 python scripts/eval_retrieval.py --library-item-id <library_item_id>
@@ -107,6 +110,8 @@ python scripts/ask_book.py --library-item-id <library_item_id> \
 Stage 36A sets `document_chunks.embedding` to `vector(2048)`. Its
 Alembic migration deletes existing stored chunks; re-index affected
 Library items after applying it. Do not commit real PDF books.
+Stage 38A adds `document_chunks.section_type`; re-index PDFs to populate
+body/front-matter/back-matter classification.
 
 ### Frontend
 

@@ -108,6 +108,7 @@ def evaluate_retrieval(
     library_item_id: uuid.UUID | str,
     queries_file: str | Path = DEFAULT_QUERIES_FILE,
     top_k: int = 5,
+    include_non_body: bool = False,
     session: Session | None = None,
 ) -> RetrievalEvalSummary:
     """Run retrieval-only evaluation queries against one Library item."""
@@ -126,6 +127,7 @@ def evaluate_retrieval(
                 query.query,
                 top_k=top_k,
                 embedding_provider=provider,
+                include_non_body=include_non_body,
             )
             results.append(
                 RetrievalEvalResult(
@@ -212,6 +214,7 @@ def _print_result(result: RetrievalEvalResult, *, max_snippet_chars: int) -> Non
         print(f"   library: {chunk.library_title or 'unknown'}")
         print(f"   document: {chunk.document_title or 'unknown'}")
         print(f"   score: {chunk.score:.6f}")
+        print(f"   section: {chunk.section_type}")
         print(f"   chunk: {chunk.chunk_index} ({chunk.chunk_id})")
         print(f"   pages: {_format_page(chunk)}")
         print(f"   snippet: {_make_snippet(chunk.content, max_snippet_chars)}")
@@ -250,6 +253,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--top-k", type=int, default=5, help="Number of chunks to retrieve.")
     parser.add_argument(
+        "--include-non-body",
+        action="store_true",
+        help="Include contents, index, bibliography, and preface chunks.",
+    )
+    parser.add_argument(
         "--max-snippet-chars",
         type=int,
         default=500,
@@ -271,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
             library_item_id=args.library_item_id,
             queries_file=args.queries_file,
             top_k=args.top_k,
+            include_non_body=args.include_non_body,
         )
     except (LibraryItemRagError, ValueError) as exc:
         print(f"Evaluation failed: {exc}", file=sys.stderr)

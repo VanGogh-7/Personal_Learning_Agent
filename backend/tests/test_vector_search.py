@@ -18,6 +18,9 @@ def test_build_similarity_query_uses_l2_distance_and_excludes_null_embeddings() 
     assert "document_chunks" in compiled
     assert "<->" in compiled
     assert "embedding IS NOT NULL" in compiled
+    assert "section_type" in compiled
+    assert "contents" in compiled
+    assert "index" in compiled
     assert "ORDER BY" in compiled.upper()
 
 
@@ -26,6 +29,18 @@ def test_build_similarity_query_respects_limit_value() -> None:
     compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
 
     assert "LIMIT 3" in compiled.upper()
+
+
+def test_build_similarity_query_can_include_non_body_sections() -> None:
+    stmt = build_similarity_query(
+        [0.0] * EMBEDDING_DIMENSION,
+        limit=5,
+        exclude_section_types=(),
+    )
+    compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
+
+    assert "NOT IN" not in compiled.upper()
+    assert "contents" not in compiled
 
 
 def test_vector_search_functions_are_importable_and_callable() -> None:

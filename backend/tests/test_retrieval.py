@@ -67,13 +67,16 @@ def _make_similar_chunk(
         char_end=len(content),
         page_start=page_start,
         page_end=page_end,
+        section_type="body",
         distance=distance,
     )
 
 
 def test_retrieve_relevant_chunks_returns_empty_list_when_no_matches(monkeypatch) -> None:
     monkeypatch.setattr(
-        retrieval_module, "search_similar_chunks", lambda session, embedding, limit: []
+        retrieval_module,
+        "search_similar_chunks",
+        lambda session, embedding, limit, exclude_section_types=(): [],
     )
 
     result = retrieve_relevant_chunks(_FakeSession({}), "some question", top_k=5)
@@ -84,9 +87,12 @@ def test_retrieve_relevant_chunks_returns_empty_list_when_no_matches(monkeypatch
 def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(monkeypatch) -> None:
     captured = {}
 
-    def fake_search_similar_chunks(session, query_embedding, limit):
+    def fake_search_similar_chunks(
+        session, query_embedding, limit, exclude_section_types=()
+    ):
         captured["embedding"] = query_embedding
         captured["limit"] = limit
+        captured["exclude_section_types"] = exclude_section_types
         return []
 
     monkeypatch.setattr(retrieval_module, "search_similar_chunks", fake_search_similar_chunks)
@@ -97,6 +103,7 @@ def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(mo
     assert captured["embedding"] == expected_embedding
     assert len(captured["embedding"]) == EMBEDDING_DIMENSION
     assert captured["limit"] == 7
+    assert "contents" in captured["exclude_section_types"]
 
 
 def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monkeypatch) -> None:
@@ -109,7 +116,9 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
     )
 
     monkeypatch.setattr(
-        retrieval_module, "search_similar_chunks", lambda session, embedding, limit: [chunk]
+        retrieval_module,
+        "search_similar_chunks",
+        lambda session, embedding, limit, exclude_section_types=(): [chunk],
     )
 
     library_item_id = uuid.uuid4()
@@ -140,6 +149,7 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
     assert item.char_end == len(chunk.content)
     assert item.page_start == 7
     assert item.page_end == 7
+    assert item.section_type == "body"
     assert item.score == chunk.distance
 
 
@@ -148,7 +158,9 @@ def test_retrieve_relevant_chunks_handles_missing_document_title(monkeypatch) ->
     chunk = _make_similar_chunk(document_id)
 
     monkeypatch.setattr(
-        retrieval_module, "search_similar_chunks", lambda session, embedding, limit: [chunk]
+        retrieval_module,
+        "search_similar_chunks",
+        lambda session, embedding, limit, exclude_section_types=(): [chunk],
     )
 
     result = retrieve_relevant_chunks(_FakeSession({}), "question", top_k=5)
@@ -158,7 +170,9 @@ def test_retrieve_relevant_chunks_handles_missing_document_title(monkeypatch) ->
 
 def test_retrieve_relevant_chunks_does_not_open_network_connections(monkeypatch) -> None:
     monkeypatch.setattr(
-        retrieval_module, "search_similar_chunks", lambda session, embedding, limit: []
+        retrieval_module,
+        "search_similar_chunks",
+        lambda session, embedding, limit, exclude_section_types=(): [],
     )
 
     def fail_if_called(*args, **kwargs):

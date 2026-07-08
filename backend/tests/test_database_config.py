@@ -94,8 +94,11 @@ def test_alembic_script_directory_has_expected_revision_chain() -> None:
     assert len(heads) == 1
 
     head_revision = script.get_revision(heads[0])
-    assert head_revision.revision == "9d4a6f1b2c30"
-    assert head_revision.down_revision == "7c1a2b3d4e5f"
+    assert head_revision.revision == "c2f4b8a19d37"
+    assert head_revision.down_revision == "9d4a6f1b2c30"
+
+    stage38a_revision = script.get_revision("9d4a6f1b2c30")
+    assert stage38a_revision.down_revision == "7c1a2b3d4e5f"
 
     stage36a_revision = script.get_revision("7c1a2b3d4e5f")
     assert stage36a_revision.down_revision == "2f8c3a7d9e10"

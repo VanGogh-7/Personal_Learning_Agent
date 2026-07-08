@@ -112,6 +112,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Index one local PDF into the Personal Learning Agent backend."
     )
+    parser.add_argument(
+        "--reindex",
+        action="store_true",
+        help="Recreate chunks for an existing Library item. Existing items are reindexed by default.",
+    )
     parser.add_argument("pdf_path", help="Path to the local .pdf file to index.")
     return parser
 

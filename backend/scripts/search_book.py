@@ -35,6 +35,7 @@ def search_book(
     *,
     library_item_id: uuid.UUID | str,
     top_k: int = 5,
+    include_non_body: bool = False,
     session: Session | None = None,
 ) -> SearchBookSummary:
     """Run single-book retrieval without answer generation."""
@@ -52,6 +53,7 @@ def search_book(
             query,
             top_k=top_k,
             embedding_provider=provider,
+            include_non_body=include_non_body,
         )
         return SearchBookSummary(
             library_item_id=resolved_library_item_id,
@@ -100,6 +102,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--library-item-id", required=True, help="Library item UUID to query.")
     parser.add_argument("--top-k", type=int, default=5, help="Number of chunks to retrieve.")
     parser.add_argument(
+        "--include-non-body",
+        action="store_true",
+        help="Include contents, index, bibliography, and preface chunks.",
+    )
+    parser.add_argument(
         "--max-snippet-chars",
         type=int,
         default=500,
@@ -123,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
             query,
             library_item_id=args.library_item_id,
             top_k=args.top_k,
+            include_non_body=args.include_non_body,
         )
     except (LibraryItemRagError, ValueError) as exc:
         print(f"Search failed: {exc}", file=sys.stderr)
@@ -140,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"   library: {chunk.library_title or 'unknown'}")
         print(f"   document: {chunk.document_title or 'unknown'}")
         print(f"   score: {chunk.score:.6f}")
+        print(f"   section: {chunk.section_type}")
         print(f"   chunk: {chunk.chunk_index} ({chunk.chunk_id})")
         print(f"   pages: {_format_page(chunk)}")
         print(f"   snippet: {_make_snippet(chunk.content, args.max_snippet_chars)}")
