@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 42: Frontend Agent Chat Simplification.
+Stage 43: Frontend Library Add PDFs Product Flow.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -31,7 +31,9 @@ polishes answer grounding and normalizes local RAG citation formatting.
 Stage 41 makes `/api/agent/chat` accept the simplified product request
 shape expected by the final Agent Chat. Stage 42 updates the right
 Agent Chat dock to use that product API as a clean chat box for the
-currently selected PDF context:
+currently selected PDF context. Stage 43 adds the left Library
+Explorer product flow for adding PDFs through the desktop file picker
+and indexing them through the existing backend pipeline:
 
 ```text
 PDF -> page-aware extraction -> section classification -> math-PDF chunking
@@ -75,21 +77,21 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 42 Does
+## What Stage 43 Does
 
 - Keeps the existing IDE-like layout: PDF Library Explorer, embedded
   PDF Workspace, and right Agent Chat dock.
-- Simplifies the right Agent Chat dock to chat history, message input,
-  send/loading/error states, and readable Sources.
-- Removes the main UI controls for RAG mode, `top_k`, `session_id`,
-  long-term memory, manual context selection, and retrieval debug
-  details.
-- Sends `POST /api/agent/chat` with `message` plus the selected indexed
-  Workspace Library item as `selected_library_item_id` when available.
-- Lets the backend route gracefully when no indexed PDF is selected.
-- Displays normalized citation IDs and source metadata including title,
-  page/page range, chunk index, chapter, and section when returned.
-- Preserves Chat-to-Notes and the existing backend/API contracts.
+- Adds an `Add PDFs` action to the left Library Explorer.
+- Opens the Tauri system file picker with PDF-only filtering and
+  supports selecting multiple PDFs when the platform dialog allows it.
+- Creates Library items with `file_type: "pdf"` and indexes them by
+  calling the existing backend indexing endpoint.
+- Reuses the backend PDF extraction, chunking, embedding, pgvector
+  storage, and section metadata pipeline.
+- Shows basic add/index status and errors in the Library Explorer.
+- Refreshes the Library list after indexing and selects the newly
+  indexed PDF so it opens in the center Workspace.
+- Preserves the simplified Agent Chat selected-PDF context flow.
 
 Manual single-book smoke test:
 
@@ -116,15 +118,14 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 42 Does Not Do
+## What Stage 43 Does Not Do
 
-No backend code changes, settings UI, embedding provider settings,
-database schema changes, provider changes, chunking/retrieval changes,
-reranking, hybrid search, new agent graph behavior, web search
-expansion, PDF viewer redesign, citation-to-page navigation, OCR,
-annotations, auth/user accounts, tool-calling framework, or autonomous
-planner. Stage 42 does not expose low-level retrieval or memory controls
-in the main Agent Chat UI.
+No Settings UI, embedding provider settings, local embedding provider,
+database schema changes, chunking/retrieval/citation changes, reranking,
+hybrid search, LangGraph topology changes, web search expansion, PDF
+viewer redesign, citation-to-page navigation, OCR, annotations,
+auth/user accounts, tool-calling framework, or autonomous planner.
+Stage 43 does not reintroduce low-level RAG/debug controls in Agent Chat.
 
 ## Commands
 

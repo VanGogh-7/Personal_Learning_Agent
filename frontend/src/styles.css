@@ -334,6 +334,10 @@ label {
   padding: 0.75rem 0.9rem;
 }
 
+.compact-success {
+  margin: 12px 0 0;
+}
+
 .compact-error {
   margin: 0;
 }

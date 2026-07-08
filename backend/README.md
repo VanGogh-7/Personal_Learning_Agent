@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 42: Frontend Agent Chat Simplification.
+Stage 43: Frontend Library Add PDFs Product Flow.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -170,13 +170,18 @@ Stage 42: Frontend Agent Chat Simplification.
   dock now sends the Stage 41 product request shape, automatically uses
   the selected indexed PDF context, hides low-level RAG/debug controls,
   and displays normalized Sources without backend behavior changes
-  (Stage 42, current)
+  (Stage 42, completed)
+- Frontend Library Add PDFs Product Flow: the Workspace Library Explorer
+  now opens a PDF-only Tauri file picker, creates PDF Library items,
+  indexes them through the existing backend item indexing endpoint,
+  refreshes the Library list, and selects the newly indexed PDF without
+  backend behavior changes (Stage 43, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 42 is a frontend Agent Chat
-simplification pass on top of the Stage 41 backend product API. It does
+**not implemented yet**. Stage 43 is a frontend Library product-flow
+pass on top of existing Library item create and indexing APIs. It does
 not change backend routes, database schema, Tauri architecture, Vite
 architecture, local retrieval algorithms, chunking, memory behavior,
 learning-event semantics, Notes APIs, provider behavior, or response

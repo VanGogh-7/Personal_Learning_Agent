@@ -61,9 +61,10 @@ Stage 38B: Filtered Retrieval Baseline and Indexing Workflow Polish — complete
 Stage 39: Chunk Optimization v1 for Mathematical PDFs — completed.
 Stage 40: Citation Formatting and Answer Grounding Polish — completed.
 Stage 41: Backend Agent Chat Product API Polish — completed.
-Stage 42: Frontend Agent Chat Simplification — current.
+Stage 42: Frontend Agent Chat Simplification — completed.
+Stage 43: Frontend Library Add PDFs Product Flow — current.
 
-Current active stage: Stage 42: Frontend Agent Chat Simplification.
+Current active stage: Stage 43: Frontend Library Add PDFs Product Flow.
 
 Do not implement the full product at once.
 
@@ -115,7 +116,8 @@ Project stage roadmap:
 39. Chunk Optimization v1 for Mathematical PDFs — completed
 40. Citation Formatting and Answer Grounding Polish — completed
 41. Backend Agent Chat Product API Polish — completed
-42. Frontend Agent Chat Simplification — current
+42. Frontend Agent Chat Simplification — completed
+43. Frontend Library Add PDFs Product Flow — current
 
 ---
 
@@ -469,6 +471,17 @@ citation ID, title/source, page/page range, chunk, chapter, and section
 metadata when returned. Stage 42 does not change backend code, database
 schema, retrieval ranking, chunking, providers, web behavior, LangGraph
 topology, settings UI, or PDF viewer behavior.
+
+Stage 43 is Frontend Library Add PDFs Product Flow. It keeps the
+existing Workspace layout and adds an `Add PDFs` action to the left
+Library Explorer. The action opens the Tauri system file picker with
+PDF-only filters, creates PDF Library items from selected local paths,
+calls the existing backend item indexing endpoint, refreshes the
+Library list, and selects the newly indexed PDF so it opens in the
+center Workspace and Agent Chat automatically uses its selected Library
+item context. Stage 43 does not change backend routes, database schema,
+chunking, retrieval ranking, citations, provider boundaries, LangGraph
+topology, Settings UI, or Agent Chat debug controls.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -1088,6 +1101,10 @@ Frontend:
   memory controls from the right Agent Chat dock, sends only `message`
   plus selected Library item context to `/api/agent/chat`, and keeps
   normalized Sources visible in the existing Workspace layout
+- Stage 43 Frontend Library Add PDFs Product Flow adds PDF-only file
+  picking in the left Library Explorer, creates/indexes selected PDFs
+  through existing backend Library APIs, refreshes the list, selects the
+  new PDF, and preserves the selected-PDF Agent Chat context
 
 Planned later:
 - Production-quality agent workflows

@@ -42,5 +42,17 @@ export function pdfSupportLabel({
 }
 
 export function workspaceStatusLabel(status: string | null | undefined): string {
-  return status === "indexed" ? "indexed" : "unindexed";
+  if (status === "indexed") {
+    return "indexed";
+  }
+  if (status === "indexing") {
+    return "indexing";
+  }
+  if (status === "index_failed" || status === "failed") {
+    return "failed";
+  }
+  if (status === "archived") {
+    return "archived";
+  }
+  return "unindexed";
 }

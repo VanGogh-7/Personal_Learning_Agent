@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState, type PointerEvent } from "react";
-import { listLibraryItems } from "../api/client";
+import {
+  createLibraryItem,
+  getLibraryItem,
+  indexLibraryItem,
+  listLibraryItems,
+} from "../api/client";
 import type { LibraryItem } from "../api/types";
 import PdfViewerPanel from "../components/PdfViewerPanel";
 import RagQueryPanel from "../components/RagQueryPanel";
+import { selectLocalPdfFiles } from "../tauri/filePicker";
 import { openLocalFile } from "../tauri/localFiles";
 import {
   fileNameFromPath,
@@ -38,6 +44,9 @@ export default function WorkspacePage() {
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const [addingPdfs, setAddingPdfs] = useState(false);
+  const [addPdfStatus, setAddPdfStatus] = useState<string | null>(null);
+  const [addPdfError, setAddPdfError] = useState<string | null>(null);
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedItemId) || null,
@@ -79,6 +88,60 @@ export default function WorkspacePage() {
       );
     } finally {
       setLoadingLibrary(false);
+    }
+  }
+
+  async function addPdfs() {
+    setAddPdfError(null);
+    setAddPdfStatus(null);
+    setAddingPdfs(true);
+
+    try {
+      const selectedPaths = await selectLocalPdfFiles();
+      if (selectedPaths.length === 0) {
+        return;
+      }
+
+      let lastIndexedItem: LibraryItem | null = null;
+      for (const [index, filePath] of selectedPaths.entries()) {
+        const title = titleFromPdfPath(filePath);
+        setAddPdfStatus(
+          `Indexing ${index + 1}/${selectedPaths.length}: ${fileNameFromPath(filePath)}`,
+        );
+
+        const created = await createLibraryItem({
+          title,
+          file_path: filePath,
+          file_type: "pdf",
+          status: "registered",
+        });
+        setItems((current) => [{ ...created, status: "indexing" }, ...current]);
+        setSelectedItemId(created.id);
+
+        await indexLibraryItem(created.id);
+        lastIndexedItem = await getLibraryItem(created.id);
+        setItems((current) =>
+          current.map((item) => (item.id === lastIndexedItem?.id ? lastIndexedItem : item)),
+        );
+        setAddPdfStatus(`Indexed ${fileNameFromPath(filePath)}`);
+      }
+
+      const response = await listLibraryItems({ limit: 100 });
+      setItems(response.items);
+      if (lastIndexedItem) {
+        setSelectedItemId(lastIndexedItem.id);
+      }
+      setAddPdfStatus(
+        selectedPaths.length === 1
+          ? "PDF indexed successfully."
+          : `${selectedPaths.length} PDFs indexed successfully.`,
+      );
+    } catch (error) {
+      setAddPdfError(error instanceof Error ? error.message : "Could not add PDFs.");
+      setAddPdfStatus("PDF indexing failed.");
+      await loadLibrary();
+    } finally {
+      setAddingPdfs(false);
     }
   }
 
@@ -156,16 +219,32 @@ export default function WorkspacePage() {
                 <h2>PDF Library</h2>
                 <p>{items.length} PDF books</p>
               </div>
-              <button
-                type="button"
-                className="secondary-button compact-button"
-                disabled={loadingLibrary}
-                onClick={loadLibrary}
-              >
-                {loadingLibrary ? "Loading" : "Reload"}
-              </button>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="compact-button"
+                  disabled={addingPdfs}
+                  onClick={addPdfs}
+                >
+                  {addingPdfs ? "Adding..." : "Add PDFs"}
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button compact-button"
+                  disabled={loadingLibrary || addingPdfs}
+                  onClick={loadLibrary}
+                >
+                  {loadingLibrary ? "Loading" : "Reload"}
+                </button>
+              </div>
             </div>
 
+            {addPdfStatus && (
+              <p className={addPdfError ? "error compact-error" : "success compact-success"}>
+                {addPdfStatus}
+              </p>
+            )}
+            {addPdfError && <p className="error compact-error">{addPdfError}</p>}
             {libraryError && <p className="error compact-error">{libraryError}</p>}
 
             {items.length === 0 ? (
@@ -317,4 +396,9 @@ function workspaceFileLabel(item: LibraryItem): string {
     return "No PDF file path";
   }
   return fileNameFromPath(item.file_path) || item.file_path;
+}
+
+function titleFromPdfPath(filePath: string): string {
+  const fileName = fileNameFromPath(filePath);
+  return fileName.replace(/\.pdf$/i, "") || "Untitled PDF";
 }

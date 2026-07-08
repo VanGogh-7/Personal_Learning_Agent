@@ -1,7 +1,7 @@
 # Personal Learning Agent Frontend
 
-Stage 42 simplifies the right Agent Chat dock for the selected PDF
-workflow. The stack remains Bun + Tauri + React + Vite. The default
+Stage 43 adds the frontend Add PDFs product flow in the left Library
+Explorer. The stack remains Bun + Tauri + React + Vite. The default
 page is the IDE-like Workspace with a collapsible/resizable PDF Library
 Explorer, a center embedded PDF Workspace, and a collapsible/resizable
 Agent Chat dock. The FastAPI backend must be started separately on
@@ -73,6 +73,10 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Sidebar navigation emphasizes Workspace and Today Log
 - Workspace page, opened by default, with PDF Library Explorer, PDF
   Workspace viewer, and Agent Chat dock
+- Left PDF Library panel has an `Add PDFs` button that opens the Tauri
+  system file picker, accepts PDF files, creates Library items, indexes
+  them through the backend, refreshes the list, and selects the newly
+  indexed PDF
 - Left PDF Library panel lists existing Library items compactly with
   title, PDF/unsupported label, indexed/unindexed status, filename/path,
   and selected-item highlighting
@@ -85,7 +89,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Center workspace exposes "Open in system PDF reader" for selected
   items that have a local `file_path`
 - Library file picker is restricted to `.pdf` files
-- New file-picker selections infer `file_type: "pdf"`
+- New file-picker selections infer `file_type: "pdf"` and Workspace
+  Add PDFs supports selecting multiple PDFs when available
 - Visible Library create/edit forms reject non-PDF paths and non-PDF
   file types
 - Legacy non-PDF records are marked unsupported in the PDF Library UI
@@ -112,7 +117,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library item selection and detail metadata panel
 - Library `Choose PDF` button in Tauri to fill `file_path` metadata
 - Library `Open PDF` button in Tauri for local PDF `file_path` values
-- Library `Index PDF` action indexes local text PDFs through the backend
+- Library `Index PDF` action indexes local PDFs through the backend
   and stores page-aware chunk metadata
 - Agent Chat Sources show page metadata when indexed PDF chunks include it
 - Library detail `Generate Summary & Tags` action for indexed items
@@ -177,7 +182,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 42
+  Stage 43
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary
