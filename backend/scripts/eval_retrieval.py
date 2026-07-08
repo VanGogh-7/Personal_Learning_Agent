@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import uuid
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,14 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
 from app.embeddings.providers import get_embedding_provider
+from app.library.indexing import (
+    SECTION_BIBLIOGRAPHY,
+    SECTION_BODY,
+    SECTION_CONTENTS,
+    SECTION_INDEX,
+    SECTION_PREFACE,
+    SECTION_UNKNOWN,
+)
 from app.rag.retrieval import (
     LibraryItemRagError,
     RetrievedChunkResult,
@@ -25,6 +34,20 @@ from app.rag.retrieval import (
 )
 
 DEFAULT_QUERIES_FILE = Path(__file__).with_name("retrieval_eval_queries.json")
+NON_BODY_SECTION_TYPES = {
+    SECTION_CONTENTS,
+    SECTION_INDEX,
+    SECTION_BIBLIOGRAPHY,
+    SECTION_PREFACE,
+}
+SECTION_TYPE_PRINT_ORDER = (
+    SECTION_BODY,
+    SECTION_CONTENTS,
+    SECTION_INDEX,
+    SECTION_BIBLIOGRAPHY,
+    SECTION_PREFACE,
+    SECTION_UNKNOWN,
+)
 
 
 @dataclass(frozen=True)
@@ -57,6 +80,41 @@ class RetrievalEvalResult:
 class RetrievalEvalSummary:
     library_item_id: uuid.UUID
     results: list[RetrievalEvalResult]
+    top_k: int
+
+    @property
+    def retrieved_chunk_count(self) -> int:
+        return sum(len(result.chunks) for result in self.results)
+
+    @property
+    def page_metadata_count(self) -> int:
+        return sum(result.page_metadata_count for result in self.results)
+
+    @property
+    def snippet_source_count(self) -> int:
+        return sum(result.snippet_source_count for result in self.results)
+
+    @property
+    def section_type_counts(self) -> dict[str, int]:
+        counts: Counter[str] = Counter(
+            chunk.section_type or SECTION_UNKNOWN
+            for result in self.results
+            for chunk in result.chunks
+        )
+        ordered_counts = {
+            section_type: counts.pop(section_type, 0)
+            for section_type in SECTION_TYPE_PRINT_ORDER
+        }
+        ordered_counts.update(dict(sorted(counts.items())))
+        return ordered_counts
+
+    @property
+    def non_body_retrieved_count(self) -> int:
+        return sum(
+            count
+            for section_type, count in self.section_type_counts.items()
+            if section_type in NON_BODY_SECTION_TYPES
+        )
 
 
 def load_eval_queries(path: str | Path) -> list[RetrievalEvalQuery]:
@@ -142,6 +200,7 @@ def evaluate_retrieval(
         return RetrievalEvalSummary(
             library_item_id=resolved_library_item_id,
             results=results,
+            top_k=top_k,
         )
     finally:
         if owns_session:
@@ -227,18 +286,21 @@ def _print_summary(summary: RetrievalEvalSummary) -> None:
         len(result.query.expected_keywords) for result in summary.results
     )
     total_hits = sum(len(result.matched_keywords) for result in summary.results)
-    queries_with_page_metadata = sum(
-        1 for result in summary.results if result.page_metadata_count > 0
-    )
-    queries_with_snippets = sum(
-        1 for result in summary.results if result.snippet_source_count > 0
-    )
+    total_chunks = summary.retrieved_chunk_count
 
     print("Summary:")
     print(f"queries: {total_queries}")
+    print(f"top_k: {summary.top_k}")
     print(f"keyword hits: {total_hits}/{total_expected}")
-    print(f"queries with page metadata: {queries_with_page_metadata}/{total_queries}")
-    print(f"queries with snippets: {queries_with_snippets}/{total_queries}")
+    print(
+        "page metadata coverage: "
+        f"{summary.page_metadata_count}/{total_chunks} chunks"
+    )
+    print(f"snippet coverage: {summary.snippet_source_count}/{total_chunks} chunks")
+    print("section_type counts:")
+    for section_type, count in summary.section_type_counts.items():
+        print(f"  {section_type}: {count}")
+    print(f"non-body chunks retrieved: {summary.non_body_retrieved_count}")
 
 
 def _build_parser() -> argparse.ArgumentParser:

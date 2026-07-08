@@ -47,6 +47,8 @@ class DocumentChunk(Base):
     page_start: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_end: Mapped[int | None] = mapped_column(Integer, nullable=True)
     section_type: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
+    chapter_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    section_title: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -65,8 +65,8 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
 
         assert index_result is not None
         assert index_result.status == "indexed"
-        assert index_result.chunks_created == 2
-        assert index_result.embeddings_created == 2
+        assert index_result.chunks_created == 1
+        assert index_result.embeddings_created == 1
 
         document = session.get(Document, index_result.document_id)
         assert document is not None
@@ -80,9 +80,9 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
             .where(DocumentChunk.document_id == document.id)
             .order_by(DocumentChunk.chunk_index)
         ).scalars().all()
-        assert len(chunks) == 2
-        assert [chunk.page_start for chunk in chunks] == [1, 2]
-        assert [chunk.page_end for chunk in chunks] == [1, 2]
+        assert len(chunks) == 1
+        assert chunks[0].page_start == 1
+        assert chunks[0].page_end == 2
         assert all(chunk.embedding is not None for chunk in chunks)
         assert all(len(chunk.embedding) == EMBEDDING_DIMENSION for chunk in chunks)
 
@@ -99,10 +99,12 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
         assert response.scope_type == "single_book"
         assert response.selected_library_items[0].id == str(item.item_id)
         assert response.selected_library_items[0].file_type == "pdf"
-        assert response.total_retrieved == 2
+        assert response.total_retrieved == 1
         assert response.answer
         assert response.citations
-        assert {citation.page_number for citation in response.citations} == {1, 2}
+        assert {
+            (citation.page_start, citation.page_end) for citation in response.citations
+        } == {(1, 2)}
         assert {citation.document_id for citation in response.citations} == {
             str(document.id)
         }
@@ -124,8 +126,8 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
         event = session.execute(select(LearningEvent)).scalar_one()
         assert event.event_type == EVENT_AGENT_CHAT_QUESTION_ASKED
         assert event.library_item_id == item.item_id
-        assert event.metadata_json["total_retrieved"] == 2
-        assert event.metadata_json["citation_count"] == 2
+        assert event.metadata_json["total_retrieved"] == 1
+        assert event.metadata_json["citation_count"] == 1
     finally:
         close_session()
         engine.dispose()

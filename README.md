@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
+Stage 39: Chunk Optimization v1 for Mathematical PDFs.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -24,12 +24,14 @@ Stage 36C adds retrieval-only search output for inspecting single-book
 RAG quality before answer generation. Stage 37 adds a small repeatable
 retrieval eval query set for comparing future retrieval changes.
 Stage 38A classifies chunks by section type and excludes known front/back
-matter from default retrieval:
+matter from default retrieval. Stage 38B polishes the manual reindex and
+filtered retrieval baseline workflow. Stage 39 adds larger readable
+born-digital math-PDF chunks with lightweight heading metadata:
 
 ```text
-PDF -> page-aware extraction -> chunking -> Zhipu embeddings
--> section classification -> pgvector -> body-default retrieval
-                              \-> DeepSeek answer -> citations
+PDF -> page-aware extraction -> section classification -> math-PDF chunking
+    -> heading metadata -> Zhipu embeddings -> pgvector
+    -> body-default retrieval -> DeepSeek answer -> citations
 ```
 
 Deterministic/mock mode remains the default for local development and
@@ -67,7 +69,7 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 38A Does
+## What Stage 39 Does
 
 - Reuses the existing embedding and LLM provider abstractions.
 - Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
@@ -89,6 +91,19 @@ Do not commit real `.env` files or expose API keys to the frontend.
   and `unknown`.
 - Excludes known non-body chunks from default retrieval, with
   `--include-non-body` on retrieval scripts for debugging.
+- Keeps `scripts/index_pdf.py --reindex` on the same resolved PDF path
+  from creating duplicate Library items and prints section-type counts.
+- Extends `scripts/eval_retrieval.py` summary output with `top_k`,
+  aggregate page/snippet coverage, section-type counts, and non-body
+  retrieved count.
+- Uses PDF-specific chunking defaults tuned for mathematical textbooks:
+  about 4000 characters per chunk, about 650 characters of overlap, and
+  a 350-character minimum tail target.
+- Combines short adjacent PDF pages where possible while preserving
+  `page_start` and `page_end` for citations.
+- Adds nullable `document_chunks.chapter_title` and
+  `document_chunks.section_title` metadata populated from obvious
+  chapter/section headings and page headers.
 - Keeps `/api/agent/chat` request and response compatibility.
 - Adds tests with mocked providers/clients only; no real API key is
   required for tests.
@@ -103,9 +118,10 @@ conda activate pla
 cd backend
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis.pdf" --reindex
+python scripts/eval_retrieval.py --library-item-id <library_item_id> \
+  --top-k 5 2>&1 | tee stage39_analysis1_chunk_optimized_baseline.txt
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
-python scripts/eval_retrieval.py --library-item-id <library_item_id>
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
@@ -120,7 +136,7 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 38A Does Not Do
+## What Stage 39 Does Not Do
 
 No frontend changes, settings UI, auth/user accounts, tool-calling
 framework, autonomous planner, web browsing implementation, new RAG
@@ -128,7 +144,10 @@ algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
 frontend PDF viewer changes. `scripts/search_book.py` does not call the
 LLM provider or generate answers. `scripts/eval_retrieval.py` does not
 call the LLM provider, change chunking, or add a complex benchmark
-framework. Stage 38A does not add ML-based document layout parsing.
+framework. Stage 39 does not add complex theorem/definition/proof
+parsing, ML-based document layout parsing, OCR, reranking, hybrid
+search, provider changes, frontend changes, or retrieval ranking
+changes.
 
 ## Commands
 

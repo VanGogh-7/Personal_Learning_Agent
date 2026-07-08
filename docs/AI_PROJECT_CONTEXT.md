@@ -39,7 +39,9 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
   Test) is completed.**
 - **Stage 36C (Single-Book RAG Observability Polish) is completed.**
 - **Stage 37 (Retrieval Quality Baseline) is completed.**
-- **Stage 38A (Retrieval Filtering for Front Matter and Back Matter) is current.**
+- **Stage 38A (Retrieval Filtering for Front Matter and Back Matter) is completed.**
+- **Stage 38B (Filtered Retrieval Baseline and Indexing Workflow Polish) is completed.**
+- **Stage 39 (Chunk Optimization v1 for Mathematical PDFs) is current.**
 - **Stage 29A** migrated the frontend workflow from npm to Bun.
 - **Stage 29B** refactored the frontend into the IDE-like Workspace
   layout with resizable/collapsible panels and localStorage persistence.
@@ -54,8 +56,12 @@ single-book RAG quality inspection. Stage 37 adds
 `scripts/retrieval_eval_queries.json` and `scripts/eval_retrieval.py`
 for repeatable retrieval-only baseline checks. Stage 38A adds
 `document_chunks.section_type` metadata and filters known front/back
-matter from default retrieval. The existing `/api/agent/chat` endpoint
-remains the Agent Chat API:
+matter from default retrieval. Stage 38B adds section-type counts to
+the manual reindex output and aggregate section/non-body counts to the
+filtered retrieval baseline summary. Stage 39 changes PDF indexing to
+larger readable chunks for born-digital mathematical PDFs and stores
+lightweight `chapter_title` / `section_title` metadata. The existing
+`/api/agent/chat` endpoint remains the Agent Chat API:
 
 ```text
 User question -> Router -> Local/Web evidence -> Synthesis prompt -> configured LLM provider
@@ -94,15 +100,14 @@ alembic upgrade head
   embeddings.
 - API keys must never be committed, logged, or exposed to the frontend.
 
-Stage 38A backend smoke commands:
+Stage 39 backend smoke commands:
 
 ```bash
 cd backend
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis.pdf" --reindex
-python scripts/search_book.py --library-item-id <library_item_id> \
-  "complete metric spaces"
-python scripts/eval_retrieval.py --library-item-id <library_item_id>
+python scripts/eval_retrieval.py --library-item-id <library_item_id> \
+  --top-k 5 2>&1 | tee stage39_analysis1_chunk_optimized_baseline.txt
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
@@ -112,6 +117,13 @@ Alembic migration deletes existing stored chunks; re-index affected
 Library items after applying it. Do not commit real PDF books.
 Stage 38A adds `document_chunks.section_type`; re-index PDFs to populate
 body/front-matter/back-matter classification.
+Stage 38B keeps default eval retrieval body-only and reports aggregate
+section-type counts plus the number of non-body chunks retrieved.
+Stage 39 adds nullable chunk heading metadata and changes PDF indexing
+defaults to approximately 4000-character chunks with approximately
+650-character overlap and a 350-character minimum tail target. It does
+not add OCR, theorem/proof parsing, reranking, hybrid search, provider
+changes, retrieval ranking changes, or frontend changes.
 
 ### Frontend
 

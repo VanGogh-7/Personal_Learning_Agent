@@ -18,10 +18,28 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db_session
 from app.embeddings.providers import get_embedding_provider
 from app.ingestion.pdf import PDFExtractionError, extract_pdf_pages
-from app.library.indexing import LibraryIndexingError, index_library_item
+from app.library.indexing import (
+    LibraryIndexingError,
+    SECTION_BIBLIOGRAPHY,
+    SECTION_BODY,
+    SECTION_CONTENTS,
+    SECTION_INDEX,
+    SECTION_PREFACE,
+    SECTION_UNKNOWN,
+    index_library_item,
+)
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
+
+SECTION_TYPE_PRINT_ORDER = (
+    SECTION_BODY,
+    SECTION_CONTENTS,
+    SECTION_INDEX,
+    SECTION_BIBLIOGRAPHY,
+    SECTION_PREFACE,
+    SECTION_UNKNOWN,
+)
 
 
 @dataclass(frozen=True)
@@ -32,6 +50,7 @@ class IndexPdfSummary:
     embedding_provider: str
     embedding_dimension: int
     empty_page_count: int
+    section_type_counts: dict[str, int]
 
 
 def index_pdf_file(pdf_path: str | Path, session: Session | None = None) -> IndexPdfSummary:
@@ -55,6 +74,7 @@ def index_pdf_file(pdf_path: str | Path, session: Session | None = None) -> Inde
                 DocumentChunk.document_id == result.document_id
             )
         )
+        section_type_counts = _count_chunk_section_types(db, result.document_id)
         if owns_session:
             db.commit()
 
@@ -65,6 +85,7 @@ def index_pdf_file(pdf_path: str | Path, session: Session | None = None) -> Inde
             embedding_provider=provider.provider_name,
             embedding_dimension=provider.dimension,
             empty_page_count=empty_page_count,
+            section_type_counts=section_type_counts,
         )
     except Exception:
         if owns_session:
@@ -108,6 +129,21 @@ def _get_or_create_library_item(session: Session, path: Path) -> LibraryItem:
     return item
 
 
+def _count_chunk_section_types(session: Session, document_id: uuid.UUID) -> dict[str, int]:
+    rows = session.execute(
+        select(DocumentChunk.section_type, func.count(DocumentChunk.id))
+        .where(DocumentChunk.document_id == document_id)
+        .group_by(DocumentChunk.section_type)
+    ).all()
+    counts = {section_type or SECTION_UNKNOWN: int(count) for section_type, count in rows}
+    ordered_counts = {
+        section_type: counts.pop(section_type, 0)
+        for section_type in SECTION_TYPE_PRINT_ORDER
+    }
+    ordered_counts.update(dict(sorted(counts.items())))
+    return ordered_counts
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Index one local PDF into the Personal Learning Agent backend."
@@ -138,6 +174,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"embedding_provider: {summary.embedding_provider}")
     print(f"embedding_dimension: {summary.embedding_dimension}")
     print(f"empty_page_count: {summary.empty_page_count}")
+    print("section_type_counts:")
+    for section_type, count in summary.section_type_counts.items():
+        print(f"  {section_type}: {count}")
     return 0
 
 

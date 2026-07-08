@@ -101,7 +101,7 @@ def test_index_library_item_endpoint_indexes_pdf(
     response = index_library_item_endpoint(item.item_id)
 
     assert response.status == "indexed"
-    assert response.chunks_created == 2
+    assert response.chunks_created == 1
     refreshed = indexing_api_session.get(LibraryItem, item.item_id)
     assert refreshed is not None
     assert refreshed.status == "indexed"

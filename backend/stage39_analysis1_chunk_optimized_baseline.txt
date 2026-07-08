@@ -1,0 +1,919 @@
+Retrieval baseline
+Library item: 3542bb34-b0e1-4af8-954b-6ddf594c3b5f
+Queries: 20
+Top K: 5
+
+[sets-functions-relations] sets functions and relations
+keyword hits: 4/4 (set, function, relation, map)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.830088
+   section: body
+   chunk: 19 (45cacf05-2b73-4e27-b888-a5de56596ac9)
+   pages: pp. 35-37
+   snippet: in (iii) and (iv). Finally, we denote the set of all functions from X to Y by Funct(X,Y ). Because of Remark 3.1, Funct( X,Y )i sas u b s e to fP(X × Y ). For Funct(X,Y ) we write also Y X. This is consistent with the notation Xn for the nth Cartesian product of the set X with itself, since this coincides with the set of all functions from {1,2,...,n } to X.I f U ⊆ Y ⊆ V ,t h e n Funct(X,U ) ⊆ Funct(X,Y ) ⊆ Funct(X,V ) , (3.2) where we have used the conventions of Example 3.2(f). Exercises 1...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.868711
+   section: body
+   chunk: 20 (99e525fe-39d4-4616-ba1c-436d2578b48d)
+   pages: pp. 37-39
+   snippet: deﬁned surjection, the (canonical) quotient function from X to X/∼. 4.2 Examples (a) Let X be the set of inhabitants of London. Deﬁne a relation on X by x ∼ y :⇐ ⇒(x and y have the same parents). This is clearly an equivalence relation, and two inhabitants of London belong to the same equivalence class if and only if they are siblings. (b) The ‘smallest’ equivalence relation on a setX is the diagonal ∆X, that is, the equality relation. (c) Let f : X → Y be a function. Then x ∼ y :⇐ ⇒f(x)= f(y...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.875237
+   section: body
+   chunk: 15 (d755e468-1988-46b8-92b5-13b6e5a6e9e3)
+   pages: pp. 26-29
+   snippet: indices α and β are diﬀerent, nor do we require that Aα is nonempty for each index. Note also that a family of sets is never empty. Let X be a set andA := {Aα ; α ∈ A} a family of subsets ofX. Generalizing the above concepts we deﬁne the intersection and the union of this family by ⋂ α Aα := {x ∈ X ; ∀α ∈ A : x ∈ Aα } and ⋃ α Aα := {x ∈ X ; ∃α ∈ A : x ∈ Aα } respectively. Note that⋂ α Aα and ⋃ α Aα are subsets of X. Instead of ⋂ α Aα,w e sometimes write ⋂ α∈A Aα,o r ⋂ α{x ∈ X ; x ∈ Aα },o r ⋂...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.878178
+   section: body
+   chunk: 16 (3440a42d-7ddc-4097-a41c-8e273dd5cb06)
+   pages: pp. 28-30
+   snippet: then A× B ⊆ X × Y ⇐ ⇒(A ⊆ X)∧ (B ⊆ Y ). (b) (X × Y )∪ (A× Y )=( X ∪ A)× Y . (c) (X × Y )∩ (A× B)=( X ∩ A)× (Y ∩ B). (d) (X × Y )\(A× B)= ( (X\A)× Y ) ∪ ( X × (Y \B) ) . 8 Let { Aα ; α ∈ A} and { Bβ ; β ∈ B} be families of subsets of a set. Prove the following: (a) (⋂ α Aα ) × (⋂ β Bβ ) = ⋂ (α,β) Aα × Bβ. (b) (⋃ α Aα ) × (⋃ β Bβ ) = ⋃ (α,β) Aα × Bβ. I.3 Functions 15 3 Functions Functions are of fundamental importance for all mathematics. Of course, this con- cept has undergone many changes on...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.885372
+   section: body
+   chunk: 22 (5e92a9c3-a226-4039-80e1-52c6605f67ad)
+   pages: pp. 40-42
+   snippet: ⊛ is associative then the parentheses in (4.2) are unnecessary and we write simply x ⊛ y ⊛ z. 4.9 Examples (a) By Proposition 3.3, composition is an associative operation on Funct(X,X ). It may not be commutative (see Exercise 3). (b) ∪ and ∩ are associative and commutative on P(X). ■ Let ⊛ be an operation on the set X.A ne l e m e n te ∈ X such that e ⊛ x = x ⊛ e = x, x ∈ X, is called an identity element of X (with respect to the operation ⊛ ). 4.10 Examples (a) idX is an identity element in...
+
+[natural-numbers-countability] natural numbers induction and countability
+keyword hits: 4/4 (natural numbers, induction, countable, uncountable)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.824420
+   section: body
+   chunk: 33 (36bdd429-6a90-4a3a-8222-2d4be6ef42df)
+   pages: pp. 60-61
+   snippet: sets’ are necessary for the construction of the natural numbers. However, the bijection N → 2N, n ↦→2n, which suggests that there are exactly as many even numbers as natural numbers, encourages caution in dealing with inﬁnity. How can there be room for the odd numbers 1,3,5,... in N? In this section we consider the concept of inﬁnity again, and, in particular, we show that there is more than one kind of inﬁnity. A set X is called ﬁnite,i f X is empty or if there are n ∈ N × and a bijection fr...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.830360
+   section: body
+   chunk: 28 (6d43b3e1-53e5-43c0-99eb-34f0cf77f340)
+   pages: pp. 50-52
+   snippet: we discuss the prime factorization of natural numbers. We say that a natural numberp ∈ N is prime if p ≥ 2a n dp has no divisors except 1 and p. 5.6 Proposition Except for 0 and 1, every natural number is a product of ﬁnitely many prime numbers, its prime factors. Here ‘products’ with only one factor are allowed. This prime factorization is, up to the order of the factors, unique. Proof Suppose that the claim is false. By Proposition 5.5 there is a smallest natural number n0 which cannot be f...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.848561
+   section: body
+   chunk: 24 (64ee3334-17ec-4172-bcba-f3f2aac2193b)
+   pages: pp. 43-45
+   snippet: metic of numbers can be deduced from the Peano axioms. Even so, for a mathematician, two important questions arise: (1) Does there exist a system (N, 0,ν ) in which the Peano 30 I Foundations axioms hold? That is, is there a model for the natural numbers? (2) If so, how many models are there? We brieﬂy consider these questions here. To simplify our discussion we introduce the following concept: A set M is called an inﬁnite system , if there is an injective function f : M → M such that f(M) ⊂...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.849046
+   section: body
+   chunk: 27 (7a63e50b-69e4-4863-95a1-f9305416f88a)
+   pages: pp. 48-50
+   snippet: m(n + k)). Finally, the elements of N× are called the positive natural numbers. The Division Algorithm A simple consequence of Theorem 5.3(x) is the following cancellation rule: If m, n∈ N and k ∈ N× satisfy mk = nk,t h e nm = n. (5.8) We call m ∈ N× a divisor of n ∈ N if there is some k ∈ N such that mk = n.I f m is a divisor of n we write m|n (‘m divides n’). The unique natural number k is called the quotient of n by m and is written n m or n/m.I f m and n are two positive natural numbers t...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.849431
+   section: body
+   chunk: 29 (4d7e39e5-b769-4eef-84a1-d0e66a44ebb0)
+   pages: pp. 51-53
+   snippet: N follows from (N1)a s above. ■ For m ∈ N and n ∈ N×,w ew r i t e mn := m · m · ··· · m   n times . Using this notation we can give some simple applications of the induction principle. 38 I Foundations 5.8 Examples (a) For n ∈ N×,w eh a v e1+3+5+ ··· +( 2n − 1) = n2. Proof (By induction) We can start the induction with n0 = 1 since 1 = 1· 1=1 2.T h e induction hypothesis is Suppose that for some n ∈ N w eh a v e1+3+5+ ··· +( 2n− 1) = n2 . The induction step proceeds as follows: 1+3+5+ ···...
+
+[groups-rings-fields-polynomials] groups rings fields and polynomials
+keyword hits: 4/4 (group, ring, field, polynomial)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.840601
+   section: body
+   chunk: 45 (eb5b3ba0-eb93-40fe-8e34-5c3573378d6c)
+   pages: pp. 80-82
+   snippet: 66 I Foundations Set also α!: = m∏ j=1 (αj)! , and deﬁne the natural (partial) order on Nm by α ≤ β :⇐ ⇒(αj ≤ βj, 1 ≤ j ≤ m) . Finally, letR be a commutative ring with unity andm ∈ N with m ≥ 2. Then we set aα := m∏ j=1 (aj)αj for a =( a1,...,a m) ∈ Rm and α =( α1,...,α m) ∈ Nm. 8.5 Theorem (multinomial theorem) Let R be a commutative ring with unity. Then for all m ≥ 2, ( m∑ j=1 aj )k = ∑ |α|=k k! α!aα ,a =( a1,...,a m) ∈ Rm ,k ∈ N . (8.4) Here ∑ |α|=k is the sum over all multi-indices of le...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.842549
+   section: body
+   chunk: 42 (cb627670-33d2-4518-b0f8-793ae5aac6e5)
+   pages: pp. 74-76
+   snippet: For each g ∈ G, show that x ↦→g · x is a bijection on X with inverse x ↦→g−1 · x. (b) For x ∈ X, G · x is called the orbit of x (under the action of G). Show that the relation ‘y is in the orbit of x’ is an equivalence relation on X. (c) Show that if H is a subgroup of G,t h e n(h, g) ↦→h· g and (h, g) ↦→hgh−1 deﬁne actions of H on G. (d) Show that Sm × Nm → Nm , (σ, α) ↦→σ · α := (ασ(1),...,α σ(m)) deﬁnes an action of Sm on Nm. 7 Let G =( G,⊙) be a ﬁnite group of order m with identity elemen...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.845135
+   section: body
+   chunk: 52 (abef2b89-b329-4f09-b194-a0c8353a2b4e)
+   pages: pp. 94-95
+   snippet: and the corresponding polynomial function (in m variables) by p : Rm → R, x ↦→p(x) . The function R[X1,...,X m] → R(Rm) ,p ↦→p (8.30) is a homomorphism when R(Rm) is given the ring structure of Example 8.2(b). (c) Let K be an inﬁnite ﬁeld. Then the homomorphism (8.30) is injective. Proof Let p ∈ K[X1,...,X m]. Then, by Remark 7.6(d), it suﬃces to show that p is zero if p(x) = 0 for all x =( x1,...,x m) ∈ Km. Clearly p = ∑ α pαXα can be written in the form p = n∑ j=0 qjXj m (8.31) for suitable...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.845867
+   section: body
+   chunk: 44 (926ea902-9e2d-4c76-b935-a55bb01712fd)
+   pages: pp. 78-80
+   snippet: that satisﬁes the following: (SR1) S is a subgroup of (R, +). (SR2) S · S ⊆ S. Then S is itself a ring, a subring of R,a n dR is called an overring of S. Clearly, 0= {0} and R are subrings of R.E v e ni fR is a ring with unity, the same may not be true of S (see (e)). Even so, if 1R ∈ S,t h e n1R is the unity of S. Of course, if R is commutative then so is S. The converse is not true in general. (d) Intersections of subrings are subrings. (e) Let R be a nontrivial ring with unity andS the set...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.866830
+   section: body
+   chunk: 53 (ac2b6b86-0bae-434b-ad92-ac1ef649c6dc)
+   pages: pp. 95-98
+   snippet: groupSm on Nm as in Exercise 7.6(d). Show the following: (a) The equation σ ·∑ α aαXα := ∑ α aαXσ·α deﬁnes an action Sm × R[X1,...,X m] → R[X1,...,X m] , (σ, p) ↦→σ · p of Sm on the polynomial ring R[X1,...,X m]. (b) For each σ ∈ Sm, p ↦→σ · p is an automorphism of R[X1,...,X m]. (c) Determine the orbits S3 · p in the following cases: (i) p := X1. (ii) p := X2 1 . (iii) p := X2 1 X2X3 3 . (d) A polynomial p ∈ R[X1,...,X m] is called symmetric if Sm · p = {p},t h a ti s ,w h e ni t is ﬁxed by...
+
+[real-complex-numbers-vector-spaces] real numbers complex numbers and vector spaces
+keyword hits: 3/4 (complex numbers, vector space, absolute value)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.769401
+   section: body
+   chunk: 68 (b8bb63de-a8a4-46b1-9a5d-79aa4c59c0d6)
+   pages: pp. 122-125
+   snippet: ; |x − a| <r } the open ball in K with center a and radius r.I f K = C,t h e nBC(a, r)i st h e‘ o p e n disk’ in the coordinate plane with center a and radius r.I f K is the ﬁeld R,t h e n BR(a, r) is the open interval (a − r, a+ r)o fl e n g t h2r centered at a in R. /D6 /CP /CX /CA /CA /BC /CP /A0 /D6 /B4 /CP /CP /B7 /D6 /B5 /CA The closed ball in K with center a and radius r is deﬁned by ¯B(a, r): = ¯BK(a, r): = {x ∈ K ; |x − a|≤ r} . Thus ¯BR(a, r) is the closed interval [a− r, a+ r]. Ins...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.813393
+   section: body
+   chunk: 72 (832de631-ad1c-421d-b87c-f575dcd4f7e2)
+   pages: pp. 129-131
+   snippet: exactly m vectors. In this circumstance, m is called the dimension, dim(V ), of the vector space V and we say that V is m dimensional.I f V has no ﬁnite basis, then V is inﬁnite dimensional,d i m (V )=∞. Finally, we deﬁne dim(0) = 0. A very natural and useful fact about the dimension is that if W is a subspace of V ,t h e n dim(W) ≤ dim(V ). For the proof of these claims about vector space dimension, the reader is referred to the linear algebra literature. 12.4 Examples (a) Let m ∈ N×.F o rj...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.816296
+   section: body
+   chunk: 69 (efc405e4-5300-4dc0-985a-ceba8d544b0c)
+   pages: pp. 124-126
+   snippet: + q =0 . 3In Section III.6 we prove that these complex numbers exist. I.12 Vector Spaces, Aﬃne Spaces and Algebras 111 12 Vector Spaces, Aﬃne Spaces and Algebras Linear algebra is without doubt one of the most fertile of all mathematical research areas and serves as a foundation for many far-reaching theories in all parts of mathematics. In particular, linear algebra is one of the main tools of analysis, and so, in this section, we introduce the basic concepts and illustrate these with exampl...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.819004
+   section: body
+   chunk: 66 (89bb2410-c12d-4e07-9512-915d948769d4)
+   pages: pp. 118-120
+   snippet: additive iden- tity (0,0), unity (1,0), additive inverse −(x, y)=( −x,−y), and multiplicative in- verse (x, y)−1 = ( x/(x2 + y2),−y/(x2 + y2) ) if (x, y) ̸=( 0,0). It is easy to verify that R → C ,x ↦→(x,0) (11.3) is an injective homomorphism. Consequently we can identifyR with its image inC and so consider R to be a subﬁeld of C. The equation (0,1)2 =( 0,1)(0,1) = (−1,0) = −(1,0) implies that (0,1) ∈ C is a solution of z2 = −1C. The previous discussion shows that C is, up to isomorphism, the...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.826036
+   section: body
+   chunk: 67 (4dcf8802-e9e8-4c71-ad24-2ff679348858)
+   pages: pp. 120-122
+   snippet: −D 2a ∈ C\R ,D < 0 . Moreover z1 + z2 = −b/a , z 1z2 = c/a (see Exercise 8.7(g)). If D< 0, then z2 = z1. (g) Because i2 = −1 < 0, the ﬁeld C cannot be ordered. ■ Computation with Complex Numbers In this section we present several important rules for calculating with complex numbers. The proofs are elementary and are left to the reader. It is instructive to interpret these rules geometrically in the coordinate plane. 11.3 Proposition For all z,w ∈ C, (i) Re(z )=( z + z)/2, Im( z)=( z − z)/(2i)...
+
+[sequences-and-limits] sequences convergence and limits
+keyword hits: 3/4 (sequence, converges, limit)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.851334
+   section: body
+   chunk: 100 (a3794992-53a5-4957-ab0f-e3f9ac14c5bc)
+   pages: pp. 183-185
+   snippet: which diverges in ¯R, also diverges in R. On the other hand there are divergent sequences in R which converge in ¯R (to ±∞). In this case the sequence is said to converge improperly. This distinction is signiﬁcant because our understanding about con- vergence in metric spaces does not apply to improper convergence, and hence such convergence needs a separate study. 5.1 Examples (a) Let (xn) be a sequence in R.T h e nxn →∞ if and only if, for each K> 0 ,t h e r ei ss o m eNK ∈ N such that xn >...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.857035
+   section: body
+   chunk: 198 (4e684d40-ec90-4c0c-bbfb-6e26c38efb38)
+   pages: pp. 374-376
+   snippet: functions in the sequence are all bounded, then we have a sequence in the Banach space of bounded functions, and we can apply all the results about sequences and series which we developed in the second chapter. This approach is particularly fruitful, allows short and elegant proofs, and, for the ﬁrst time, demonstrates the advantages of the abstract framework in which we developed the fundamentals of analysis. In the ﬁrst section we analyze the various concepts of convergence which ap- pear i...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.857863
+   section: body
+   chunk: 87 (b8f48147-3fad-4dc9-a785-7213bea3e858)
+   pages: pp. 156-158
+   snippet: shows, in particular, that convergent sequences can be multiplied ‘termwise’. 2.4 Proposition Let (xn) and (yn) be sequences in K. (i) If (xn) is a null sequence and (yn) is a bounded sequence, then (xnyn) is a null sequence. (ii) If lim xn = a and lim yn = b,t h e nlim(xnyn)= ab. Proof (i) Since (yn) is bounded, there is some M> 0 such that |yn|≤ M for all n ∈ N. Since (xn) is a null sequence, for eachε>0, there is some N ∈ N such that |xn| <ε / Mfor all n ≥ N. It now follows that |xnyn| = |...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.857938
+   section: body
+   chunk: 88 (03a26868-3373-452b-b7f2-244356be8f71)
+   pages: pp. 158-160
+   snippet: the property that xn ≤ yn ≤ zn for almost alln ∈ N.I f lim xn = limzn =: a,t h e n(yn) also converges to a. Proof Let m0 be such that xn ≤ yn ≤ zn for all n ≥ m0.G i v e nε> 0, let m1 and m2 be such that xn >a − ε, n ≥ m1 and zn <a + ε, n ≥ m2 . Set N := max{m0,m 1,m 2}.T h e n a− ε<x n ≤ yn ≤ zn <a + ε, n ≥ N, that is, almost all terms of (yn)a r ei nt h eε-neighborhood B(a, ε)o f a. ■ Complex Sequences If (xn) is a convergent sequence in R with limxn = a, then lim|xn| = |a|. Indeed, if (xn)...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.861149
+   section: body
+   chunk: 102 (55f21957-3d20-45a2-9edb-8278603fceed)
+   pages: pp. 187-189
+   snippet: that x∗ and x∗ are in R.P r o v et h a t ,f o re a c hε> 0, there is some N such that x∗ − ε<x n <x ∗ + ε, n ≥ N. How must the claim be modiﬁed in the cases x∗ = −∞ and x∗ = ∞? 2 Let (xn) and (yn)b es e q u e n c e si nR and x∗ := limxn ,x ∗ := lim xn ,y ∗ := limyn ,y ∗ := lim yn . Show the following: (a) lim(−xn)= −x∗. (b) If (x∗,y ∗) and (x∗,y ∗) are not equal to (∞,−∞)o r( −∞,∞), then lim(xn + yn) ≤ x∗ + y∗ and lim (xn + yn) ≥ x∗ + y∗ . (c) If xn ≥ 0a n dyn ≥ 0 for all n ∈ N,a n d(x∗,y ∗)...
+
+[metric-spaces] metric spaces
+keyword hits: 4/4 (metric space, distance, open, neighborhood)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.944298
+   section: body
+   chunk: 94 (0c845f5b-62f6-4dd7-92a1-db910ecc521d)
+   pages: pp. 170-172
+   snippet: which is induced from a scalar product is also called a Hilbert norm. Using the norm we can reformulate the Cauchy-Schwarz inequality of Theo- rem 3.8 as follows: 3.11 Corollary Let ( E, (·|· ) ) be an inner product space. Then |(x|y)|≤∥ x∥∥y∥,x , y ∈ E. Euclidean Spaces A particularly important example is the Euclidean inner product onKm.S i n c ew e so frequently work with this inner product, it is convenient to make the following convention: Convention Unless otherwise stated, we considerK...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.944740
+   section: body
+   chunk: 81 (15c0a13f-6404-4bd4-82c3-d5a6bbfd53d3)
+   pages: pp. 145-147
+   snippet: u ef o re a c hn∈ N then E is true for inﬁnitely many terms. For example, the real sequence ( −5,4,−3,2,−1,0,−1 2, 1 3,−1 4, 1 5,..., − 1 2n, 1 2n +1 ,... ) has inﬁnitely many positive terms, inﬁnitely many negative terms, and has absolute value less than 1 for almost all terms. (c) For m ∈ N×, a function ψ : m + N → X is also called a sequence in X.T h a t is, (xj)j≥m =( xm,xm+1,xm+2,... ) is a sequence in X even though the indexing does not start with 0. This convention is justiﬁed, since a...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.947177
+   section: body
+   chunk: 132 (4e8d92c0-b2b7-4595-beb2-52261722d0d1)
+   pages: pp. 247-248
+   snippet: open sets are open. (iii) If O0,...,O n ∈T ,t h e n⋂n k=0 Ok ∈T .T h a ti s ,ﬁnite intersections of open sets are open. Proof (i) It is obvious thatX is in T , and, from Remark I.2.1(a), ∅ is also open. (ii) Let A be an index set, Oα ∈T for all α ∈ A,a n dx0 a point of ⋃ α Oα. Then there is some α0 ∈ A such that x0 ∈ Oα0 .S i n c eOα0 is open, there is some neighborhood U of x0 in X such that U ⊆ Oα0 ⊆⋃ α Oα. Hence ⋃ α Oα is open. (iii) Let O0,...,O n ∈T and x0 ∈⋂n k=0 Ok. Then there are posi...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.947245
+   section: body
+   chunk: 103 (a08f68ab-7f30-46d5-acd9-e12ab67e1773)
+   pages: pp. 189-191
+   snippet: some N such that d(xn,x) <ε /2 for all n ≥ N. From the triangle inequality it follows that d(xn,xm) ≤ d(xn,x)+ d(x, xm) < ε 2 + ε 2 = ε, m , n ≥ N. Hence (xn) is a Cauchy sequence. ■ The converse of Proposition 6.1 is not true, that is, there are metric spaces in which not every Cauchy sequence converges. 6.2 Example Deﬁne (xn) recursively byx0 := 2 and xn+1 := 1 2 (xn +2 /xn) for all n ∈ N.T h e n(xn) is a Cauchy sequence in Q which does not converge in Q. Proof Clearly xn ∈ Q for all n ∈ N....
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.949784
+   section: body
+   chunk: 144 (2c75423e-1620-4224-b56a-121ad0f840b1)
+   pages: pp. 266-268
+   snippet: which converges to an element of K. The relationship between the cluster points of a sequence and convergent sub- sequences (see Proposition II.1.17) makes possible a reformulation of Theorem 3.3 in terms of sequential compactness. 3.4 Theorem A subset of a metric space is compact if and only if it is sequentially compact. As an important application of Theorem 3.3 we describe the compact subsets of Kn. 3.5 Theorem (Heine-Borel) A subset of Kn is compact if and only if it is closed and bounde...
+
+[normed-vector-spaces] normed vector spaces
+keyword hits: 4/4 (normed vector space, norm, metric, vector space)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.833282
+   section: body
+   chunk: 90 (b7247d4a-bfb9-43b1-a126-e24215362c2e)
+   pages: pp. 162-164
+   snippet: deﬁnition of a normed vector space.       PPPPPPPPPP q  : x + y x y Norms Let E be a vector space over K. A function ∥·∥: E → R+ is called a norm if the following hold: (N1) ∥x∥=0 ⇐ ⇒x =0 . (N2) ∥λx∥= |λ|∥x∥, x ∈ E, λ ∈ K (positive homogeneity). (N3) ∥x+ y∥≤∥x∥+ ∥y∥, x, y∈ E (triangle inequality). Ap a i r(E, ∥·∥) consisting of a vector space E and a norm ∥·∥is called a normed vector space.1 If the norm is clear from context, we write E instead of (E, ∥·∥). 3.1 Remarks Let...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.835528
+   section: body
+   chunk: 72 (832de631-ad1c-421d-b87c-f575dcd4f7e2)
+   pages: pp. 129-131
+   snippet: exactly m vectors. In this circumstance, m is called the dimension, dim(V ), of the vector space V and we say that V is m dimensional.I f V has no ﬁnite basis, then V is inﬁnite dimensional,d i m (V )=∞. Finally, we deﬁne dim(0) = 0. A very natural and useful fact about the dimension is that if W is a subspace of V ,t h e n dim(W) ≤ dim(V ). For the proof of these claims about vector space dimension, the reader is referred to the linear algebra literature. 12.4 Examples (a) Let m ∈ N×.F o rj...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.844785
+   section: body
+   chunk: 95 (6acd57e5-8691-479d-a02a-6d8a3c9e2491)
+   pages: pp. 172-174
+   snippet: normed vector space and ∥·∥1 an o r mo nE which is equivalent to ∥·∥.S e tE1 := (E, ∥·∥1). Then UE(a)= UE1 (a) ,a ∈ E, that is, the set of neighborhoods of a depends only on the equivalence class of the norm. Equivalent norms produce the same set of neighborhoods. Proof (i) By Remark 3.1(a), the setsUE(a) and UE1 (a) are well deﬁned for eacha ∈ E. (ii) From (3.9) it follows thatK−1BE1 ⊆ BE ⊆ KBE1 ,a n ds o ,f o ra ∈ E and r> 0, we have BE1 (a, K−1r) ⊆ BE(a, r) ⊆ BE1 (a, Kr) . (3.11) (iii) For...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.847441
+   section: body
+   chunk: 94 (0c845f5b-62f6-4dd7-92a1-db910ecc521d)
+   pages: pp. 170-172
+   snippet: which is induced from a scalar product is also called a Hilbert norm. Using the norm we can reformulate the Cauchy-Schwarz inequality of Theo- rem 3.8 as follows: 3.11 Corollary Let ( E, (·|· ) ) be an inner product space. Then |(x|y)|≤∥ x∥∥y∥,x , y ∈ E. Euclidean Spaces A particularly important example is the Euclidean inner product onKm.S i n c ew e so frequently work with this inner product, it is convenient to make the following convention: Convention Unless otherwise stated, we considerK...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.850469
+   section: body
+   chunk: 91 (263e9c63-bca6-4133-854d-fd7425149c32)
+   pages: pp. 164-166
+   snippet: of a normed vector spaceE := (E, ∥·∥). Then the restric- tion ∥·∥F := ∥·∥ ⏐⏐F of ∥·∥to F is a norm on F.T h u sF:= (F,∥·∥F )i san o r m e d vector space with this induced norm. When no confusion is possible, we use the symbol ∥·∥for the induced norm on F. (c) Let (Ej,∥·∥j), 1 ≤ j ≤ m, be normed vector spaces over K.T h e n ∥x∥∞ := max 1≤j≤m ∥xj∥j ,x =( x1,...,x m) ∈ E := E1 ×···× Em , (3.1) deﬁnes a norm, called the product norm, on the product vector space E.T h e metric on E induced from th...
+
+[complete-metric-spaces] complete metric spaces
+keyword hits: 4/4 (complete, metric space, Cauchy sequence, converges)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.887869
+   section: body
+   chunk: 103 (a08f68ab-7f30-46d5-acd9-e12ab67e1773)
+   pages: pp. 189-191
+   snippet: some N such that d(xn,x) <ε /2 for all n ≥ N. From the triangle inequality it follows that d(xn,xm) ≤ d(xn,x)+ d(x, xm) < ε 2 + ε 2 = ε, m , n ≥ N. Hence (xn) is a Cauchy sequence. ■ The converse of Proposition 6.1 is not true, that is, there are metric spaces in which not every Cauchy sequence converges. 6.2 Example Deﬁne (xn) recursively byx0 := 2 and xn+1 := 1 2 (xn +2 /xn) for all n ∈ N.T h e n(xn) is a Cauchy sequence in Q which does not converge in Q. Proof Clearly xn ∈ Q for all n ∈ N....
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.917468
+   section: body
+   chunk: 144 (2c75423e-1620-4224-b56a-121ad0f840b1)
+   pages: pp. 266-268
+   snippet: which converges to an element of K. The relationship between the cluster points of a sequence and convergent sub- sequences (see Proposition II.1.17) makes possible a reformulation of Theorem 3.3 in terms of sequential compactness. 3.4 Theorem A subset of a metric space is compact if and only if it is sequentially compact. As an important application of Theorem 3.3 we describe the compact subsets of Kn. 3.5 Theorem (Heine-Borel) A subset of Kn is compact if and only if it is closed and bounde...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.920975
+   section: body
+   chunk: 141 (03101f50-4b1a-494a-b9d2-c51849841989)
+   pages: pp. 261-263
+   snippet: (c) M = {1/n ; n ∈ N× }, X = R. (d) M = Q, X = R. (e) M = R\Q, X = R. 2 Let Q have the natural metric andS := { x ∈ Q ; − √ 2 <x< √ 2 } . Prove or disprove the following: (a) S is open in Q. (b) S is closed in Q. 3 Let X be a nonempty set and d t h ed i s c r e t em e t r i co nX. Show the following: (a) Every subset of X is open, that is, P(X) is the topology of (X,d ). (b) It is not true, in general, that ¯B(x, r)= B(x, r). 4 For S := { (x, y) ∈ R2 ; x2 + y2 < 1 }\( [0, 1)×{ 0} ) , determin...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.923651
+   section: body
+   chunk: 132 (4e8d92c0-b2b7-4595-beb2-52261722d0d1)
+   pages: pp. 247-248
+   snippet: open sets are open. (iii) If O0,...,O n ∈T ,t h e n⋂n k=0 Ok ∈T .T h a ti s ,ﬁnite intersections of open sets are open. Proof (i) It is obvious thatX is in T , and, from Remark I.2.1(a), ∅ is also open. (ii) Let A be an index set, Oα ∈T for all α ∈ A,a n dx0 a point of ⋃ α Oα. Then there is some α0 ∈ A such that x0 ∈ Oα0 .S i n c eOα0 is open, there is some neighborhood U of x0 in X such that U ⊆ Oα0 ⊆⋃ α Oα. Hence ⋃ α Oα is open. (iii) Let O0,...,O n ∈T and x0 ∈⋂n k=0 Ok. Then there are posi...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.938616
+   section: body
+   chunk: 136 (bfa7279d-fcc4-4b44-bf3a-79c8d8c58403)
+   pages: pp. 253-255
+   snippet: ∂¯B(x, r)= {y ∈ X ; ∥x− y∥= r} . Proof This follows from (e). ■ (g) The n-sphere Sn := {x ∈ Rn+1 ; |x| =1 } is closed in Rn+1. Proof Since Sn = ∂Bn+1, the claim follows from Proposition 2.16(i). ■ A Characterization of Continuous Functions We now present the previously announced main result of this section. 2.20 Theorem Let f : X → Y be a function between metric spaces X and Y . Then the following are equivalent: (i) f is continuous. (ii) f −1(O) is open in X f o re a c ho p e ns e tO in Y ....
+
+[banach-spaces] Banach spaces in normed vector spaces
+keyword hits: 3/3 (Banach space, complete, normed vector space)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.857255
+   section: body
+   chunk: 90 (b7247d4a-bfb9-43b1-a126-e24215362c2e)
+   pages: pp. 162-164
+   snippet: deﬁnition of a normed vector space.       PPPPPPPPPP q  : x + y x y Norms Let E be a vector space over K. A function ∥·∥: E → R+ is called a norm if the following hold: (N1) ∥x∥=0 ⇐ ⇒x =0 . (N2) ∥λx∥= |λ|∥x∥, x ∈ E, λ ∈ K (positive homogeneity). (N3) ∥x+ y∥≤∥x∥+ ∥y∥, x, y∈ E (triangle inequality). Ap a i r(E, ∥·∥) consisting of a vector space E and a norm ∥·∥is called a normed vector space.1 If the norm is clear from context, we write E instead of (E, ∥·∥). 3.1 Remarks Let...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.867729
+   section: body
+   chunk: 91 (263e9c63-bca6-4133-854d-fd7425149c32)
+   pages: pp. 164-166
+   snippet: of a normed vector spaceE := (E, ∥·∥). Then the restric- tion ∥·∥F := ∥·∥ ⏐⏐F of ∥·∥to F is a norm on F.T h u sF:= (F,∥·∥F )i san o r m e d vector space with this induced norm. When no confusion is possible, we use the symbol ∥·∥for the induced norm on F. (c) Let (Ej,∥·∥j), 1 ≤ j ≤ m, be normed vector spaces over K.T h e n ∥x∥∞ := max 1≤j≤m ∥xj∥j ,x =( x1,...,x m) ∈ E := E1 ×···× Em , (3.1) deﬁnes a norm, called the product norm, on the product vector space E.T h e metric on E induced from th...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.870791
+   section: body
+   chunk: 94 (0c845f5b-62f6-4dd7-92a1-db910ecc521d)
+   pages: pp. 170-172
+   snippet: which is induced from a scalar product is also called a Hilbert norm. Using the norm we can reformulate the Cauchy-Schwarz inequality of Theo- rem 3.8 as follows: 3.11 Corollary Let ( E, (·|· ) ) be an inner product space. Then |(x|y)|≤∥ x∥∥y∥,x , y ∈ E. Euclidean Spaces A particularly important example is the Euclidean inner product onKm.S i n c ew e so frequently work with this inner product, it is convenient to make the following convention: Convention Unless otherwise stated, we considerK...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.882088
+   section: body
+   chunk: 95 (6acd57e5-8691-479d-a02a-6d8a3c9e2491)
+   pages: pp. 172-174
+   snippet: normed vector space and ∥·∥1 an o r mo nE which is equivalent to ∥·∥.S e tE1 := (E, ∥·∥1). Then UE(a)= UE1 (a) ,a ∈ E, that is, the set of neighborhoods of a depends only on the equivalence class of the norm. Equivalent norms produce the same set of neighborhoods. Proof (i) By Remark 3.1(a), the setsUE(a) and UE1 (a) are well deﬁned for eacha ∈ E. (ii) From (3.9) it follows thatK−1BE1 ⊆ BE ⊆ KBE1 ,a n ds o ,f o ra ∈ E and r> 0, we have BE1 (a, K−1r) ⊆ BE(a, r) ⊆ BE1 (a, Kr) . (3.11) (iii) For...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.889315
+   section: body
+   chunk: 103 (a08f68ab-7f30-46d5-acd9-e12ab67e1773)
+   pages: pp. 189-191
+   snippet: some N such that d(xn,x) <ε /2 for all n ≥ N. From the triangle inequality it follows that d(xn,xm) ≤ d(xn,x)+ d(x, xm) < ε 2 + ε 2 = ε, m , n ≥ N. Hence (xn) is a Cauchy sequence. ■ The converse of Proposition 6.1 is not true, that is, there are metric spaces in which not every Cauchy sequence converges. 6.2 Example Deﬁne (xn) recursively byx0 := 2 and xn+1 := 1 2 (xn +2 /xn) for all n ∈ N.T h e n(xn) is a Cauchy sequence in Q which does not converge in Q. Proof Clearly xn ∈ Q for all n ∈ N....
+
+[series-and-power-series] series absolute convergence and power series
+keyword hits: 4/4 (series, absolute convergence, power series, radius)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.849334
+   section: body
+   chunk: 119 (e89dc92b-7966-48b7-9e74-902e21740604)
+   pages: pp. 220-224
+   snippet: (p q )]−1 = [ ep/q]−1 = e−p/q . This completes the proof. ■ (c) For conditionally convergent series, Theorem 8.11 is false in general. Proof For the Cauchy product of the conditionally convergent series ∑xk and ∑yk deﬁned by xk := yk := (−1)k⎥√ k +1f o ra l lk ∈ N we have zn := n∑ k=0 (−1)k(−1)n−k √ k +1 √ n− k +1 =( −1)n n∑ k=0 1√ k(n − k) ,n ∈ N× . From the inequality (k +1 ) (n − k +1 )≤ (n +1 )2 for 0 ≤ k ≤ n,w eg e t |zn| = n∑ k=0 1√ (k +1 ) (n − k +1 ) ≥ n +1 n +1 =1 . Thus, by Proposit...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.852479
+   section: body
+   chunk: 113 (6d8e7ab3-05b0-44a1-b8b0-3180bb43a500)
+   pages: pp. 208-210
+   snippet: ) which converges more slowly to zero than the corresponding subsequence ( znk )o f( zn). And, for any quickly converging null sequence ( zn) there is a null sequence ( yn)w h i c h converges slowly enough so that∑yn = ∞, but, even so, has a subsequence (ynk )w h i c h converges more quickly to zero than the corresponding subsequence (znk )o f( zn). (Hint: Let (zn)b eas e q u e n c ei n( 0,∞) such that limzn =0 . (a) For eachk ∈ N× choose some nk ∈ N such that znk <k −3.N o ws e txnk = k−2 fo...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.859988
+   section: body
+   chunk: 121 (e6317914-2c1d-449f-b1a2-ffc1aa6ef042)
+   pages: pp. 226-228
+   snippet: ⏐ ⏐⏐= ⏐ ⏐⏐a k+1 ak ⏐ ⏐⏐|x|→ |x| α (k →∞ ) . (9.4) Now if x, y∈ K are such that |x| <α and |y| >α , then (9.4) and the ratio test imply that the series∑akxk converges absolutely and the series∑akyk diverges. Hence, by Theorem 9.2, we have α = ρa. ■ 9.5 Examples (a) The radius of convergence of the exponential series∑(1/k!)Xk is ∞. Proof Since ⏐⏐⏐ak ak+1 ⏐⏐⏐= ⏐⏐⏐ 1/k! 1/(k +1 ) ! ⏐⏐⏐= k +1 →∞ (k →∞ ) , the claim follows from Proposition 9.4. ■ (b) Let m ∈ Q.T h e n3 the radius of convergence of...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.870978
+   section: body
+   chunk: 120 (4f83ff4a-4ab4-47fb-861d-f0968016398a)
+   pages: pp. 223-226
+   snippet: function: (a) exp(x) > 0, x ∈ R. (b) exp : R → R is strictly increasing. (c) For each ε>0, there are x< 0a n dy> 0 such that exp(x) <ε and exp( y) > 1/ε . (Hint: Consider Examples 8.12(a) and (b).) 210 II Convergence 9 Power Series We investigate next the conditions under which formal power series can be consid- ered to be well deﬁned functions. As we have already seen in Remark I.8.14(e), for a power series which isnot a polynomial, this is a question about the convergence of series. Let a :...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.871272
+   section: body
+   chunk: 114 (b108ad37-d284-4acb-892a-b798bb668801)
+   pages: pp. 210-212
+   snippet: convergence plays a particularly signiﬁcant role in the study of series. Because of this, the majorant criterion is of key importance, since it provides an easy and ﬂexible means to show the absolute convergence of a series. Let ∑xk be a series in E and ∑ak a series in R+. Then the series ∑ak is called a majorant (or minorant1)f o r∑xk if there is some K ∈ N such that |xk|≤ ak (or ak ≤| xk|) for all k ≥ K. 8.3 Theorem (majorant criterion) If a series in a Banach space has a convergent majoran...
+
+[continuous-functions-metric-spaces] continuous functions between metric spaces
+keyword hits: 4/4 (continuous, metric space, function, open)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.804446
+   section: body
+   chunk: 127 (c81985fb-1ca8-4da2-961b-91f9c301d8bd)
+   pages: pp. 238-239
+   snippet: Functions (o) A function f between metric spaces X and Y is isometric (or an isometry)i f d ( f(x),f (x′) ) = d(x, x′) for allx, x′∈ X,t h a ti s ,i ff ‘preserves distances’. Clearly, such a function is Lipschitz continuous and is a bijection fromX to its imagef(X). If E and F are normed vector spaces and T : E → F is linear, then T is isometric if and only if ∥Tx∥= ∥x∥for all x ∈ E. If, in addition, T is surjective then T is an isometric isomorphism from E to F,a n dT −1 is also isometric. ■...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.840149
+   section: body
+   chunk: 136 (bfa7279d-fcc4-4b44-bf3a-79c8d8c58403)
+   pages: pp. 253-255
+   snippet: ∂¯B(x, r)= {y ∈ X ; ∥x− y∥= r} . Proof This follows from (e). ■ (g) The n-sphere Sn := {x ∈ Rn+1 ; |x| =1 } is closed in Rn+1. Proof Since Sn = ∂Bn+1, the claim follows from Proposition 2.16(i). ■ A Characterization of Continuous Functions We now present the previously announced main result of this section. 2.20 Theorem Let f : X → Y be a function between metric spaces X and Y . Then the following are equivalent: (i) f is continuous. (ii) f −1(O) is open in X f o re a c ho p e ns e tO in Y ....
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.840762
+   section: body
+   chunk: 132 (4e8d92c0-b2b7-4595-beb2-52261722d0d1)
+   pages: pp. 247-248
+   snippet: open sets are open. (iii) If O0,...,O n ∈T ,t h e n⋂n k=0 Ok ∈T .T h a ti s ,ﬁnite intersections of open sets are open. Proof (i) It is obvious thatX is in T , and, from Remark I.2.1(a), ∅ is also open. (ii) Let A be an index set, Oα ∈T for all α ∈ A,a n dx0 a point of ⋃ α Oα. Then there is some α0 ∈ A such that x0 ∈ Oα0 .S i n c eOα0 is open, there is some neighborhood U of x0 in X such that U ⊆ Oα0 ⊆⋃ α Oα. Hence ⋃ α Oα is open. (iii) Let O0,...,O n ∈T and x0 ∈⋂n k=0 Ok. Then there are posi...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.844625
+   section: body
+   chunk: 135 (12d31d00-e169-4062-926e-11a707b42ac6)
+   pages: pp. 251-253
+   snippet: Let x, y∈ X be such that x ̸=y. Then there are a neighbor- hood U of x and a neighborhood V of y such that U ∩ V = ∅. 238 III Continuous Functions Proof Since x ̸=y,w eh a v eε := d(x, y)/2 > 0. SetU := B(x, ε)a n dV := B(y,ε ). Suppose that U ∩ V ̸=∅ so that there is some z ∈ U ∩ V . Then, by the triangle inequality, 2ε = d(x, y) ≤ d(x, z)+ d(z,y ) <ε + ε =2 ε, a contradiction. Thus U and V are disjoint. ■ The claim of Proposition 2.17 is called theHausdorﬀ condition.T op r o v et h i s cond...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.844720
+   section: body
+   chunk: 131 (8f93c2f6-956a-4a21-aeb4-e3c0043003ad)
+   pages: pp. 245-247
+   snippet: group homomorphism from ( V, +) to ( W,+). Prove that f is linear. (Hint: If K = R, x ∈ V and q ∈ Q, then f(qx)= qf(x). See also Exercise 6.) 14 Let ( E, (·|· ) ) be an inner product space and x0 ∈ E. Show that the functions E → K ,x ↦→(x|x0) ,E → K ,x ↦→(x0 |x) are continuous. 15 Let A ∈ End(Kn). Prove that the function Kn → K ,x ↦→(Ax|x) is continuous. (Hint: Use Exercise 12 and the Cauchy-Schwarz inequality.) 16 Let n ∈ N ×.T h edeterminant of a matrix A =[ ajk] ∈ Kn×n is deﬁned by (see Ex...
+
+[topology-open-closed-sets] topology open sets closed sets and neighborhoods
+keyword hits: 4/4 (topology, open, closed, neighborhood)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.823109
+   section: body
+   chunk: 134 (28b16885-9262-4992-91fd-e1b01b1a907c)
+   pages: pp. 250-252
+   snippet: proved that (A)c ⊆ ( cl(A) )c , and equivalently cl(A) ⊆ A. ■ The following corollary collects some easy consequences of the fact that A is the smallest closed set which contains A. 2.13 Corollary Let A and B be subsets of X. (i) A ⊆ B =⇒ A ⊆ B. (ii) (A)= A. (iii) A∪ B = A∪ B. Proof Claims (i) and (ii) follow directly from Proposition 2.12. To prove (iii), we note ﬁrst that, by Propositions 2.6(iii) and 2.12, A ∪ B is closed. Since A∪ B contains A∪ B, Proposition 2.12 implies thatA∪ B ⊆ A∪ B....
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.849533
+   section: body
+   chunk: 132 (4e8d92c0-b2b7-4595-beb2-52261722d0d1)
+   pages: pp. 247-248
+   snippet: open sets are open. (iii) If O0,...,O n ∈T ,t h e n⋂n k=0 Ok ∈T .T h a ti s ,ﬁnite intersections of open sets are open. Proof (i) It is obvious thatX is in T , and, from Remark I.2.1(a), ∅ is also open. (ii) Let A be an index set, Oα ∈T for all α ∈ A,a n dx0 a point of ⋃ α Oα. Then there is some α0 ∈ A such that x0 ∈ Oα0 .S i n c eOα0 is open, there is some neighborhood U of x0 in X such that U ⊆ Oα0 ⊆⋃ α Oα. Hence ⋃ α Oα is open. (iii) Let O0,...,O n ∈T and x0 ∈⋂n k=0 Ok. Then there are posi...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.858484
+   section: body
+   chunk: 139 (c0802b8d-703d-4777-9c88-0e75861cff03)
+   pages: pp. 258-260
+   snippet: x∈M BX(x, rx). Then, by Example 2.2 and Proposition 2.4(ii), O is an open subset ofX. Moreover, from Proposition I.2.7(ii), O ∩ Y = (⋃ x∈M BX(x, rx) ) ∩ Y = ⋃ x∈M ( BX(x, rx) ∩ Y ) = ⋃ x∈M BY (x, rx)=M. Thus M is open in X. (iii) Next we suppose that M is closed in Y , that is, there is a closed set A in X such thatM = Y ∩ A. Because Y \M = Y ∩ Ac, it follows from (i) thatY \M is open in (Y,d Y ). Hence M is closed in (Y,d Y ). (iv) Finally, if M is closed in (Y,d Y ), then Y \M is open in (Y...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.869264
+   section: body
+   chunk: 131 (8f93c2f6-956a-4a21-aeb4-e3c0043003ad)
+   pages: pp. 245-247
+   snippet: group homomorphism from ( V, +) to ( W,+). Prove that f is linear. (Hint: If K = R, x ∈ V and q ∈ Q, then f(qx)= qf(x). See also Exercise 6.) 14 Let ( E, (·|· ) ) be an inner product space and x0 ∈ E. Show that the functions E → K ,x ↦→(x|x0) ,E → K ,x ↦→(x0 |x) are continuous. 15 Let A ∈ End(Kn). Prove that the function Kn → K ,x ↦→(Ax|x) is continuous. (Hint: Use Exercise 12 and the Cauchy-Schwarz inequality.) 16 Let n ∈ N ×.T h edeterminant of a matrix A =[ ajk] ∈ Kn×n is deﬁned by (see Ex...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.871838
+   section: body
+   chunk: 135 (12d31d00-e169-4062-926e-11a707b42ac6)
+   pages: pp. 251-253
+   snippet: Let x, y∈ X be such that x ̸=y. Then there are a neighbor- hood U of x and a neighborhood V of y such that U ∩ V = ∅. 238 III Continuous Functions Proof Since x ̸=y,w eh a v eε := d(x, y)/2 > 0. SetU := B(x, ε)a n dV := B(y,ε ). Suppose that U ∩ V ̸=∅ so that there is some z ∈ U ∩ V . Then, by the triangle inequality, 2ε = d(x, y) ≤ d(x, z)+ d(z,y ) <ε + ε =2 ε, a contradiction. Thus U and V are disjoint. ■ The claim of Proposition 2.17 is called theHausdorﬀ condition.T op r o v et h i s cond...
+
+[compactness-metric-spaces] compactness in metric spaces
+keyword hits: 4/4 (compact, metric space, open cover, sequentially compact)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.847234
+   section: body
+   chunk: 144 (2c75423e-1620-4224-b56a-121ad0f840b1)
+   pages: pp. 266-268
+   snippet: which converges to an element of K. The relationship between the cluster points of a sequence and convergent sub- sequences (see Proposition II.1.17) makes possible a reformulation of Theorem 3.3 in terms of sequential compactness. 3.4 Theorem A subset of a metric space is compact if and only if it is sequentially compact. As an important application of Theorem 3.3 we describe the compact subsets of Kn. 3.5 Theorem (Heine-Borel) A subset of Kn is compact if and only if it is closed and bounde...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.873396
+   section: body
+   chunk: 143 (d9e3b3b9-be59-4436-b0ec-2b1461aa40b7)
+   pages: pp. 265-266
+   snippet: the compactness of K im- plies that there are k0,...,k m ∈ N such that K ⊆⋃m j=0 B(x0,kj). In particular, K ⊆ B(x0,N )w h e r eN := max{k0,...,k m}.T h u sK is bounded. ■ A Characterization of Compact Sets The converse of Proposition 3.2 is false in general metric spaces (see Exercise 15) and so compact sets are not simply closed and bounded sets. Instead we have in the next theorem a characterization of compactness in terms of cluster points. For the proof we need the following concept which...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.882307
+   section: body
+   chunk: 146 (7c6bc743-de64-4d3a-85f2-6b4e0a9e25f0)
+   pages: pp. 269-271
+   snippet: and Corollary 3.7, there is some M ≥ 1 such that h(t)= |zk+1 1 r(tz1)|≤ M, t ∈ [0, 1] . If we use this bound in (3.6) we get |q(tz1)|≤ 1− tk(1− tM) ≤ 1− tk/2 < 1 ,t ∈ ( 0, 1/(2M) ) , which contradicts the ﬁrst statement of (3.5). Thereforep m u s th a v eaz e r oi n¯BC(0,R ). ■ Corollary Let p = anXn + an−1Xn−1 + ··· + a1X + a0 with a0,...,a n ∈ C, an ̸=0and n ≥ 1. Then there are z1,...,z n ∈ C such that p = an n∏ k=1 (X − zk) . Thus each polynomial p over C has exactly deg(p) (counted with m...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.892351
+   section: body
+   chunk: 142 (aa6f9ab9-6b2d-485b-aa91-7cc41ce47118)
+   pages: pp. 262-265
+   snippet: neither continuous nor open. 18 Let X and Y be metric spaces and p : X × Y → X, (x, y) ↦→x the canonical projection onto X.T h e np is continuous and open, but not, in general, closed. 19 Prove Propositions 1.5 and 1.10 for an arbitrary topological space X. III.2 The Fundamentals of Topology 249 20 Let X and Y be metric spaces and f : X → Y . Show that (see Exercise 1.17) An := { x ∈ X ; ωf (x) ≥ 1/n } is closed for each n ∈ N×. 21 Let X be a metric space and A ⊆ X. Show the following: (i) If...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.895963
+   section: body
+   chunk: 148 (aaec025c-970a-4076-8b22-1a91ef59406f)
+   pages: pp. 272-274
+   snippet: is uniformly continuous. That is,continuous func- tions on compact sets are uniformly continuous. Proof Suppose that f is continuous but not uniformly continuous. Then there ex- ists some ε> 0 with the property that, for eachδ> 0, there arex, y∈ X such that d(x, y) <δ but d ( f(x),f (y) ) ≥ ε. In particular, there are sequences (xn)a n d(yn) in X such that d(xn,yn) < 1/n and d ( f(xn),f (yn) ) ≥ ε, n ∈ N×. Since X is compact, by Theorem 3.4, there is a subsequence (xnk )k∈N of (xn)s u c h tha...
+
+[connectedness-functions-on-real-line] connectedness and continuous functions on real intervals
+keyword hits: 4/4 (connected, continuous, interval, real)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.794967
+   section: body
+   chunk: 151 (5970eb55-33f9-4032-a5a9-b7dd8a9c4515)
+   pages: pp. 278-280
+   snippet: ﬁrst concrete examples of nontrivial connected sets. 4.4 Theorem A subset of R is connected if and only if it is an interval. Proof Because of Example 4.1(a) we can suppose that the subset contains more than one element. ‘=⇒’L e tX ⊆ R be connected. (i) Set a := inf(X) ∈ ¯R and b := sup(X) ∈ ¯R.S i n c eX has at least two ele- ments, the interval (a, b) is nonempty and1 X ⊆ (a, b) ∪{ a, b}. (ii) We prove ﬁrst the inclusion ( a, b) ⊆ X. Suppose, to the contrary, that (a, b) is not contained in...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.795235
+   section: body
+   chunk: 154 (81bbcbf7-a9ed-4106-abb6-2d0c9e2d105e)
+   pages: pp. 283-286
+   snippet: of a connected set is also connected. (Hint: Consider a contin- uous function f : A →{ 0, 1} and use f(A) ⊆ f(A) (see Exercise 2.12).) 6 Given an element x ∈ X, the set K(x): = ⋃ Y ∈M Y where M := { Y ⊆ X ; Y is connected and x ∈ Y } is, by Exercise 2, the largest connected subset ofX which contains x, and hence is called the connected component of x in X. Prove the following: (a) { K(x); x ∈ X } is a partition of X, that is, each x ∈ X is contained in exactly one connected component of X. (b...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.798618
+   section: body
+   chunk: 150 (97d02512-45fb-4a1d-92ff-512b24cb078e)
+   pages: pp. 275-278
+   snippet: f :[ 0, 1) → X continuous. Show that f is uniformly continuous if limt→1 f(t) exists. 12 Which of the functions f :( 0,∞) → R ,t ↦→(1 +t2)−1 ,g :( 0,∞) → R ,t ↦→t−2 is uniformly continuous? 13 Prove that a ﬁnite dimensional subspace of a normed vector space is closed. (Hint: Let E be a normed vector space and F a subspace of E with ﬁnite dimen- sion. Let ( vn) be a sequence in F and v ∈ E such that lim vn = v in E. Because of Remark I.12.5, Proposition 1.10 and the Bolzano- Weierstrass theore...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.804699
+   section: body
+   chunk: 124 (183b543c-85b8-4e70-a665-a184434ea253)
+   pages: pp. 231-234
+   snippet: section. For example, using the extreme value theorem for continuous real valued functions on compact metric spaces, we show that all norms on K n are equivalent, and give a proof of the fundamental theorem of algebra. In Section 4 we investigate connected and path connected spaces. In particu- lar, we show that these concepts coincide for open subsets of normed vector spaces. As an important application of connectivity, we prove a generalized version of the intermediate value theorem. After...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.826281
+   section: body
+   chunk: 131 (8f93c2f6-956a-4a21-aeb4-e3c0043003ad)
+   pages: pp. 245-247
+   snippet: group homomorphism from ( V, +) to ( W,+). Prove that f is linear. (Hint: If K = R, x ∈ V and q ∈ Q, then f(qx)= qf(x). See also Exercise 6.) 14 Let ( E, (·|· ) ) be an inner product space and x0 ∈ E. Show that the functions E → K ,x ↦→(x|x0) ,E → K ,x ↦→(x0 |x) are continuous. 15 Let A ∈ End(Kn). Prove that the function Kn → K ,x ↦→(Ax|x) is continuous. (Hint: Use Exercise 12 and the Cauchy-Schwarz inequality.) 16 Let n ∈ N ×.T h edeterminant of a matrix A =[ ajk] ∈ Kn×n is deﬁned by (see Ex...
+
+[elementary-functions] exponential logarithm trigonometric functions and polar coordinates
+keyword hits: 3/4 (exponential, logarithm, polar coordinates)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.793483
+   section: body
+   chunk: 164 (0dfcd4fc-2a71-4f76-a356-a04c29558cbc)
+   pages: pp. 305-308
+   snippet: w. ■ The function of the previous proposition can be represented graphically as below. /BD /D0/D3/CV /CY/DB /BE /CY /D0/D3/CV /CY/DB /BD /CY /CX/CP /CX /B4/CP /B7/BE /AP /B5 /CX /CA /CA /CX /CA /CA /CT/DC/D4 /DB /BE /DB /BD /CT /CX/CP Finally we note that C = ⋃ k∈Z { R + i [ a +2 kπ,a +2 (k +1 )π )} is a partition of the complex plane, so it follows from Proposition 6.19 that the exponential function exp :C → C× wraps the complex plane inﬁnitely many times around the origin, covering inﬁnitel...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.817672
+   section: body
+   chunk: 163 (7a420845-e89e-4760-91de-15be15b873ed)
+   pages: pp. 303-305
+   snippet: this process, π can be determined with arbitrary precision. After considerable eﬀort, one gets6 π =3 .14159 26535 89793 23846 26433 83279 ... We will later develop a far more eﬃcient procedure for calculating π. (c) A complex number is called algebraic if it is a zero of a nonconstant polyno- mial with integer coeﬃcients. Complex numbers which are not algebraic are called transcendental numbers. In particular, real transcendental numbers are irrational. In 1882, F. Lindemann proved that π is...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.882203
+   section: body
+   chunk: 159 (6187c9ed-e955-4337-baed-4c104034cd9e)
+   pages: pp. 294-297
+   snippet: the ‘complex’ exponential func- tion exp : C → C, we begin by studying these two functions separately. The Real Exponential Function We collect in the next proposition the most important qualitative properties of the function expR. 6.5 Proposition (i) If x< 0,t h e n0 <e x < 1.I f x> 0,t h e n1 <e x < ∞. (ii) exp R : R → R+ is strictly increasing. (iii) For each α ∈ Q, lim x→∞ ex xα = ∞ , that is, the exponential function increases faster than any power function. (iv) lim x→−∞ ex =0 . Proof (...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.888736
+   section: body
+   chunk: 165 (f171e450-db22-46c9-834a-fdd739858fab)
+   pages: pp. 307-310
+   snippet: Z such that z =l o g|w| + i argN (w)+2 πki . Hence { log|w| + i ( argN (w)+2 πk ) ∈ C ; k ∈ Z } is the set of all solutions of the equation ez = w.T h eset Arg(w): =a r gN (w)+2 πZ is called the argument of w,a n dt h eset Log(w): =l o g|w| + i Arg(w) is called the (complex) logarithm of w. These equations deﬁne two set valued functions Arg : C× →P (C) ,w ↦→Arg(w) , Log : C× →P (C) ,w ↦→Log(w) , called the argument and logarithm functions. 294 III Continuous Functions Since set valued functio...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.902677
+   section: body
+   chunk: 160 (e6233dbc-a94c-4b73-aa6c-89b50849d770)
+   pages: pp. 296-299
+   snippet: value of the exponential function atr · log a ∈ R. Note also that in the case a = e, (6.4) reduces to Example II.8.12(b). III.6 The Exponential and Related Functions 283 6.9 Proposition For all α> 0, lim x→∞ log x xα =0 and lim x→0+ xα log x =0 . In particular, the logarithm function increases more slowly than any (arbitrarily small) positive power function. Proof Since the logarithm is increasing, it follows from Proposition 6.5(iii) that lim x→∞ log x xα = lim x→∞ log x eα log x = lim y→∞ y...
+
+[differentiability-mean-value-taylor] differentiability mean value theorem and Taylor theorem
+keyword hits: 4/4 (differentiable, mean value theorem, Taylor, remainder)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.815749
+   section: body
+   chunk: 188 (ad841726-63d9-48c1-bbc8-5825c0bf4a3a)
+   pages: pp. 354-356
+   snippet: n ∈ N. Suppose thatf ∈ Cn(I, R) and f (n+1) exists on ˚I. Then, for each x ∈ I\{a},t h e r ei ss o m eξ := ξ(x) ∈ (x ∧ a, x∨ a) such that Rn(f,a )(x)= f (n+1)(ξ) pn! (x − ξ x − a )n−p+1 (x − a)n+1 . Proof Fix x ∈ I and set J := (x ∧ a, x∨ a). Deﬁne g(t): = n∑ k=0 f (k)(t) k! (x − t)k ,h (t): =( x − t)p ,t ∈ J. Obviously g,h ∈ C(J, R) and both functions are diﬀerentiable on J with g′(t)=f (n+1)(t)(x − t)n n! ,h ′(t)= −p(x − t)p−1 ,t ∈ J. By the second mean value theorem (Proposition 2.20), the...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.817260
+   section: body
+   chunk: 177 (f93a355c-45a0-46e9-943a-950af7e66dc4)
+   pages: pp. 332-334
+   snippet: IV Diﬀerentiation in One Variable 2.2 Remarks Let f :[ a, b] → R with −∞ <a<b< ∞. (a) If f is diﬀerentiable at a and has a local minimum (or maximum) at a,t h e n f ′(a) ≥ 0( o rf ′(a) ≤ 0). Similarly, if f is diﬀerentiable at b and has a local mini- mum (or maximum) at b,t h e nf ′(b) ≤ 0( o rf ′(b) ≥ 0). Proof This follows directly from the proof of Theorem 2.1. ■ /CA /CA /CP /CQ /CA /CA /CP /CQ /CA /CA /CP /CQ (b) Let f be continuous on [a, b] and diﬀerentiable on (a, b). Then max x∈[a,b]...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.818608
+   section: body
+   chunk: 182 (83c39cbf-6a7f-4a30-8e8a-02c9b69edb79)
+   pages: pp. 342-344
+   snippet: Theorem for Vector Valued Functions For the remainder of this section, a and b are real numbers such that a<b . Let f :[ a, b] → R be diﬀerentiable. Then, by the mean value theorem, there is some ξ ∈ (a, b) such that f(b) − f(a)= f ′(ξ)(b − a) . (2.6) Even whenξ ∈ (a, b) is not known, (2.6) provides a relationship between the change of f on [a, b] and the values of f ′ on the interval. For a diﬀerentiable function from [a, b] into a normed vector spaceE, (2.6) is, in general, not true, as we...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.819761
+   section: body
+   chunk: 176 (73668f46-6db9-4b78-803d-064f0a29b16a)
+   pages: pp. 329-332
+   snippet: z ↦→z is nowhere diﬀerentiable. 5 At what points is f : C → C, z ↦→zz diﬀerentiable? 6 Let U be a neighborhood of 0 in K, E a normed vector space and f : U → E. (a) Suppose that there are numbers K> 0a n dα> 1 such that |f(x)|≤ K |x|α for all x ∈ U. Show that f is diﬀerentiable at 0. (b) Suppose that f(0) = 0 and there are K> 0a n dα ∈ (0, 1) such that |f(x)|≥ K |x|α for all x ∈ U. Show that f is not diﬀerentiable at 0. (c) What can be said if |f(x)| = K |x| for all x ∈ U? 7 Calculate ∂±f(x)...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.837286
+   section: body
+   chunk: 191 (b3642510-cb20-466d-91d1-5bf329114279)
+   pages: pp. 360-362
+   snippet: diﬀerences can be used to ap- proximate higher order derivatives in the same way that the usual diﬀerence quotient approximates the ﬁrst derivative. A particularly simple situation occurs if the pointsx0,x 1,...,x n are equally spaced, that is, xj := x0 + jh , 0 ≤ j ≤ n, for some h> 0. 3.14 Proposition Suppose that f ∈ Cn−1(I, R), f (n) exists on ˚I and 0 <h ≤ (b − a)/n. Then there is some ξ ∈ (a, a+ nh) such that △n hf(a)= f (n)(ξ) . Proof From (3.10), the uniqueness of the interpolation pol...
+
+[banach-fixed-point-newton-method] Banach fixed point theorem contractions and Newton method
+keyword hits: 4/4 (fixed point, contraction, Banach, Newton)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.832808
+   section: body
+   chunk: 194 (5e8540d0-4e73-474a-8952-5eb353611978)
+   pages: pp. 366-368
+   snippet: (xk) is a Cauchy sequence. Since X is a complete metric space, t h e r ei ss o m ea ∈ X such that limxk = a.B yt h ec o n t i n u i t yo ff and the deﬁnition of the sequence (xk), a is a ﬁxed point of f. (c) (error estimate) Since the sequence ( xn) converges to a,w ec a nt a k e the limit n →∞ in (4.3) to get the claimed estimate of the error (see Exam- ple III.1.3(l)). ■ 4.4 Remarks (a) As well as the a priori error estimate of Theorem 4.3(iii) we have the a posteriori bound d(xk,a) ≤ q 1−...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.840760
+   section: body
+   chunk: 195 (caaf57ea-99bd-49ba-ab71-57e267c95c12)
+   pages: pp. 368-370
+   snippet: ]−1 : R → (π/2,3π/2) . Since the tangent function is strictly increas- ing on (π/2,3π/2), the function g is well de- ﬁned andg(x) = arctan(x)+ π.M o r e o v e rt h e ﬁxed point problems for f and g are equiva- lent, that is, for all a ∈ (π/2,3π/2), a =t a na ⇐ ⇒a =a r c t a n (a)+ π. /AP /BP/BE Ꜵ Since g′(x)=1 /(1 +x2) (see (IV.2.3)), the contraction theorem applies tog.F r o m the graph we see that ξ>π .S e tX := [π,∞) ⊆ R so that g(X) ⊆ [π, 3π/2) ⊆ X. Because |g′(x)|≤ 1/(1 +π2) < 1 for all...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.845001
+   section: body
+   chunk: 196 (f7c496ec-38b3-4765-be3c-90e3e17638b5)
+   pages: pp. 370-372
+   snippet: clearly a ﬁxed point ofg, and Newton’s method is simply the method of successive approximations for the function g. This suggests applying the Banach ﬁxed point theorem, and indeed, this theorem is at the center of the proof of the following convergence result for Newton’s method. 4.7 Theorem T h e r ei ss o m eδ> 0 such that Newton’s method converges to ξ for any x0 in the interval [ξ − δ, ξ+ δ]. In other words: Newton’s method converges if the initial value is suﬃciently close to the zero ξ...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.852692
+   section: body
+   chunk: 193 (8ad4c23c-6467-4d91-b08c-22a46edf2530)
+   pages: pp. 364-366
+   snippet: g as in (a). Suppose, for example, that E = R and 0 is the unique zero of the function h : R → R.S e tg(x)= h ( f(x) ) + x for x ∈ X.T h e na ∈ X is a zero of f if and only if a is a ﬁxed point of g. (c) Let X be a metric space and a a ﬁxed point of f : X → Y . Suppose that x0 ∈ X and that the sequence ( xk) can be deﬁned recursively by the ‘iteration’ xk+1 := f(xk). This means, of course, that f(xk)i si n X for each k.I f xk → a, then we say that ‘a can be calculated by themethod of successi...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.877597
+   section: body
+   chunk: 192 (185c2da7-7ad2-44f0-be77-7f4716124bd5)
+   pages: pp. 362-364
+   snippet: a zero of multiplicity ≥ n at x0 if and only if there is some g ∈ C(X, K) such that f(x)=( x− x0)ng(x) for all x ∈ X. 11 Let p = Xn + an−1Xn−1 + ··· + a0 be a polynomial with coeﬃcients in R.P r o v eo r disprove that the function p + exp has a zero of multiplicity≤ n in R. 12 Prove the following: (a) For each n ∈ N, Tn(x): =c o s (narccos x), x ∈ R, is a polynomial of degree n and Tn(x)= xn + (n 2 ) xn−2(x2 − 1) + (n 4 ) xn−4(x2 − 1)2 + ··· . Tn is called the Chebyschev polynomial of degree...
+
+[uniform-convergence-sequences-functions] uniform convergence of sequences of functions
+keyword hits: 4/4 (uniform convergence, sequence of functions, continuous, differentiable)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.791714
+   section: body
+   chunk: 198 (4e684d40-ec90-4c0c-bbfb-6e26c38efb38)
+   pages: pp. 374-376
+   snippet: functions in the sequence are all bounded, then we have a sequence in the Banach space of bounded functions, and we can apply all the results about sequences and series which we developed in the second chapter. This approach is particularly fruitful, allows short and elegant proofs, and, for the ﬁrst time, demonstrates the advantages of the abstract framework in which we developed the fundamentals of analysis. In the ﬁrst section we analyze the various concepts of convergence which ap- pear i...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.804955
+   section: body
+   chunk: 202 (85cf8936-96b8-4dcc-9e58-fd9708598b58)
+   pages: pp. 382-383
+   snippet: absolutely in the interior of its disk of convergence, and so, setting X := r¯BK and fk(x): = akxk for all x ∈ X and k ∈ N,w eh a v e ∑ ∥fk∥∞ = ∑ |ak| rk < ∞ . The claim now follows from Theorem 1.6. ■ Exercises 1 Which of the following sequences of functions (fn) converge uniformly onX := (0, 1)? (a) fn := n√x,( b ) fn := 1/(1 +nx), (c) fn := x/(1 +nx). 2 Show that (fn), deﬁned by fn(x): = √ (1/n2)+|x |2, converges uniformly onK to the absolute value function x ↦→|x|. 3 Prove or disprove tha...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.817025
+   section: body
+   chunk: 200 (6d4ced62-d456-4dce-9c2f-e1a4557e95e9)
+   pages: pp. 378-380
+   snippet: (ii) (fn − f) → 0i n B(X,E ). (iii) ∥fn − f∥∞ → 0i nR. Note that it is possible for fn to converge uniformly to f even if fn and f are not in B(X,E ). For example, letX := R, E := R, fn(x): = x +1 /n for alln ∈ N× and f(x): = x.T h e n(fn) converges uniformly tof, but neither f nor fn is in B(R, R). (f) If fn and f are in B(X,E ), then (fn) converges uniformly to f if and only if (fn) converges to f in B(X,E ). ■ 1.4 Proposition (Cauchy criterion for uniform convergence) The following are equ...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.821119
+   section: body
+   chunk: 203 (05c67783-741f-43d5-91e9-d8b52dcd2662)
+   pages: pp. 383-385
+   snippet: by an arbitrary topological space and E by a metric space. This holds also for any statement of this section that involves continuity only.■ Locally Uniform Convergence An inspection of the proof of Theorem 2.1 shows that it remains true if there is a neighborhood U of a such that (fn) converges uniformly on U. The behavior of (fn) outside of U is irrelevant for the continuity of f at a, since continuity is a ‘local’ property. This motivates the deﬁnition of a ‘local’ version of uniform conve...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.823176
+   section: body
+   chunk: 199 (d2fcd6b6-2cd5-4a04-89ac-ffdbbd7d9416)
+   pages: pp. 376-378
+   snippet: Proof This follows directly from Corollary II.1.13. ■ (b) The following are equivalent: (i) fn → f (pointw). (ii) For each x ∈ X and ε>0, there is a natural number N = N(x, ε) such that |fn(x)− f(x)| <ε for n ≥ N. (iii) For each x ∈ X, ( fn(x) ) is a Cauchy sequence in E. Proof The implications ‘(i)=⇒(ii)=⇒(iii)’ are clear. The claim ‘(iii)=⇒(i)’ holds because E is complete. ■ (c) The above deﬁnitions are also meaningful if E is replaced by an arbitrary metric space. ■ 1.2 Examples (a) Let X...
+
+[analytic-functions-power-series] analytic functions and power series
+keyword hits: 4/4 (analytic, power series, Taylor, radius)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.807603
+   section: body
+   chunk: 208 (3f4a56eb-0085-42a7-b7cd-3032531d4281)
+   pages: pp. 392-394
+   snippet: − 1)··· (n − k +1 )anxn−k 0 = k! ∞∑ n=k (n k ) anxn−k 0 for all x0 ∈ ρB. Noting that (n k ) =0f o ra l lk>n ,w eh a v e T (a,x 0)= ∞∑ k=0 ( ∞∑ n=0 (n k ) anxn−k 0 ) (X − x0)k . (3.1) (ii) With r := ρ −| x0| > 0a n d bn,k(x): = (n k ) anxn−k 0 (x − x0)k ,n , k ∈ N ,x ∈ B(x0,r ) , it follows from the binomial theorem (Theorem I.8.4) that m∑ n,k=0 |bn,k(x)| = m∑ n=0 |an| (|x0| + |x − x0|)n ,m ∈ N ,x ∈ B(x0,r ) . (3.2) For x ∈ ρB,w eh a v e|x0| + |x − x0| <ρ , and so, since the power seriesa conv...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.807618
+   section: body
+   chunk: 212 (28010ec3-25eb-4ebd-872c-5b4602f7bdc9)
+   pages: pp. 400-402
+   snippet: necessary in Theorem 3.13. In the complex case, the situation is completely diﬀerent. We will see later that the concepts of ‘complex diﬀerentiability’ and ‘complex analyticity’ are the same, so that, for each open subset D of C, C1(D, C)a n d Cω(D, C) coincide. ■ 3.15 Remark Suppose that D is open inR and f : D → R is (real) analytic. Then, for each x ∈ D,t h e r ei ss o m erx > 0 such that f(y)= ∞∑ k=0 f (k)(x) k! (y − x)k ,y ∈ BR(x, rx) ∩ D. The set DC := ⋃ x∈D BC(x, rx) is an open neighbo...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.816504
+   section: body
+   chunk: 211 (57655dba-0e0b-42ec-89ec-f5cc62c94760)
+   pages: pp. 398-400
+   snippet: to get 1√ 1 − z2 =1+ z2 2 + ∞∑ k=2 1 · 3 · ··· · (2k − 1) 2· 4· ··· · 2k z2k ,z ∈ ¯BC . (3.8) In particular, it follows from Proposition 3.5 that the function z ↦→1 ⎥√ 1− z2 is analytic on BC. ■ 386 V Sequences of Functions For real arguments, (3.8) provides a power series expansion for the arcsine function. 3.12 Corollary The arcsine function is real analytic on (−1,1) and arcsin(x)= x + ∞∑ k=1 1 · 3 · ··· · (2k − 1) 2 · 4 · ··· · 2k x2k+1 2k +1 ,x ∈ (−1,1) . Proof By Remark 3.7(b) and (3.8)...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.823198
+   section: body
+   chunk: 206 (044622c6-f31e-4941-8bf8-26603768b288)
+   pages: pp. 388-390
+   snippet: the following con- ditions: (i) For each x ∈ X, ( fn(x) ) is decreasing. (ii) ( fn) converges uniformly to 0. Show that ∑(−1)nfn converges uniformly. 7 Let (fn) be a sequence of real valued functions onX,a n d(gn) a sequence ofK-valued functions on X which satisfy the following conditions: (i) For each x ∈ X, ( fn(x) ) is decreasing. (ii) ( fn) converges uniformly to 0. (iii) sup n ∑n k=0 gk  ∞ < ∞. Show that ∑gnfn converges uniformly. (Hint: Setting αk := ∑k j=0 gj we have n∑ k=m+1 gkfk...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.824202
+   section: body
+   chunk: 207 (673dd158-bba0-4482-97b3-32020762e8c9)
+   pages: pp. 390-392
+   snippet: II.4.2(d) and Exercise II.5.2(d) we have ρ′= 1 lim k √ k|ak| = 1 lim k√ k lim k √ |ak| = 1 lim k √ |ak| = ρ. By Theorem 1.8, the power series ∑ k≥1 kakXk−1 converges locally uniformly on ρB, so the claim follows from Corollary 2.9 ■ 3.2 Corollary If a =∑akXk is a power series with positive radius of conver- gence ρ,t h e na ∈ C∞(ρB, K) and a = T (a,0). In other words, ∑akXk is the Taylor series of a at 0 and ak = a(k)(0)/k!. Proof By induction, it follows from Theorem 3.1, that a is smooth on...
+
+[polynomial-approximation-stone-weierstrass-banach-algebras] polynomial approximation Stone-Weierstrass theorem and Banach algebras
+keyword hits: 3/4 (polynomial approximation, Banach algebra, dense)
+page metadata present: 5/5 chunks
+snippets present: 5/5 chunks
+1. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.794325
+   section: body
+   chunk: 216 (13973091-ce88-4888-8923-7a66782464b9)
+   pages: pp. 407-409
+   snippet: is continuous, we know from Example III.2.22(c) thatUy,z and Vy,z are open in X. By (4.1), y is in Uy,z and z is in Vy,z.N o wﬁ xs o m ez∈ X.T h e n {Uy,z ,y ∈ X } is an open cover of the compact spaceX,a n dt h e r ea r ey0,...,y m in X such that ⋃m j=0 Uyj,z = X.S e t hz := min 0≤j≤m hyj,z := hy0,z ∧···∧ hym,z . By Lemma 4.6, hz is in A. In addition, we have hz(x) <f (x)+ ε, x ∈ X, (4.2) since, for each x ∈ X,t h e r ei ss o m ej ∈{ 0,...,m } such that x ∈ Uyj,z. (iii) For z ∈ X,l e tVz :=⋂...
+2. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.817148
+   section: body
+   chunk: 213 (4fbc09b6-e82c-4ad1-a8bf-3a6d3d96b0d3)
+   pages: pp. 402-404
+   snippet: : C → C,c o s h :C → C,t a n h :C\iπ(Z +1 /2) → C; (b) tan : C\π(Z +1 /2) → C, cot : C\πZ → C; are analytic. (Hint: Use Proposition 3.8.) 10 Show that the functions ln(cos) , ln(cosh) ,x ↦→ln2(1 +x) are analytic in a neighborhood of 0. What are the corresponding power series expansions at 0? (Hint: First ﬁnd power series expansions for the derivatives.) 11 Prove that, for x ∈ [−1, 1], arctan x = ∞∑ k=0 (−1)k x2k+1 2k +1 = x− x3 3 + x5 5 − x7 7 + −··· , and hence (Leibniz formula) π 4 = ∞∑ k=0...
+3. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.820972
+   section: body
+   chunk: 217 (44419bb0-07ff-4117-8e07-aab88e57ded5)
+   pages: pp. 409-411
+   snippet: dense in C(I). Since exp|X is in C(I), but not inP, P is a proper subspace ofC(I). It follows from Proposition 4.4 thatP is not closed, and hence not complete. ■ (b) Let I be a compact interval and ϵ:= exp|I.T h e n A := {∑n k=0akϵk ; ak ∈ K,n ∈ N } is a dense subalgebra ofC(I, K). So any continuous function onI can be uniformly approximated by ‘sums of exponential functions’ of the form t ↦→∑n k=0 aketk. Proof Clearly A is a subalgebra ofC(I, K) and 1 ∈ A.S i n c eϵ(s) ̸=ϵ(t)f o rs ̸=t, A se...
+4. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.843413
+   section: body
+   chunk: 220 (7ae952d5-de23-4652-bcf8-9f35c3f67093)
+   pages: pp. 413-415
+   snippet: isomorphism’. V.4 Polynomial Approximation 401 The Trigonometric Approximation Theorem After this discussion of periodic functions, we can now easily prove the trigono- metric form of the Weierstrass approximation theorem. 4.16 Theorem C2π(R, K) is a Banach algebra with unity element1, and the sub- algebra of trigonometric polynomialsTP (R, K) is dense in C2π(R, K). In addition, cis∗ is an isometric algebra isomorphism from C(S, K) to C2π(R, K). Proof By Corollary 4.14, cis ∗ is an isometric...
+5. Analysis
+   library: Analysis
+   document: Analysis
+   score: 0.850015
+   section: body
+   chunk: 215 (66997a53-c3ef-47c9-b06d-05d3ff151129)
+   pages: pp. 405-407
+   snippet: We argue by contradiction. If x ∈ X and ε>0a r es u c ht h a t D ∩ B(x, ε)= ∅,t h e nD ⊆ [ B(x, ε) ]c . This contradicts (ii), since [ B(x, ε) ]c is a closed subset of X such that [ B(x, ε) ]c ̸=X. ‘(iii)=⇒(iv)’ Suppose that (Dc)◦ is not empty. Since (Dc)◦ is open, there are x ∈ (Dc)◦ and ε>0 such that B(x, ε) ⊆ (Dc)◦ ⊆ Dc. This impliesD ∩ B(x, ε)= ∅, contradicting (iii). ‘(iv)=⇒(i)’ From Exercise III.2.5, we have ˚V = X \ (X\V ) for any subset V of X. From (iv) it follows that ∅ =( Dc)◦ = X...
+
+Summary:
+queries: 20
+top_k: 5
+keyword hits: 75/79
+page metadata coverage: 100/100 chunks
+snippet coverage: 100/100 chunks
+section_type counts:
+  body: 100
+  contents: 0
+  index: 0
+  bibliography: 0
+  preface: 0
+  unknown: 0
+non-body chunks retrieved: 0

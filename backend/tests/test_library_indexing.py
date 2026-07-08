@@ -10,6 +10,7 @@ from app.ingestion.pdf import PDFPageText
 from app.library.indexing import (
     LibraryIndexingError,
     classify_pdf_section_type,
+    detect_pdf_heading_context,
     index_library_item,
 )
 from app.models.document import Document
@@ -132,10 +133,12 @@ def test_index_library_item_pdf_creates_page_aware_chunks(indexing_session, tmp_
         .where(DocumentChunk.document_id == document.id)
         .order_by(DocumentChunk.chunk_index)
     ).scalars().all()
-    assert [chunk.page_start for chunk in chunks] == [1, 2]
-    assert [chunk.page_end for chunk in chunks] == [1, 2]
-    assert [chunk.section_type for chunk in chunks] == ["body", "body"]
-    assert chunks[0].content == "Derivatives measure local linear change."
+    assert len(chunks) == 1
+    assert chunks[0].page_start == 1
+    assert chunks[0].page_end == 2
+    assert chunks[0].section_type == "body"
+    assert "Derivatives measure local linear change." in chunks[0].content
+    assert "Integrals accumulate area under curves." in chunks[0].content
 
 
 def test_index_library_item_pdf_strips_nul_bytes_before_storage(
@@ -203,13 +206,53 @@ def test_index_library_item_pdf_classifies_non_body_sections(
         .where(DocumentChunk.document_id == result.document_id)
         .order_by(DocumentChunk.chunk_index)
     ).scalars().all()
-    assert [chunk.section_type for chunk in chunks] == [
-        "contents",
-        "preface",
-        "body",
-        "index",
-        "index",
+    assert [chunk.section_type for chunk in chunks] == ["contents", "preface", "body", "index"]
+    index_chunk = chunks[-1]
+    assert index_chunk.page_start == 4
+    assert index_chunk.page_end == 5
+    assert "Banach space" in index_chunk.content
+    assert "normed vector" in index_chunk.content
+
+
+def test_index_library_item_pdf_uses_larger_multi_page_chunks(
+    indexing_session, tmp_path, monkeypatch
+) -> None:
+    file_path = tmp_path / "analysis.pdf"
+    file_path.write_bytes(b"%PDF placeholder")
+    item = create_library_item(
+        indexing_session,
+        title="Analysis",
+        file_path=str(file_path),
+        file_type="pdf",
+    )
+    page_texts = [
+        f"II.6 Completeness\n{'Complete metric spaces and Cauchy sequences. ' * 35}",
+        f"{'Banach spaces are complete normed vector spaces. ' * 35}",
+        f"{'Convergent sequences are Cauchy in metric spaces. ' * 35}",
+        f"{'Closed subspaces of Banach spaces are complete. ' * 35}",
     ]
+    monkeypatch.setattr(
+        "app.library.indexing.extract_pdf_pages",
+        lambda path: [
+            PDFPageText(page_number=index, text=text)
+            for index, text in enumerate(page_texts, start=1)
+        ],
+    )
+
+    result = index_library_item(indexing_session, item.item_id)
+
+    assert result is not None
+    chunks = indexing_session.execute(
+        select(DocumentChunk)
+        .where(DocumentChunk.document_id == result.document_id)
+        .order_by(DocumentChunk.chunk_index)
+    ).scalars().all()
+    assert len(chunks) < len(page_texts)
+    assert chunks[0].page_start == 1
+    assert chunks[0].page_end is not None
+    assert chunks[0].page_end > 1
+    assert chunks[0].section_title == "II.6 Completeness"
+    assert all(len(chunk.content) >= 350 for chunk in chunks)
 
 
 def test_classify_pdf_section_type_uses_lightweight_heuristics() -> None:
@@ -219,6 +262,20 @@ def test_classify_pdf_section_type_uses_lightweight_heuristics() -> None:
     assert classify_pdf_section_type("Bibliography\n[1] Some reference") == "bibliography"
     assert classify_pdf_section_type("Preface\nThis book...") == "preface"
     assert classify_pdf_section_type("II.6 Completeness\nA metric space is...") == "body"
+
+
+def test_detect_pdf_heading_context_uses_obvious_chapter_and_section_headings() -> None:
+    assert detect_pdf_heading_context("Chapter II Convergence\nSequences").chapter_title == (
+        "Chapter II Convergence"
+    )
+    assert detect_pdf_heading_context("12 I Foundations").chapter_title == "I Foundations"
+    context = detect_pdf_heading_context("II.6 Completeness 177\nA metric space is...")
+    assert context.section_title == "II.6 Completeness"
+    header_context = detect_pdf_heading_context(
+        "338 IV Differentiation in One Variable 3 Taylor's Theorem"
+    )
+    assert header_context.chapter_title == "IV Differentiation in One Variable"
+    assert header_context.section_title == "IV.3 Taylor's Theorem"
 
 
 def test_index_library_item_invalid_pdf_sets_failed_status(indexing_session, tmp_path) -> None:

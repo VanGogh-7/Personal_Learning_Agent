@@ -56,9 +56,11 @@ Stage 36: Real LLM Provider Integration — completed.
 Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — completed.
 Stage 36C: Single-Book RAG Observability Polish — completed.
 Stage 37: Retrieval Quality Baseline — completed.
-Stage 38A: Retrieval Filtering for Front Matter and Back Matter — current.
+Stage 38A: Retrieval Filtering for Front Matter and Back Matter — completed.
+Stage 38B: Filtered Retrieval Baseline and Indexing Workflow Polish — completed.
+Stage 39: Chunk Optimization v1 for Mathematical PDFs — current.
 
-Current active stage: Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
+Current active stage: Stage 39: Chunk Optimization v1 for Mathematical PDFs.
 
 Do not implement the full product at once.
 
@@ -401,6 +403,27 @@ non-body chunks, while backend scripts expose `--include-non-body` for
 debugging. It does not change embedding providers, LLM providers,
 chunking behavior, retrieval algorithms, frontend UI, or add ML-based
 layout parsing.
+
+Stage 38B is Filtered Retrieval Baseline and Indexing Workflow Polish.
+It keeps the Stage 38A retrieval filter in place while making manual
+`scripts/index_pdf.py --reindex` and `scripts/eval_retrieval.py`
+baseline runs easier to inspect. The index script reports section-type
+counts, and the eval summary reports query count, `top_k`, keyword hits,
+page/snippet coverage, retrieved section-type counts, and non-body
+retrieved count. It does not change database schema, embedding
+providers, LLM providers, frontend UI, chunking, retrieval ranking,
+reranking, or hybrid search.
+
+Stage 39 is Chunk Optimization v1 for Mathematical PDFs. It changes the
+PDF indexing path from small per-page chunks to larger section-aware
+multi-page chunks tuned for born-digital math textbooks, with roughly
+4000 characters per chunk, 650 characters of overlap, and a 350
+character minimum tail target. It preserves `page_start` and `page_end`,
+keeps Stage 38A/38B section filtering, and stores lightweight
+`chapter_title` / `section_title` metadata using deterministic heading
+heuristics. It does not add complex theorem/definition/proof parsing,
+OCR, reranking, hybrid search, provider changes, frontend changes, or
+retrieval ranking changes.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -1000,6 +1023,13 @@ Frontend:
   heuristics, and excludes known non-body sections from default retrieval.
   `scripts/search_book.py` and `scripts/eval_retrieval.py` support
   `--include-non-body` for debugging
+- Stage 38B Filtered Retrieval Baseline and Indexing Workflow Polish
+  keeps body-only retrieval as the default, adds section-type counts to
+  `scripts/index_pdf.py --reindex`, and adds aggregate section/non-body
+  counts to `scripts/eval_retrieval.py`
+- Stage 39 Chunk Optimization v1 for Mathematical PDFs changes PDF
+  indexing to larger readable multi-page chunks, preserves page ranges,
+  and adds nullable `chapter_title` / `section_title` chunk metadata
 
 Planned later:
 - Production-quality agent workflows

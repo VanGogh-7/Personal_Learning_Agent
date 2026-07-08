@@ -18,6 +18,9 @@ from app.models.library_item import LibraryItem
 SUPPORTED_LIBRARY_INDEX_TYPES = {"txt", "md", "pdf"}
 DEFAULT_INDEX_CHUNK_SIZE = 800
 DEFAULT_INDEX_CHUNK_OVERLAP = 100
+PDF_INDEX_CHUNK_SIZE_CHARS = 4000
+PDF_INDEX_CHUNK_OVERLAP_CHARS = 650
+PDF_INDEX_MIN_CHUNK_CHARS = 350
 SECTION_BODY = "body"
 SECTION_CONTENTS = "contents"
 SECTION_INDEX = "index"
@@ -49,6 +52,41 @@ class IndexChunk:
     page_start: int | None = None
     page_end: int | None = None
     section_type: str = SECTION_UNKNOWN
+    chapter_title: str | None = None
+    section_title: str | None = None
+
+
+@dataclass(frozen=True)
+class PdfChunkingConfig:
+    chunk_size_chars: int = PDF_INDEX_CHUNK_SIZE_CHARS
+    chunk_overlap_chars: int = PDF_INDEX_CHUNK_OVERLAP_CHARS
+    min_chunk_chars: int = PDF_INDEX_MIN_CHUNK_CHARS
+
+
+@dataclass(frozen=True)
+class PdfPageForChunking:
+    page_number: int
+    text: str
+    section_type: str
+    char_start: int
+    char_end: int
+    chapter_title: str | None = None
+    section_title: str | None = None
+
+
+@dataclass(frozen=True)
+class PageSpan:
+    page_number: int
+    start: int
+    end: int
+    chapter_title: str | None
+    section_title: str | None
+
+
+@dataclass(frozen=True)
+class PdfHeadingContext:
+    chapter_title: str | None = None
+    section_title: str | None = None
 
 
 def index_library_item(
@@ -90,6 +128,8 @@ def index_library_item(
                     page_start=chunk.page_start,
                     page_end=chunk.page_end,
                     section_type=chunk.section_type,
+                    chapter_title=chunk.chapter_title,
+                    section_title=chunk.section_title,
                     embedding=embedding,
                 )
             )
@@ -175,11 +215,49 @@ def _prepare_index_chunks(path: Path, file_type: str) -> tuple[list[IndexChunk],
 
 
 def _chunk_pdf_pages(pages: list[PDFPageText]) -> list[IndexChunk]:
+    prepared_pages = _prepare_pdf_pages_for_chunking(pages)
     chunks: list[IndexChunk] = []
     next_index = 0
+    group: list[PdfPageForChunking] = []
+    group_section_type: str | None = None
+
+    for page in prepared_pages:
+        if group and page.section_type != group_section_type:
+            chunks.extend(
+                _chunk_pdf_page_group(
+                    group,
+                    section_type=group_section_type or SECTION_UNKNOWN,
+                    start_index=next_index,
+                )
+            )
+            next_index = len(chunks)
+            group = []
+        group.append(page)
+        group_section_type = page.section_type
+
+    if group:
+        chunks.extend(
+            _chunk_pdf_page_group(
+                group,
+                section_type=group_section_type or SECTION_UNKNOWN,
+                start_index=next_index,
+            )
+        )
+
+    return chunks
+
+
+def _prepare_pdf_pages_for_chunking(pages: list[PDFPageText]) -> list[PdfPageForChunking]:
+    prepared_pages: list[PdfPageForChunking] = []
     current_section_type = SECTION_UNKNOWN
+    current_chapter_title: str | None = None
+    current_section_title: str | None = None
+    document_offset = 0
 
     for page in pages:
+        if not page.text.strip():
+            document_offset += len(page.text) + 2
+            continue
         detected_section_type = classify_pdf_section_type(page.text)
         section_type = _resolve_pdf_page_section_type(
             page.text,
@@ -188,26 +266,185 @@ def _chunk_pdf_pages(pages: list[PDFPageText]) -> list[IndexChunk]:
         )
         if section_type != SECTION_UNKNOWN:
             current_section_type = section_type
-        page_chunks = chunk_text(
-            page.text,
-            chunk_size=DEFAULT_INDEX_CHUNK_SIZE,
-            chunk_overlap=DEFAULT_INDEX_CHUNK_OVERLAP,
-        )
-        for chunk in page_chunks:
-            chunks.append(
-                IndexChunk(
-                    index=next_index,
-                    content=chunk.content,
-                    char_start=chunk.char_start,
-                    char_end=chunk.char_end,
-                    page_start=page.page_number,
-                    page_end=page.page_number,
-                    section_type=section_type,
-                )
+        heading_context = detect_pdf_heading_context(page.text)
+        if section_type == SECTION_BODY:
+            if heading_context.chapter_title:
+                current_chapter_title = heading_context.chapter_title
+            if heading_context.section_title:
+                current_section_title = heading_context.section_title
+        prepared_pages.append(
+            PdfPageForChunking(
+                page_number=page.page_number,
+                text=page.text,
+                section_type=section_type,
+                char_start=document_offset,
+                char_end=document_offset + len(page.text),
+                chapter_title=current_chapter_title if section_type == SECTION_BODY else None,
+                section_title=current_section_title if section_type == SECTION_BODY else None,
             )
-            next_index += 1
+        )
+        document_offset += len(page.text) + 2
+
+    return prepared_pages
+
+
+def _chunk_pdf_page_group(
+    pages: list[PdfPageForChunking],
+    *,
+    section_type: str,
+    start_index: int,
+    config: PdfChunkingConfig = PdfChunkingConfig(),
+) -> list[IndexChunk]:
+    if not pages:
+        return []
+
+    combined_text_parts: list[str] = []
+    page_spans: list[PageSpan] = []
+    offset = 0
+    for page_index, page in enumerate(pages):
+        if page_index > 0:
+            combined_text_parts.append("\n\n")
+            offset += 2
+        start = offset
+        combined_text_parts.append(page.text)
+        offset += len(page.text)
+        page_spans.append(
+            PageSpan(
+                page_number=page.page_number,
+                start=start,
+                end=offset,
+                chapter_title=page.chapter_title,
+                section_title=page.section_title,
+            )
+        )
+
+    combined_text = "".join(combined_text_parts)
+    base_offset = pages[0].char_start
+    chunks: list[IndexChunk] = []
+    for local_index, (raw_start, raw_end) in enumerate(
+        _build_readable_chunk_spans(combined_text, config)
+    ):
+        start, end, content = _trim_chunk_span(combined_text, raw_start, raw_end)
+        if not content:
+            continue
+        intersecting_pages = _page_spans_for_chunk(page_spans, start, end)
+        page_numbers = [span.page_number for span in intersecting_pages]
+        chapter_title, section_title = _heading_context_for_chunk(intersecting_pages)
+        chunks.append(
+            IndexChunk(
+                index=start_index + local_index,
+                content=content,
+                char_start=base_offset + start,
+                char_end=base_offset + end,
+                page_start=min(page_numbers) if page_numbers else None,
+                page_end=max(page_numbers) if page_numbers else None,
+                section_type=section_type,
+                chapter_title=chapter_title,
+                section_title=section_title,
+            )
+        )
 
     return chunks
+
+
+def _build_readable_chunk_spans(
+    text: str, config: PdfChunkingConfig
+) -> list[tuple[int, int]]:
+    if config.chunk_size_chars <= 0:
+        raise ValueError("chunk_size_chars must be positive")
+    if config.chunk_overlap_chars < 0:
+        raise ValueError("chunk_overlap_chars must be non-negative")
+    if config.chunk_overlap_chars >= config.chunk_size_chars:
+        raise ValueError("chunk_overlap_chars must be smaller than chunk_size_chars")
+    if config.min_chunk_chars < 0:
+        raise ValueError("min_chunk_chars must be non-negative")
+
+    length = len(text)
+    if length == 0:
+        return []
+    if length <= config.chunk_size_chars:
+        return [(0, length)]
+
+    spans: list[tuple[int, int]] = []
+    start = 0
+    while start < length:
+        target_end = min(start + config.chunk_size_chars, length)
+        if 0 < length - target_end < config.min_chunk_chars:
+            target_end = length
+        end = _adjust_chunk_end(text, start, target_end, config.min_chunk_chars)
+        if end <= start:
+            end = target_end
+        spans.append((start, end))
+        if end >= length:
+            break
+
+        next_start = max(0, end - config.chunk_overlap_chars)
+        next_start = _adjust_chunk_start(text, next_start)
+        if next_start <= start:
+            next_start = min(start + config.chunk_size_chars - config.chunk_overlap_chars, length)
+        start = next_start
+
+    return spans
+
+
+def _adjust_chunk_end(text: str, start: int, target_end: int, min_chunk_chars: int) -> int:
+    if target_end >= len(text):
+        return len(text)
+
+    earliest = max(start + min_chunk_chars, target_end - 500)
+    if earliest >= target_end:
+        return target_end
+
+    window = text[earliest:target_end]
+    for boundary in ("\n\n", ". ", "? ", "! "):
+        position = window.rfind(boundary)
+        if position != -1:
+            return earliest + position + len(boundary)
+    return target_end
+
+
+def _adjust_chunk_start(text: str, target_start: int) -> int:
+    if target_start <= 0 or target_start >= len(text):
+        return target_start
+    if text[target_start - 1].isspace() or text[target_start].isspace():
+        return target_start
+
+    search_end = min(len(text), target_start + 80)
+    for index in range(target_start, search_end):
+        if text[index].isspace():
+            return index + 1
+    return target_start
+
+
+def _trim_chunk_span(text: str, start: int, end: int) -> tuple[int, int, str]:
+    content = text[start:end]
+    leading_whitespace = len(content) - len(content.lstrip())
+    trailing_whitespace = len(content) - len(content.rstrip())
+    trimmed_start = start + leading_whitespace
+    trimmed_end = end - trailing_whitespace
+    return trimmed_start, trimmed_end, text[trimmed_start:trimmed_end]
+
+
+def _page_spans_for_chunk(
+    page_spans: list[PageSpan], start: int, end: int
+) -> list[PageSpan]:
+    return [
+        span
+        for span in page_spans
+        if max(start, span.start) < min(end, span.end)
+    ]
+
+
+def _heading_context_for_chunk(page_spans: list[PageSpan]) -> tuple[str | None, str | None]:
+    chapter_title = next(
+        (span.chapter_title for span in page_spans if span.chapter_title),
+        None,
+    )
+    section_title = next(
+        (span.section_title for span in page_spans if span.section_title),
+        None,
+    )
+    return chapter_title, section_title
 
 
 def _read_text_file(path: Path) -> str:
@@ -253,6 +490,56 @@ def classify_pdf_section_type(text: str) -> str:
         return SECTION_PREFACE
 
     return SECTION_BODY
+
+
+def detect_pdf_heading_context(text: str) -> PdfHeadingContext:
+    lines = [" ".join(line.strip().split()) for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    chapter_title: str | None = None
+    section_title: str | None = None
+
+    for line in lines[:8]:
+        line = _strip_trailing_page_number(line)
+        chapter_match = re.match(r"^(Chapter\s+[IVXLCDM]+\s+.{3,80})$", line)
+        if chapter_match:
+            chapter_title = chapter_match.group(1)
+            continue
+
+        header_match = re.match(
+            r"^\d+\s+([IVXLCDM]+)\s+(.{3,60}?)\s+(\d+)\s+(.{3,100})$",
+            line,
+        )
+        if header_match:
+            chapter_title = f"{header_match.group(1)} {header_match.group(2).strip()}"
+            section_title = (
+                f"{header_match.group(1)}.{header_match.group(3)} "
+                f"{_strip_trailing_page_number(header_match.group(4).strip())}"
+            )
+            continue
+
+        simple_header_match = re.match(r"^\d+\s+([IVXLCDM]+)\s+(.{3,80})$", line)
+        if simple_header_match:
+            chapter_title = (
+                f"{simple_header_match.group(1)} "
+                f"{_strip_trailing_page_number(simple_header_match.group(2).strip())}"
+            )
+            continue
+
+        section_match = re.match(r"^([IVXLCDM]+\.\d+)\s+(.{3,100})$", line)
+        if section_match:
+            section_title = (
+                f"{section_match.group(1)} "
+                f"{_strip_trailing_page_number(section_match.group(2).strip())}"
+            )
+
+    return PdfHeadingContext(
+        chapter_title=chapter_title,
+        section_title=section_title,
+    )
+
+
+def _strip_trailing_page_number(text: str) -> str:
+    return re.sub(r"\s+\d+$", "", text).strip()
 
 
 def _resolve_pdf_page_section_type(

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
+Stage 39: Chunk Optimization v1 for Mathematical PDFs.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -147,13 +147,21 @@ Stage 38A: Retrieval Filtering for Front Matter and Back Matter.
 - Retrieval Filtering for Front Matter and Back Matter: PDF indexing
   stores `document_chunks.section_type`, and default retrieval excludes
   known contents, index, bibliography, and preface chunks (Stage 38A,
-  current)
+  completed)
+- Filtered Retrieval Baseline and Indexing Workflow Polish:
+  `scripts/index_pdf.py --reindex` reports section-type counts and
+  `scripts/eval_retrieval.py` reports aggregate filtered-retrieval
+  coverage plus non-body retrieved counts (Stage 38B, completed)
+- Chunk Optimization v1 for Mathematical PDFs: PDF indexing now uses
+  larger readable multi-page chunks for born-digital math textbooks,
+  keeps page ranges, and stores lightweight chapter/section heading
+  metadata (Stage 39, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 38A is a backend-only retrieval filtering
-pass. It keeps `/api/agent/chat` as the Agent Chat API and preserves its
+**not implemented yet**. Stage 39 is a backend-only PDF chunking
+optimization pass. It keeps `/api/agent/chat` as the Agent Chat API and preserves its
 existing request/response compatibility. It does not change frontend
 workspace behavior, Tauri architecture, Vite architecture, local
 retrieval algorithms, memory behavior, learning-event semantics, or
@@ -161,8 +169,9 @@ Notes APIs. It does not add frontend settings UI, auth, autonomous
 planning, broad tool calling, open-ended multi-agent systems, web
 browsing, streaming, reranking, hybrid search, BM25, full-text search,
 query expansion, OCR, annotations, selected-text workflows, whole-book
-synthesis, background jobs, theme management, deployment, or ML-based
-layout parsing.
+synthesis, background jobs, theme management, deployment, provider
+behavior, retrieval ranking, complex theorem/definition/proof parsing,
+OCR, or ML-based layout parsing.
 
 ## Setup
 
@@ -472,18 +481,20 @@ streaming responses, function/tool calling, agent planning, LangGraph,
 MCP, frontend provider settings, background
 jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
 
-## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C/37/38A)
+## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C/37/38A/38B/39)
 
 Stage 36A adds an opt-in real embedding provider for backend-only
 single-book PDF RAG smoke tests. Stage 36C adds retrieval-only
 observability output for the same single-book path. Stage 37 adds a
 small repeatable retrieval-only baseline query set. Stage 38A adds
-section classification and filters known front/back matter by default:
+section classification and filters known front/back matter by default.
+Stage 38B polishes the reindex and filtered-baseline output. Stage 39
+uses larger math-PDF chunks and stores lightweight heading metadata:
 
 ```text
-local PDF -> page-aware extraction -> chunking -> Zhipu embedding
--> section classification -> pgvector -> body-default retrieval
-                                  \-> DeepSeek answer -> citations
+local PDF -> page-aware extraction -> section classification
+-> math-PDF chunking -> heading metadata -> Zhipu embedding
+-> pgvector -> body-default retrieval -> DeepSeek answer -> citations
 ```
 
 Provider code lives in `backend/app/embeddings/providers.py`.
@@ -520,24 +531,33 @@ Run the one-book smoke test from `backend/`:
 ```bash
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis.pdf" --reindex
+python scripts/eval_retrieval.py --library-item-id <library_item_id> \
+  --top-k 5 2>&1 | tee stage39_analysis1_chunk_optimized_baseline.txt
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
-python scripts/eval_retrieval.py --library-item-id <library_item_id>
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
 
 The index script creates or reuses a Library item for the exact PDF
-path, indexes the PDF page by page, stores chunk embeddings, and prints
-the `library_item_id`, `document_id`, `chunk_count`,
-`embedding_provider`, `embedding_dimension`, and empty-page count.
+path, indexes the PDF with section-aware multi-page chunks, stores chunk
+embeddings, and prints the `library_item_id`, `document_id`, `chunk_count`,
+`embedding_provider`, `embedding_dimension`, empty-page count, and
+section-type counts. Re-running it with `--reindex` for the same
+resolved PDF path replaces chunks for the same Library item/document
+instead of creating duplicate Library items.
+Stage 39 PDF chunking defaults are intentionally simple and
+configuration-local: about 4000 characters per chunk, about 650
+characters of overlap, and a 350-character minimum tail target. The
+generic text ingestion chunker remains unchanged.
 The search script runs retrieval only and prints ranked chunks with
 score, title metadata, chunk ID/index, page range, and snippets. It does
 not call the LLM provider or generate an answer.
 The eval script loads `scripts/retrieval_eval_queries.json`, runs
 retrieval only for each query, prints the top chunks, and summarizes
-expected-keyword hits plus whether page metadata and snippets are
-present. It is intentionally a lightweight baseline, not a benchmark
+query count, `top_k`, expected-keyword hits, page metadata coverage,
+snippet coverage, retrieved section-type counts, and non-body retrieved
+count. It is intentionally a lightweight baseline, not a benchmark
 framework.
 By default, retrieval excludes chunks classified as `contents`, `index`,
 `bibliography`, or `preface`; pass `--include-non-body` to
@@ -553,6 +573,10 @@ Stage 38A adds Alembic revision
 `c2f4b8a19d37_add_section_type_to_document_chunks`, which adds
 `document_chunks.section_type` with default `unknown`; re-index PDFs to
 populate body/front-matter/back-matter classification.
+Stage 39 adds Alembic revision
+`e8b7c6d5a4f3_add_chunk_heading_metadata`, which adds nullable
+`document_chunks.chapter_title` and `document_chunks.section_title`.
+Re-index PDFs to populate the heading metadata and optimized chunks.
 
 Secrets must stay only in `backend/.env`. Real PDF books should remain
 untracked local files and should not be committed.
