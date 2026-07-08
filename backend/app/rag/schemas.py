@@ -71,6 +71,9 @@ class RagCitation(BaseModel):
     page_number: int | None = None
     page_start: int | None = None
     page_end: int | None = None
+    section_type: str | None = None
+    chapter_title: str | None = None
+    section_title: str | None = None
     score: float
     excerpt: str
     content: str
@@ -85,6 +88,9 @@ class RetrievedChunk(BaseModel):
     page_number: int | None = None
     page_start: int | None = None
     page_end: int | None = None
+    section_type: str | None = None
+    chapter_title: str | None = None
+    section_title: str | None = None
     content: str
     char_start: int
     char_end: int

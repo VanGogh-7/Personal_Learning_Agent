@@ -1,6 +1,6 @@
 import uuid
 
-from app.rag.citations import build_chunk_citations, make_excerpt
+from app.rag.citations import build_chunk_citations, format_citation_source, make_excerpt
 from app.rag.retrieval import RetrievedChunkResult
 
 
@@ -9,6 +9,9 @@ def _chunk(
     index: int = 0,
     page_start: int | None = None,
     page_end: int | None = None,
+    section_type: str = "body",
+    chapter_title: str | None = None,
+    section_title: str | None = None,
 ) -> RetrievedChunkResult:
     return RetrievedChunkResult(
         chunk_id=uuid.uuid4(),
@@ -24,6 +27,9 @@ def _chunk(
         char_end=len(content),
         page_start=page_start,
         page_end=page_end,
+        section_type=section_type,
+        chapter_title=chapter_title,
+        section_title=section_title,
         score=0.123,
     )
 
@@ -58,13 +64,43 @@ def test_build_chunk_citations_assigns_deterministic_ids_and_metadata() -> None:
     assert citations[0].page_number is None
     assert citations[0].page_start is None
     assert citations[0].page_end is None
+    assert citations[0].section_type == "body"
+    assert citations[0].chapter_title is None
+    assert citations[0].section_title is None
 
 
 def test_build_chunk_citations_includes_page_metadata_when_available() -> None:
-    chunk = _chunk("A compact set is closed and bounded.", page_start=12, page_end=12)
+    chunk = _chunk(
+        "A compact set is closed and bounded.",
+        page_start=12,
+        page_end=12,
+        chapter_title="Chapter IV Metric Spaces",
+        section_title="IV.3 Compactness",
+    )
 
     citation = build_chunk_citations([chunk])[0]
 
     assert citation.page_number == 12
     assert citation.page_start == 12
     assert citation.page_end == 12
+    assert citation.chapter_title == "Chapter IV Metric Spaces"
+    assert citation.section_title == "IV.3 Compactness"
+
+
+def test_format_citation_source_uses_normalized_id_and_metadata() -> None:
+    chunk = _chunk(
+        "Banach spaces are complete normed vector spaces.",
+        index=4,
+        page_start=20,
+        page_end=22,
+        section_type="body",
+        chapter_title="Chapter V Normed Spaces",
+        section_title="V.1 Banach Spaces",
+    )
+
+    citation = build_chunk_citations([chunk])[0]
+
+    assert format_citation_source(citation) == (
+        "[S1]; Linear Algebra; pp. 20-22; chunk 4; section_type: body; "
+        "chapter: Chapter V Normed Spaces; section: V.1 Banach Spaces; score: 0.1230"
+    )

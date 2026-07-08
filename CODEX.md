@@ -58,9 +58,10 @@ Stage 36C: Single-Book RAG Observability Polish — completed.
 Stage 37: Retrieval Quality Baseline — completed.
 Stage 38A: Retrieval Filtering for Front Matter and Back Matter — completed.
 Stage 38B: Filtered Retrieval Baseline and Indexing Workflow Polish — completed.
-Stage 39: Chunk Optimization v1 for Mathematical PDFs — current.
+Stage 39: Chunk Optimization v1 for Mathematical PDFs — completed.
+Stage 40: Citation Formatting and Answer Grounding Polish — current.
 
-Current active stage: Stage 39: Chunk Optimization v1 for Mathematical PDFs.
+Current active stage: Stage 40: Citation Formatting and Answer Grounding Polish.
 
 Do not implement the full product at once.
 
@@ -424,6 +425,16 @@ keeps Stage 38A/38B section filtering, and stores lightweight
 heuristics. It does not add complex theorem/definition/proof parsing,
 OCR, reranking, hybrid search, provider changes, frontend changes, or
 retrieval ranking changes.
+
+Stage 40 is Citation Formatting and Answer Grounding Polish. It keeps
+retrieval, chunking, embeddings, provider boundaries, frontend behavior,
+web research behavior, and LangGraph topology unchanged while polishing
+local-library RAG answer prompts and source output. Retrieved context is
+labeled with normalized `[S1]`, `[S2]`, `[S3]` IDs, real LLM answers are
+asked to cite book-supported claims with those IDs, weak or indirect
+context should be stated clearly, and `scripts/ask_book.py` prints a
+normalized Sources list with page, chunk, section, heading, and score
+metadata when available.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -1030,6 +1041,10 @@ Frontend:
 - Stage 39 Chunk Optimization v1 for Mathematical PDFs changes PDF
   indexing to larger readable multi-page chunks, preserves page ranges,
   and adds nullable `chapter_title` / `section_title` chunk metadata
+- Stage 40 Citation Formatting and Answer Grounding Polish keeps
+  retrieval/chunking/provider/frontend behavior unchanged while
+  normalizing `[S#]` source IDs in prompts and ask-book Sources output,
+  and carrying page/section/heading metadata through citation responses
 
 Planned later:
 - Production-quality agent workflows

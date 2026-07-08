@@ -57,6 +57,8 @@ def _make_similar_chunk(
     distance: float = 0.05,
     page_start: int | None = None,
     page_end: int | None = None,
+    chapter_title: str | None = None,
+    section_title: str | None = None,
 ):
     return SimilarChunkResult(
         chunk_id=uuid.uuid4(),
@@ -68,6 +70,8 @@ def _make_similar_chunk(
         page_start=page_start,
         page_end=page_end,
         section_type="body",
+        chapter_title=chapter_title,
+        section_title=section_title,
         distance=distance,
     )
 
@@ -113,6 +117,8 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
         content="Gradient descent minimizes a loss function.",
         page_start=7,
         page_end=7,
+        chapter_title="Chapter 1 Optimization",
+        section_title="1.2 Descent Methods",
     )
 
     monkeypatch.setattr(
@@ -150,6 +156,8 @@ def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monk
     assert item.page_start == 7
     assert item.page_end == 7
     assert item.section_type == "body"
+    assert item.chapter_title == "Chapter 1 Optimization"
+    assert item.section_title == "1.2 Descent Methods"
     assert item.score == chunk.distance
 
 

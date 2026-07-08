@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 39: Chunk Optimization v1 for Mathematical PDFs.
+Stage 40: Citation Formatting and Answer Grounding Polish.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -155,23 +155,28 @@ Stage 39: Chunk Optimization v1 for Mathematical PDFs.
 - Chunk Optimization v1 for Mathematical PDFs: PDF indexing now uses
   larger readable multi-page chunks for born-digital math textbooks,
   keeps page ranges, and stores lightweight chapter/section heading
-  metadata (Stage 39, current)
+  metadata (Stage 39, completed)
+- Citation Formatting and Answer Grounding Polish: local RAG prompt
+  context now uses normalized `[S#]` source IDs, asks real LLM answers
+  to ground book claims in retrieved chunks, and surfaces page/section
+  metadata in structured citations and `scripts/ask_book.py` Sources
+  output (Stage 40, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 39 is a backend-only PDF chunking
-optimization pass. It keeps `/api/agent/chat` as the Agent Chat API and preserves its
+**not implemented yet**. Stage 40 is a backend-only answer/citation
+polish pass. It keeps `/api/agent/chat` as the Agent Chat API and preserves its
 existing request/response compatibility. It does not change frontend
 workspace behavior, Tauri architecture, Vite architecture, local
-retrieval algorithms, memory behavior, learning-event semantics, or
-Notes APIs. It does not add frontend settings UI, auth, autonomous
-planning, broad tool calling, open-ended multi-agent systems, web
-browsing, streaming, reranking, hybrid search, BM25, full-text search,
-query expansion, OCR, annotations, selected-text workflows, whole-book
-synthesis, background jobs, theme management, deployment, provider
-behavior, retrieval ranking, complex theorem/definition/proof parsing,
-OCR, or ML-based layout parsing.
+retrieval algorithms, chunking, memory behavior, learning-event
+semantics, or Notes APIs. It does not add frontend settings UI, auth,
+autonomous planning, broad tool calling, open-ended multi-agent systems,
+web browsing, streaming, reranking, hybrid search, BM25, full-text
+search, query expansion, OCR, annotations, selected-text workflows,
+whole-book synthesis, background jobs, theme management, deployment,
+provider behavior, retrieval ranking, complex theorem/definition/proof
+parsing, OCR, or ML-based layout parsing.
 
 ## Setup
 
@@ -481,7 +486,7 @@ streaming responses, function/tool calling, agent planning, LangGraph,
 MCP, frontend provider settings, background
 jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
 
-## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C/37/38A/38B/39)
+## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C/37/38A/38B/39/40)
 
 Stage 36A adds an opt-in real embedding provider for backend-only
 single-book PDF RAG smoke tests. Stage 36C adds retrieval-only
@@ -489,12 +494,14 @@ observability output for the same single-book path. Stage 37 adds a
 small repeatable retrieval-only baseline query set. Stage 38A adds
 section classification and filters known front/back matter by default.
 Stage 38B polishes the reindex and filtered-baseline output. Stage 39
-uses larger math-PDF chunks and stores lightweight heading metadata:
+uses larger math-PDF chunks and stores lightweight heading metadata.
+Stage 40 normalizes answer/source IDs and grounding instructions:
 
 ```text
 local PDF -> page-aware extraction -> section classification
 -> math-PDF chunking -> heading metadata -> Zhipu embedding
--> pgvector -> body-default retrieval -> DeepSeek answer -> citations
+-> pgvector -> body-default retrieval -> DeepSeek answer with [S#] citations
+-> normalized Sources metadata
 ```
 
 Provider code lives in `backend/app/embeddings/providers.py`.
@@ -532,7 +539,7 @@ Run the one-book smoke test from `backend/`:
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis.pdf" --reindex
 python scripts/eval_retrieval.py --library-item-id <library_item_id> \
-  --top-k 5 2>&1 | tee stage39_analysis1_chunk_optimized_baseline.txt
+  --top-k 5
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
 python scripts/ask_book.py --library-item-id <library_item_id> \
@@ -553,6 +560,11 @@ generic text ingestion chunker remains unchanged.
 The search script runs retrieval only and prints ranked chunks with
 score, title metadata, chunk ID/index, page range, and snippets. It does
 not call the LLM provider or generate an answer.
+The ask script runs single-book retrieval and answer generation, then
+prints a normalized `Sources` list using the same `[S#]` IDs requested in
+the answer body. Sources include title, page/range metadata, chunk
+index, section type, chapter/section headings when available, score,
+and excerpt text.
 The eval script loads `scripts/retrieval_eval_queries.json`, runs
 retrieval only for each query, prints the top chunks, and summarizes
 query count, `top_k`, expected-keyword hits, page metadata coverage,
@@ -605,6 +617,12 @@ Citation fields:
   "document_title": "linear-algebra.md",
   "document_source_path": "/path/to/linear-algebra.md",
   "chunk_index": 0,
+  "page_number": 12,
+  "page_start": 12,
+  "page_end": 13,
+  "section_type": "body",
+  "chapter_title": "Chapter II Convergence",
+  "section_title": "II.6 Completeness",
   "score": 0.123,
   "excerpt": "A vector space over a field...",
   "content": "full retrieved chunk content"
@@ -615,6 +633,9 @@ Book-scoped citations identify the selected Library item when available.
 Global RAG citations can include Library item metadata when the retrieved
 document is associated with a Library item. Excerpts are whitespace
 normalized, length-limited, and deterministic.
+Stage 40 keeps citation IDs as `S1`, `S2`, `S3`, etc. and asks local RAG
+LLM answers to cite claims with bracketed forms such as `[S1]`, matching
+the structured `citations` list.
 
 The frontend Chat page displays a compact Sources section showing
 citation ID, source title, author when available, document title/path,

@@ -17,7 +17,11 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db_session
 from app.embeddings.providers import get_embedding_provider
 from app.models.document import Document
-from app.rag.citations import ChunkCitationResult, build_chunk_citations
+from app.rag.citations import (
+    ChunkCitationResult,
+    build_chunk_citations,
+    format_citation_source,
+)
 from app.rag.qa import generate_answer
 from app.rag.retrieval import (
     LibraryItemRagError,
@@ -106,14 +110,18 @@ def _parse_uuid(value: uuid.UUID | str, field_name: str) -> uuid.UUID:
         raise LibraryItemRagError(f"{field_name} must be a valid UUID.") from exc
 
 
-def _format_page(citation: ChunkCitationResult) -> str:
-    if citation.page_number is not None:
-        return f"p. {citation.page_number}"
-    if citation.page_start is not None and citation.page_end is not None:
-        return f"pp. {citation.page_start}-{citation.page_end}"
-    if citation.page_start is not None:
-        return f"p. {citation.page_start}"
-    return "page unknown"
+def _format_answer_for_display(answer: str) -> str:
+    lines = answer.strip().splitlines()
+    if lines and lines[0].strip().rstrip(":").lower() == "answer":
+        lines = lines[1:]
+
+    body_lines: list[str] = []
+    for line in lines:
+        if line.strip().rstrip(":").lower() == "sources":
+            break
+        body_lines.append(line)
+
+    return "\n".join(body_lines).strip() or answer.strip()
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -145,18 +153,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print("Answer:")
-    print(summary.answer)
+    print(_format_answer_for_display(summary.answer))
     print()
-    print("Citations:")
+    print("Sources:")
     if not summary.citations:
-        print("No citations returned.")
+        print("No sources returned.")
     for citation in summary.citations:
-        title = citation.library_title or citation.document_title or citation.document_id
-        print(
-            f"- {citation.citation_id}: {title}, chunk {citation.chunk_index}, "
-            f"{_format_page(citation)}"
-        )
-        print(f"  Excerpt: {citation.excerpt}")
+        print(f"- {format_citation_source(citation)}")
+        print(f"  Text: {citation.excerpt}")
     return 0
 
 

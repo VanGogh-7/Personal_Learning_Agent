@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 39: Chunk Optimization v1 for Mathematical PDFs.
+Stage 40: Citation Formatting and Answer Grounding Polish.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -26,12 +26,14 @@ retrieval eval query set for comparing future retrieval changes.
 Stage 38A classifies chunks by section type and excludes known front/back
 matter from default retrieval. Stage 38B polishes the manual reindex and
 filtered retrieval baseline workflow. Stage 39 adds larger readable
-born-digital math-PDF chunks with lightweight heading metadata:
+born-digital math-PDF chunks with lightweight heading metadata. Stage 40
+polishes answer grounding and normalizes local RAG citation formatting:
 
 ```text
 PDF -> page-aware extraction -> section classification -> math-PDF chunking
     -> heading metadata -> Zhipu embeddings -> pgvector
-    -> body-default retrieval -> DeepSeek answer -> citations
+    -> body-default retrieval -> DeepSeek answer with [S#] citations
+    -> normalized Sources metadata
 ```
 
 Deterministic/mock mode remains the default for local development and
@@ -69,47 +71,32 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 39 Does
+## What Stage 40 Does
 
 - Reuses the existing embedding and LLM provider abstractions.
 - Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
   network calls.
 - Keeps `EMBEDDING_PROVIDER=mock` as the default for tests and local
   deterministic runs.
-- Supports `LLM_PROVIDER=deepseek` through the existing
-  OpenAI-compatible provider.
-- Supports `EMBEDDING_PROVIDER=zhipu` for 2048-dimensional
-  `embedding-3` vectors.
-- Adds backend scripts to index one local PDF and ask one indexed book.
-- Adds `scripts/search_book.py` to print ranked retrieved chunks without
-  LLM answer generation.
-- Adds `scripts/retrieval_eval_queries.json` and
-  `scripts/eval_retrieval.py` for a lightweight retrieval-only baseline
-  with keyword hit summaries.
-- Adds `document_chunks.section_type` metadata and lightweight PDF page
-  heuristics for `body`, `contents`, `index`, `bibliography`, `preface`,
-  and `unknown`.
-- Excludes known non-body chunks from default retrieval, with
-  `--include-non-body` on retrieval scripts for debugging.
-- Keeps `scripts/index_pdf.py --reindex` on the same resolved PDF path
-  from creating duplicate Library items and prints section-type counts.
-- Extends `scripts/eval_retrieval.py` summary output with `top_k`,
-  aggregate page/snippet coverage, section-type counts, and non-body
-  retrieved count.
-- Uses PDF-specific chunking defaults tuned for mathematical textbooks:
-  about 4000 characters per chunk, about 650 characters of overlap, and
-  a 350-character minimum tail target.
-- Combines short adjacent PDF pages where possible while preserving
-  `page_start` and `page_end` for citations.
-- Adds nullable `document_chunks.chapter_title` and
-  `document_chunks.section_title` metadata populated from obvious
-  chapter/section headings and page headers.
+- Preserves existing Zhipu embedding, DeepSeek answer generation,
+  chunking, section filtering, and pgvector retrieval behavior.
+- Keeps `scripts/index_pdf.py`, `scripts/search_book.py`, and
+  `scripts/eval_retrieval.py` working without changing their retrieval
+  behavior.
+- Labels retrieved prompt context with deterministic `[S1]`, `[S2]`,
+  `[S3]` source IDs.
+- Instructs real LLM answers to cite book-supported claims with the
+  same `[S#]` IDs shown in the Sources list.
+- Instructs the LLM to say when retrieved context is weak, indirect, or
+  insufficient, and to distinguish explanatory rephrasing from claims
+  explicitly supported by the book.
+- Carries existing `section_type`, `chapter_title`, and `section_title`
+  metadata into structured citation responses when available.
+- Prints a normalized `Sources` list from `scripts/ask_book.py` with
+  title, page/range, chunk index, section metadata, and score.
 - Keeps `/api/agent/chat` request and response compatibility.
 - Adds tests with mocked providers/clients only; no real API key is
   required for tests.
-- Adds a minimal Alembic migration that changes `document_chunks.embedding`
-  to `vector(2048)`. Existing stored chunks are deleted and affected books
-  should be re-indexed.
 
 Manual single-book smoke test:
 
@@ -119,7 +106,7 @@ cd backend
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis.pdf" --reindex
 python scripts/eval_retrieval.py --library-item-id <library_item_id> \
-  --top-k 5 2>&1 | tee stage39_analysis1_chunk_optimized_baseline.txt
+  --top-k 5
 python scripts/search_book.py --library-item-id <library_item_id> \
   "complete metric spaces"
 python scripts/ask_book.py --library-item-id <library_item_id> \
@@ -136,7 +123,7 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 39 Does Not Do
+## What Stage 40 Does Not Do
 
 No frontend changes, settings UI, auth/user accounts, tool-calling
 framework, autonomous planner, web browsing implementation, new RAG
@@ -144,10 +131,11 @@ algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
 frontend PDF viewer changes. `scripts/search_book.py` does not call the
 LLM provider or generate answers. `scripts/eval_retrieval.py` does not
 call the LLM provider, change chunking, or add a complex benchmark
-framework. Stage 39 does not add complex theorem/definition/proof
-parsing, ML-based document layout parsing, OCR, reranking, hybrid
-search, provider changes, frontend changes, or retrieval ranking
-changes.
+framework. Stage 40 does not change database schema, chunking,
+embedding providers, LLM provider boundaries, retrieval ranking,
+LangGraph topology, frontend behavior, web research behavior, complex
+theorem/definition/proof parsing, ML-based layout parsing, OCR,
+reranking, or hybrid search.
 
 ## Commands
 

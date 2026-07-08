@@ -2,9 +2,11 @@ from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
 from app.llm.providers import (
     DETERMINISTIC_ANSWER_MARKER,
+    DeterministicLLMProvider,
     LLMProvider,
     get_llm_provider,
 )
+from app.rag.citations import build_chunk_citations, format_citation_source
 from app.rag.retrieval import RetrievedChunkResult
 
 NO_RESULTS_ANSWER = "I could not find relevant information in the current knowledge base."
@@ -34,6 +36,7 @@ def generate_answer(
     extractive answer text. Real providers are selected only through
     explicit configuration.
     """
+    provider = llm_provider or get_llm_provider()
     deterministic_answer = build_deterministic_answer(
         question,
         retrieved_chunks,
@@ -46,9 +49,10 @@ def generate_answer(
         recent_turns=recent_turns,
         long_term_memories=long_term_memories,
         library_item_context=library_item_context,
-        deterministic_answer=deterministic_answer,
+        deterministic_answer=deterministic_answer
+        if isinstance(provider, DeterministicLLMProvider)
+        else None,
     )
-    provider = llm_provider or get_llm_provider()
     return provider.generate(prompt)
 
 
@@ -106,8 +110,17 @@ def build_rag_prompt(
     """
 
     lines = [
-        "Answer the learning question using the retrieved context.",
-        "If the retrieved context is insufficient, say so clearly.",
+        "Answer the learning question from the retrieved local-library context.",
+        "Use only the retrieved sources for claims about what the book says.",
+        "Cite each book-supported claim with the matching source ID, such as [S1].",
+        "Use only the shown [S#] IDs; do not use alternate numeric labels or invent IDs.",
+        "If the retrieved context is weak, indirect, or insufficient, say so clearly.",
+        "You may add explanatory rephrasing, but distinguish it from what the book explicitly supports.",
+        "",
+        "Return this structure:",
+        "Answer",
+        "<answer with [S#] citations>",
+        "Do not write a Sources section; structured source metadata is rendered separately.",
         "",
         "Question:",
         question.strip(),
@@ -117,14 +130,14 @@ def build_rag_prompt(
         lines.extend(["", "Book context:", library_item_context.strip()])
 
     if retrieved_chunks:
-        lines.extend(["", "Retrieved chunks:"])
-        for index, chunk in enumerate(retrieved_chunks, start=1):
-            source = chunk.document_title or str(chunk.document_id)
-            excerpt = chunk.content.strip()
-            lines.append(f"{index}. Source: {source}")
-            lines.append(f"   Excerpt: {excerpt}")
+        lines.extend(["", "Retrieved local sources:"])
+        for citation in build_chunk_citations(retrieved_chunks):
+            lines.append(f"[{citation.citation_id}]")
+            lines.append(format_citation_source(citation))
+            lines.append("Text:")
+            lines.append(citation.content.strip())
     else:
-        lines.extend(["", "Retrieved chunks:", "No relevant chunks were retrieved."])
+        lines.extend(["", "Retrieved local sources:", "No relevant sources were retrieved."])
 
     if recent_turns:
         lines.extend(["", "Recent session context:"])

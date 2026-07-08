@@ -7,7 +7,8 @@ from app.embeddings.base import EMBEDDING_DIMENSION
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
-from scripts.ask_book import ask_book
+from scripts.ask_book import _format_answer_for_display, ask_book
+from scripts.ask_book import main as ask_book_main
 from scripts.eval_retrieval import evaluate_retrieval
 from scripts.eval_retrieval import load_eval_queries
 from scripts.eval_retrieval import main as eval_retrieval_main
@@ -187,6 +188,56 @@ def test_ask_book_script_runs_single_book_rag_with_citations(tmp_path) -> None:
         assert all(citation.excerpt for citation in summary.citations)
     finally:
         _close_script_session(session)
+
+
+def test_ask_book_cli_prints_normalized_sources(tmp_path, capsys, monkeypatch) -> None:
+    session = _create_script_session()
+    try:
+        pdf_path = tmp_path / "functional-analysis.pdf"
+        pdf_path.write_bytes(
+            make_pdf_bytes(["A Banach space is a complete normed vector space."])
+        )
+        indexed = index_pdf_file(pdf_path, session=session)
+        monkeypatch.setattr("scripts.ask_book.get_db_session", lambda: session)
+
+        exit_code = ask_book_main(
+            [
+                "--library-item-id",
+                str(indexed.library_item_id),
+                "--top-k",
+                "1",
+                "What does the book say about Banach spaces?",
+            ]
+        )
+
+        output = capsys.readouterr().out
+        assert exit_code == 0
+        assert "Answer:" in output
+        assert "Sources:" in output
+        assert "- [S1]; functional-analysis;" in output
+        assert "p. 1" in output
+        assert "chunk 0" in output
+        assert "section_type: body" in output
+        assert "score:" in output
+        assert "Text:" in output
+        assert "Citations:" not in output
+        assert "Source 1" not in output
+        assert "excerpt 1" not in output
+    finally:
+        _close_script_session(session)
+
+
+def test_ask_book_display_strips_model_sources_section() -> None:
+    answer = """Answer
+Banach spaces are complete normed spaces [S1].
+
+Sources
+- [S1] Model-generated source metadata
+"""
+
+    assert _format_answer_for_display(answer) == (
+        "Banach spaces are complete normed spaces [S1]."
+    )
 
 
 def test_search_book_script_runs_retrieval_without_answer_generation(tmp_path) -> None:

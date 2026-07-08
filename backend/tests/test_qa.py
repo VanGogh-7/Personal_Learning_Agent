@@ -210,7 +210,25 @@ def test_deterministic_provider_preserves_existing_answer_behavior() -> None:
 
 
 def test_rag_prompt_includes_question_chunks_and_book_context() -> None:
-    chunk = _make_chunk("Compact spaces have finite subcovers.")
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Topology Notes",
+        document_source_path="/tmp/topology.pdf",
+        library_item_id=uuid.uuid4(),
+        library_title="Topology",
+        library_author="Munkres",
+        chunk_index=3,
+        content="Compact spaces have finite subcovers.",
+        char_start=0,
+        char_end=39,
+        page_start=12,
+        page_end=13,
+        section_type="body",
+        chapter_title="Chapter 2 Compactness",
+        section_title="2.3 Compact Spaces",
+        score=0.23456,
+    )
 
     prompt = build_rag_prompt(
         "What is compactness?",
@@ -224,3 +242,22 @@ def test_rag_prompt_includes_question_chunks_and_book_context() -> None:
     assert "Title: Topology" in prompt
     assert "Author: Munkres" in prompt
     assert "reference answer" in prompt
+    assert "Answer\n<answer with [S#] citations>" in prompt
+    assert "Do not write a Sources section" in prompt
+    assert "[S1]" in prompt
+    assert "Topology" in prompt
+    assert "pp. 12-13" in prompt
+    assert "chunk 3" in prompt
+    assert "section_type: body" in prompt
+    assert "chapter: Chapter 2 Compactness" in prompt
+    assert "section: 2.3 Compact Spaces" in prompt
+    assert "score: 0.2346" in prompt
+    assert "1. Source" not in prompt
+    assert "Excerpt:" not in prompt
+
+
+def test_rag_prompt_warns_when_context_is_weak_or_indirect() -> None:
+    prompt = build_rag_prompt("What does the book say?", [_make_chunk("Indirect content.")])
+
+    assert "weak, indirect, or insufficient" in prompt
+    assert "distinguish it from what the book explicitly supports" in prompt

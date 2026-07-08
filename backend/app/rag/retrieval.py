@@ -30,6 +30,8 @@ class RetrievedChunkResult:
     page_start: int | None = None
     page_end: int | None = None
     section_type: str = "unknown"
+    chapter_title: str | None = None
+    section_title: str | None = None
 
 
 @dataclass
@@ -221,6 +223,8 @@ def retrieve_relevant_chunks(
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
                 section_type=chunk.section_type,
+                chapter_title=chunk.chapter_title,
+                section_title=chunk.section_title,
                 score=chunk.distance,
             )
         )
@@ -289,6 +293,8 @@ def retrieve_relevant_chunks_for_library_item(
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
                 section_type=chunk.section_type,
+                chapter_title=chunk.chapter_title,
+                section_title=chunk.section_title,
                 score=chunk.distance,
             )
         )
@@ -405,6 +411,8 @@ def retrieve_relevant_chunks_for_library_items(
                 page_start=chunk.page_start,
                 page_end=chunk.page_end,
                 section_type=chunk.section_type,
+                chapter_title=chunk.chapter_title,
+                section_title=chunk.section_title,
                 score=chunk.distance,
             )
         )
