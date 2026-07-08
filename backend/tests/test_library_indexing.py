@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.embeddings.base import EMBEDDING_DIMENSION
 from app.library.indexing import LibraryIndexingError, index_library_item
 from app.library.service import create_library_item
+from app.ingestion.pdf import PDFPageText
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
@@ -130,6 +131,32 @@ def test_index_library_item_pdf_creates_page_aware_chunks(indexing_session, tmp_
     assert [chunk.page_start for chunk in chunks] == [1, 2]
     assert [chunk.page_end for chunk in chunks] == [1, 2]
     assert chunks[0].content == "Derivatives measure local linear change."
+
+
+def test_index_library_item_pdf_strips_nul_bytes_before_storage(
+    indexing_session, tmp_path, monkeypatch
+) -> None:
+    file_path = tmp_path / "analysis.pdf"
+    file_path.write_bytes(b"%PDF placeholder")
+    item = create_library_item(
+        indexing_session,
+        title="Analysis",
+        file_path=str(file_path),
+        file_type="pdf",
+    )
+
+    monkeypatch.setattr(
+        "app.library.indexing.extract_pdf_pages",
+        lambda path: [PDFPageText(page_number=1, text="Metric\x00 spaces")],
+    )
+
+    result = index_library_item(indexing_session, item.item_id)
+
+    assert result is not None
+    chunks = indexing_session.execute(
+        select(DocumentChunk).where(DocumentChunk.document_id == result.document_id)
+    ).scalars().all()
+    assert [chunk.content for chunk in chunks] == ["Metric spaces"]
 
 
 def test_index_library_item_invalid_pdf_sets_failed_status(indexing_session, tmp_path) -> None:

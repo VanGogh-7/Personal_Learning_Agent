@@ -53,9 +53,10 @@ Stage 33: Today Log / Calendar MVP — handled separately.
 Stage 34: Backend PDF-to-RAG Pipeline MVP — completed.
 Stage 35: Backend Dual-Agent LangGraph MVP — completed.
 Stage 36: Real LLM Provider Integration — completed.
-Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — current.
+Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test — completed.
+Stage 36C: Single-Book RAG Observability Polish — current.
 
-Current active stage: Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
+Current active stage: Stage 36C: Single-Book RAG Observability Polish.
 
 Do not implement the full product at once.
 
@@ -371,9 +372,16 @@ vectors, keeps `EMBEDDING_PROVIDER=mock` as the default for tests, and
 adds backend-only scripts to index one local PDF and ask one indexed
 book. DeepSeek remains the LLM provider for final answer generation
 when `LLM_PROVIDER=deepseek` is configured. Stage 36A changes
-`document_chunks.embedding` to `vector(1024)` and clears old stored
-embeddings during migration; affected books must be re-indexed. It does
+`document_chunks.embedding` to `vector(2048)` and deletes old stored
+chunks during migration; affected books must be re-indexed. It does
 not touch frontend UI or add new retrieval algorithms.
+
+Stage 36C is Single-Book RAG Observability Polish. It adds backend-only
+`scripts/search_book.py` for inspecting the ranked chunks returned by
+single-book retrieval, including scores, title metadata, chunk IDs or
+indexes, page ranges, and snippets. It does not call the LLM provider,
+generate answers, alter retrieval algorithms, add reranking, or change
+frontend UI.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -952,12 +960,16 @@ Frontend:
   model. Tests mock provider/client behavior and require no real key or
   network access
 - Stage 36A Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test
-  adds `EMBEDDING_PROVIDER=zhipu` for 1024-dimensional Zhipu
+  adds `EMBEDDING_PROVIDER=zhipu` for 2048-dimensional Zhipu
   `embedding-3` vectors, keeps `EMBEDDING_PROVIDER=mock` as the test
   default, and adds backend-only `scripts/index_pdf.py` and
   `scripts/ask_book.py` commands. It changes `document_chunks.embedding`
-  to `vector(1024)` and clears existing embeddings during migration, so
+  to `vector(2048)` and deletes existing chunks during migration, so
   affected books must be re-indexed
+- Stage 36C Single-Book RAG Observability Polish adds backend-only
+  `scripts/search_book.py` to print ranked retrieval diagnostics for one
+  Library item without LLM generation. It preserves existing retrieval
+  behavior and keeps tests on deterministic/mock providers
 
 Planned later:
 - Production-quality agent workflows

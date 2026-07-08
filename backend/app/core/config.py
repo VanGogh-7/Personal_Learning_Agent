@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     zhipu_api_key: str = ""
     zhipu_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
     zhipu_embedding_model: str = "embedding-3"
-    zhipu_embedding_dimension: int = 1024
+    zhipu_embedding_dimension: int = 2048
 
     database_url: str = ""
 

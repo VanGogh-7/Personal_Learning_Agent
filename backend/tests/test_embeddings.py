@@ -16,7 +16,7 @@ from app.embeddings.providers import (
 
 
 def test_embedding_dimension_is_stable_constant() -> None:
-    assert EMBEDDING_DIMENSION == 1024
+    assert EMBEDDING_DIMENSION == 2048
 
 
 def test_mock_embedding_is_deterministic() -> None:
@@ -87,7 +87,7 @@ def test_zhipu_provider_validates_configured_dimension() -> None:
         zhipu_embedding_dimension=16,
     )
 
-    with pytest.raises(EmbeddingConfigurationError, match="1024"):
+    with pytest.raises(EmbeddingConfigurationError, match="2048"):
         get_embedding_provider(settings)
 
 

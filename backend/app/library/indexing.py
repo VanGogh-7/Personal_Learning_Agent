@@ -139,11 +139,15 @@ def _prepare_index_chunks(path: Path, file_type: str) -> tuple[list[IndexChunk],
             pages = extract_pdf_pages(path)
         except PDFExtractionError as exc:
             raise LibraryIndexingError(str(exc)) from exc
+        pages = [
+            PDFPageText(page_number=page.page_number, text=_clean_text_for_storage(page.text))
+            for page in pages
+        ]
         return _chunk_pdf_pages(pages), _content_hash(
             "\n\n".join(f"Page {page.page_number}\n{page.text}" for page in pages)
         )
 
-    text = _read_text_file(path)
+    text = _clean_text_for_storage(_read_text_file(path))
     chunks = [
         IndexChunk(
             index=chunk.index,
@@ -199,6 +203,10 @@ def _read_text_file(path: Path) -> str:
 
 def _content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _clean_text_for_storage(text: str) -> str:
+    return text.replace("\x00", "")
 
 
 def _get_or_create_document(

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
+Stage 36C: Single-Book RAG Observability Polish.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -135,23 +135,26 @@ Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
   completed)
 - Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test: the
   backend can index one local PDF with Zhipu `embedding-3` vectors,
-  store 1024-dimensional pgvector embeddings, retrieve a single indexed
+  store 2048-dimensional pgvector embeddings, retrieve a single indexed
   book, and generate an answer through DeepSeek with citations (Stage
-  36A, current)
+  36A, completed)
+- Single-Book RAG Observability Polish: `scripts/search_book.py` prints
+  ranked single-book retrieval diagnostics without LLM answer generation
+  (Stage 36C, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 36A is a backend-only smoke-test pass. It
-keeps `/api/agent/chat` as the Agent Chat API and preserves its existing
-request/response compatibility. It does not change frontend workspace
-behavior, Tauri architecture, Vite architecture, local retrieval
-algorithms, memory behavior, learning-event semantics, or Notes APIs. It
-does not add frontend settings UI, auth, autonomous planning, broad tool
-calling, open-ended multi-agent systems, web browsing, streaming,
-reranking, hybrid search, BM25, full-text search, query expansion, OCR,
-annotations, selected-text workflows, whole-book synthesis, background
-jobs, theme management, or deployment.
+**not implemented yet**. Stage 36C is a backend-only observability pass.
+It keeps `/api/agent/chat` as the Agent Chat API and preserves its
+existing request/response compatibility. It does not change frontend
+workspace behavior, Tauri architecture, Vite architecture, local
+retrieval algorithms, memory behavior, learning-event semantics, or
+Notes APIs. It does not add frontend settings UI, auth, autonomous
+planning, broad tool calling, open-ended multi-agent systems, web
+browsing, streaming, reranking, hybrid search, BM25, full-text search,
+query expansion, OCR, annotations, selected-text workflows, whole-book
+synthesis, background jobs, theme management, or deployment.
 
 ## Setup
 
@@ -461,14 +464,16 @@ streaming responses, function/tool calling, agent planning, LangGraph,
 MCP, frontend provider settings, background
 jobs, Redis/Celery/RQ, authentication, deployment, or Docker changes.
 
-## Real Embedding Provider and Single-Book Smoke Test (Stage 36A)
+## Real Embedding Provider and Single-Book Smoke Test (Stage 36A/36C)
 
 Stage 36A adds an opt-in real embedding provider for backend-only
-single-book PDF RAG smoke tests:
+single-book PDF RAG smoke tests. Stage 36C adds retrieval-only
+observability output for the same single-book path:
 
 ```text
 local PDF -> page-aware extraction -> chunking -> Zhipu embedding
--> pgvector -> single-book retrieval -> DeepSeek answer -> citations
+-> pgvector -> single-book retrieval -> search diagnostics
+                                  \-> DeepSeek answer -> citations
 ```
 
 Provider code lives in `backend/app/embeddings/providers.py`.
@@ -477,7 +482,7 @@ Provider code lives in `backend/app/embeddings/providers.py`.
   network access.
 - `EMBEDDING_PROVIDER=zhipu` uses the Zhipu OpenAI-style embeddings API.
 - `ZHIPU_EMBEDDING_DIMENSION` must match the configured pgvector column
-  dimension. Stage 36A sets this project to `1024`.
+  dimension. Stage 36A sets this project to `2048`.
 - Tests force deterministic/mock providers and use mocked HTTP clients;
   pytest does not require real Zhipu or DeepSeek keys.
 
@@ -488,7 +493,7 @@ EMBEDDING_PROVIDER=zhipu
 ZHIPU_API_KEY=your_zhipu_api_key_here
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 ZHIPU_EMBEDDING_MODEL=embedding-3
-ZHIPU_EMBEDDING_DIMENSION=1024
+ZHIPU_EMBEDDING_DIMENSION=2048
 ```
 
 Keep DeepSeek enabled for answer generation:
@@ -505,6 +510,8 @@ Run the one-book smoke test from `backend/`:
 ```bash
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
+python scripts/search_book.py --library-item-id <library_item_id> \
+  "complete metric spaces"
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
@@ -513,13 +520,15 @@ The index script creates or reuses a Library item for the exact PDF
 path, indexes the PDF page by page, stores chunk embeddings, and prints
 the `library_item_id`, `document_id`, `chunk_count`,
 `embedding_provider`, `embedding_dimension`, and empty-page count.
+The search script runs retrieval only and prints ranked chunks with
+score, title metadata, chunk ID/index, page range, and snippets. It does
+not call the LLM provider or generate an answer.
 
 Stage 36A adds Alembic revision
-`7c1a2b3d4e5f_set_document_chunk_embedding_dimension_1024`, which
-changes `document_chunks.embedding` to `vector(1024)`. The migration
-clears existing stored embeddings because vectors cannot be safely
-converted from the prior dimension. Re-index affected Library items
-after applying it.
+`9d4a6f1b2c30_set_document_chunk_embedding_dimension_2048`, which
+changes `document_chunks.embedding` to `vector(2048)`. The migration
+deletes existing chunks because vectors cannot be safely converted from
+the prior dimension. Re-index affected Library items after applying it.
 
 Secrets must stay only in `backend/.env`. Real PDF books should remain
 untracked local files and should not be committed.

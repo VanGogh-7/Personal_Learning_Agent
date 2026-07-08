@@ -7,6 +7,8 @@ from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
 from scripts.ask_book import ask_book
 from scripts.index_pdf import index_pdf_file
+from scripts.search_book import main as search_book_main
+from scripts.search_book import search_book
 from tests.pdf_fixtures import make_pdf_bytes
 
 
@@ -120,5 +122,72 @@ def test_ask_book_script_runs_single_book_rag_with_citations(tmp_path) -> None:
         }
         assert {citation.page_number for citation in summary.citations} == {1, 2}
         assert all(citation.excerpt for citation in summary.citations)
+    finally:
+        _close_script_session(session)
+
+
+def test_search_book_script_runs_retrieval_without_answer_generation(tmp_path) -> None:
+    session = _create_script_session()
+    try:
+        pdf_path = tmp_path / "metric-spaces.pdf"
+        pdf_path.write_bytes(
+            make_pdf_bytes(
+                [
+                    "Complete metric spaces make Cauchy sequences converge.",
+                    "Banach spaces are complete normed vector spaces.",
+                    "Compactness in metric spaces has sequential characterizations.",
+                ]
+            )
+        )
+        indexed = index_pdf_file(pdf_path, session=session)
+
+        summary = search_book(
+            "complete metric spaces",
+            library_item_id=indexed.library_item_id,
+            top_k=2,
+            session=session,
+        )
+
+        assert summary.library_item_id == indexed.library_item_id
+        assert summary.query == "complete metric spaces"
+        assert len(summary.chunks) == 2
+        assert all(chunk.score >= 0 for chunk in summary.chunks)
+        assert {chunk.library_title for chunk in summary.chunks} == {"metric-spaces"}
+        assert {chunk.page_start for chunk in summary.chunks}.issubset({1, 2, 3})
+    finally:
+        _close_script_session(session)
+
+
+def test_search_book_cli_prints_ranked_chunks(tmp_path, capsys, monkeypatch) -> None:
+    session = _create_script_session()
+    try:
+        pdf_path = tmp_path / "functional-analysis.pdf"
+        pdf_path.write_bytes(
+            make_pdf_bytes(["A Banach space is a complete normed vector space."])
+        )
+        indexed = index_pdf_file(pdf_path, session=session)
+
+        monkeypatch.setattr("scripts.search_book.get_db_session", lambda: session)
+
+        exit_code = search_book_main(
+            [
+                "--library-item-id",
+                str(indexed.library_item_id),
+                "--top-k",
+                "1",
+                "--max-snippet-chars",
+                "40",
+                "Banach spaces",
+            ]
+        )
+
+        output = capsys.readouterr().out
+        assert exit_code == 0
+        assert "Retrieved chunks:" in output
+        assert "1. functional-analysis" in output
+        assert "score:" in output
+        assert "chunk:" in output
+        assert "pages: p. 1" in output
+        assert "snippet:" in output
     finally:
         _close_script_session(session)

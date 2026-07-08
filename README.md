@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 36A: Zhipu Real Embedding + DeepSeek Single-Book RAG Smoke Test.
+Stage 36C: Single-Book RAG Observability Polish.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -19,11 +19,14 @@ PDF Library Explorer | Embedded PDF Workspace | Agent Chat
 
 Stage 36 wires the existing OpenAI-compatible LLM provider boundary into
 the Agent Chat synthesis path. Stage 36A adds a real Zhipu embedding
-provider and backend-only scripts for a single-book PDF RAG smoke test:
+provider and backend-only scripts for a single-book PDF RAG smoke test.
+Stage 36C adds retrieval-only search output for inspecting single-book
+RAG quality before answer generation:
 
 ```text
 PDF -> page-aware extraction -> chunking -> Zhipu embeddings
--> pgvector -> single-book retrieval -> DeepSeek answer -> citations
+-> pgvector -> single-book retrieval -> chunk diagnostics
+                              \-> DeepSeek answer -> citations
 ```
 
 Deterministic/mock mode remains the default for local development and
@@ -49,7 +52,7 @@ DEEPSEEK_MODEL=deepseek-chat
 ZHIPU_API_KEY=your_zhipu_api_key_here
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 ZHIPU_EMBEDDING_MODEL=embedding-3
-ZHIPU_EMBEDDING_DIMENSION=1024
+ZHIPU_EMBEDDING_DIMENSION=2048
 ```
 
 Real single-book smoke mode is opt-in:
@@ -61,7 +64,7 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 36A Does
+## What Stage 36C Does
 
 - Reuses the existing embedding and LLM provider abstractions.
 - Keeps `LLM_PROVIDER=deterministic` as the default with no API keys or
@@ -70,15 +73,17 @@ Do not commit real `.env` files or expose API keys to the frontend.
   deterministic runs.
 - Supports `LLM_PROVIDER=deepseek` through the existing
   OpenAI-compatible provider.
-- Supports `EMBEDDING_PROVIDER=zhipu` for 1024-dimensional
+- Supports `EMBEDDING_PROVIDER=zhipu` for 2048-dimensional
   `embedding-3` vectors.
 - Adds backend scripts to index one local PDF and ask one indexed book.
+- Adds `scripts/search_book.py` to print ranked retrieved chunks without
+  LLM answer generation.
 - Keeps `/api/agent/chat` request and response compatibility.
 - Adds tests with mocked providers/clients only; no real API key is
   required for tests.
 - Adds a minimal Alembic migration that changes `document_chunks.embedding`
-  to `vector(1024)`. Existing stored embeddings are cleared and affected
-  books should be re-indexed.
+  to `vector(2048)`. Existing stored chunks are deleted and affected books
+  should be re-indexed.
 
 Manual single-book smoke test:
 
@@ -87,6 +92,8 @@ conda activate pla
 cd backend
 alembic upgrade head
 python scripts/index_pdf.py "../Analysis I (Herbert Amann etc.).pdf"
+python scripts/search_book.py --library-item-id <library_item_id> \
+  "complete metric spaces"
 python scripts/ask_book.py --library-item-id <library_item_id> \
   "What does this book say about completeness, Banach spaces, or metric spaces? Answer with citations."
 ```
@@ -101,12 +108,13 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 36A Does Not Do
+## What Stage 36C Does Not Do
 
 No frontend changes, settings UI, auth/user accounts, tool-calling
 framework, autonomous planner, web browsing implementation, new RAG
 algorithm, BM25/hybrid search/reranking, OCR, PDF annotation, or
-frontend PDF viewer changes.
+frontend PDF viewer changes. `scripts/search_book.py` does not call the
+LLM provider or generate answers.
 
 ## Commands
 

@@ -14,5 +14,5 @@ def test_env_example_contains_llm_placeholders_only() -> None:
     assert "DEEPSEEK_BASE_URL=https://api.deepseek.com" in content
     assert "ZHIPU_API_KEY=your_zhipu_api_key_here" in content
     assert "ZHIPU_EMBEDDING_MODEL=embedding-3" in content
-    assert "ZHIPU_EMBEDDING_DIMENSION=1024" in content
+    assert "ZHIPU_EMBEDDING_DIMENSION=2048" in content
     assert "sk-" not in content
