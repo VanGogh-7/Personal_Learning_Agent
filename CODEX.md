@@ -62,9 +62,10 @@ Stage 39: Chunk Optimization v1 for Mathematical PDFs — completed.
 Stage 40: Citation Formatting and Answer Grounding Polish — completed.
 Stage 41: Backend Agent Chat Product API Polish — completed.
 Stage 42: Frontend Agent Chat Simplification — completed.
-Stage 43: Frontend Library Add PDFs Product Flow — current.
+Stage 43: Frontend Library Add PDFs Product Flow — completed.
+Stage 44: Managed PDF Storage and Library Item Robustness — current.
 
-Current active stage: Stage 43: Frontend Library Add PDFs Product Flow.
+Current active stage: Stage 44: Managed PDF Storage and Library Item Robustness.
 
 Do not implement the full product at once.
 
@@ -117,7 +118,8 @@ Project stage roadmap:
 40. Citation Formatting and Answer Grounding Polish — completed
 41. Backend Agent Chat Product API Polish — completed
 42. Frontend Agent Chat Simplification — completed
-43. Frontend Library Add PDFs Product Flow — current
+43. Frontend Library Add PDFs Product Flow — completed
+44. Managed PDF Storage and Library Item Robustness — current
 
 ---
 
@@ -482,6 +484,20 @@ center Workspace and Agent Chat automatically uses its selected Library
 item context. Stage 43 does not change backend routes, database schema,
 chunking, retrieval ranking, citations, provider boundaries, LangGraph
 topology, Settings UI, or Agent Chat debug controls.
+
+Stage 44 is Managed PDF Storage and Library Item Robustness. It adds
+configurable backend-managed PDF storage via `LIBRARY_STORAGE_DIR`
+(default `backend/storage/library`) and gitignores `backend/storage/`.
+The product import endpoint `POST /api/library/import-pdfs` validates
+PDF sources, copies each selected file to a collision-safe managed
+filename, creates a PDF Library item pointing at that managed copy,
+indexes it through the existing Library indexing pipeline, and returns
+managed import metadata. Workspace Add PDFs uses this endpoint, so
+embedded viewing, system opening, Agent Chat context, and reindexing no
+longer depend on the original selected source path. Stage 44 does not
+change database schema, chunking, retrieval ranking, citations,
+provider boundaries, LangGraph topology, Settings UI, or Agent Chat
+debug controls.
 
 Allowed in Stage 22:
 - Add structured citation/source metadata to RAG responses
@@ -1105,6 +1121,11 @@ Frontend:
   picking in the left Library Explorer, creates/indexes selected PDFs
   through existing backend Library APIs, refreshes the list, selects the
   new PDF, and preserves the selected-PDF Agent Chat context
+- Stage 44 Managed PDF Storage and Library Item Robustness copies
+  imported PDFs into configurable backend-managed storage before
+  indexing, points imported Library items/documents at the managed copy,
+  keeps duplicate imports as separate managed copies, and preserves
+  Workspace viewing plus selected-PDF Agent Chat context
 
 Planned later:
 - Production-quality agent workflows

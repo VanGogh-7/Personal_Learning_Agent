@@ -33,7 +33,7 @@ export default function AppLayout({
       >
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Stage 43</p>
+            <p className="eyebrow">Stage 44</p>
             <h1>{PAGE_TITLES[activePage]}</h1>
           </div>
           <p className="backend-note">Backend: {getBackendBaseUrl()}</p>

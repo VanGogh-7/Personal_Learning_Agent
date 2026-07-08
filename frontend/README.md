@@ -1,10 +1,11 @@
 # Personal Learning Agent Frontend
 
-Stage 43 adds the frontend Add PDFs product flow in the left Library
-Explorer. The stack remains Bun + Tauri + React + Vite. The default
-page is the IDE-like Workspace with a collapsible/resizable PDF Library
-Explorer, a center embedded PDF Workspace, and a collapsible/resizable
-Agent Chat dock. The FastAPI backend must be started separately on
+Stage 44 makes imported PDFs robust by copying them into backend-managed
+Library storage before indexing. The stack remains Bun + Tauri + React
+and Vite. The default page is the IDE-like Workspace with a
+collapsible/resizable PDF Library Explorer, a center embedded PDF
+Workspace, and a collapsible/resizable Agent Chat dock. The FastAPI
+backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -74,11 +75,11 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Workspace page, opened by default, with PDF Library Explorer, PDF
   Workspace viewer, and Agent Chat dock
 - Left PDF Library panel has an `Add PDFs` button that opens the Tauri
-  system file picker, accepts PDF files, creates Library items, indexes
-  them through the backend, refreshes the list, and selects the newly
-  indexed PDF
+  system file picker, accepts PDF files, imports them into
+  backend-managed storage, indexes them through the backend, refreshes
+  the list, and selects the newly indexed PDF
 - Left PDF Library panel lists existing Library items compactly with
-  title, PDF/unsupported label, indexed/unindexed status, filename/path,
+  title, PDF/unsupported label, indexed/unindexed status, filename,
   and selected-item highlighting
 - Center PDF Workspace shows "No PDF selected" until an item is
   selected, then shows selected title, file, status, PDF support, and
@@ -91,6 +92,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library file picker is restricted to `.pdf` files
 - New file-picker selections infer `file_type: "pdf"` and Workspace
   Add PDFs supports selecting multiple PDFs when available
+- Imported PDFs are copied into backend-managed storage before indexing,
+  so the Workspace viewer and system PDF reader action use the managed
+  copy rather than the original selected path
 - Visible Library create/edit forms reject non-PDF paths and non-PDF
   file types
 - Legacy non-PDF records are marked unsupported in the PDF Library UI
@@ -117,7 +121,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Library item selection and detail metadata panel
 - Library `Choose PDF` button in Tauri to fill `file_path` metadata
 - Library `Open PDF` button in Tauri for local PDF `file_path` values
-- Library `Index PDF` action indexes local PDFs through the backend
+- Library `Index PDF` action indexes PDFs through the backend
   and stores page-aware chunk metadata
 - Agent Chat Sources show page metadata when indexed PDF chunks include it
 - Library detail `Generate Summary & Tags` action for indexed items
@@ -137,10 +141,13 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 ## Current Limitations
 
 - Does not auto-start the FastAPI backend
-- Library `file_path` is still metadata stored in the backend
-- Choosing a file records its local path for Library metadata. Embedded
-  viewing reads local bytes through Tauri; indexing reads local PDFs in
-  the backend from the stored Library path.
+- Library `file_path` is still metadata stored in the backend. For PDFs
+  imported through Workspace Add PDFs, it points to the managed copy.
+- Choosing a file in the legacy Library form records that local path as
+  metadata. Workspace Add PDFs imports into managed backend storage
+  first. Embedded viewing reads local bytes through Tauri from the
+  stored Library path, and indexing reads PDFs in the backend from that
+  same path.
 - The embedded viewer renders local PDFs but does not annotate,
   highlight, select text, or jump to citation pages
 - Opening local files is performed by Tauri, not the backend
@@ -182,7 +189,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 43
+  Stage 44
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary
@@ -205,5 +212,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - No repository analysis
 - No production packaging workflow
 
-The app opens files with the operating system default application. It
-does not preview, parse, index, upload, copy, or read file contents.
+The Tauri app opens files with the operating system default application
+and reads selected PDF bytes for the embedded viewer. Workspace Add PDFs
+passes selected local paths to the backend, which copies supported PDFs
+into managed storage and indexes them there.

@@ -8,6 +8,8 @@ import type {
   LibraryItem,
   LibraryItemIndexResponse,
   LibraryMetadataDraft,
+  LibraryPdfImportRequest,
+  LibraryPdfImportResponse,
   LibraryItemRagQueryRequest,
   LibraryItemRagQueryResponse,
   LibraryItemListParams,
@@ -281,6 +283,15 @@ export function updateLibraryItem(
 export function indexLibraryItem(itemId: string): Promise<LibraryItemIndexResponse> {
   return requestJson<LibraryItemIndexResponse>(`/api/library/items/${itemId}/index`, {
     method: "POST",
+  });
+}
+
+export function importLibraryPdfs(
+  payload: LibraryPdfImportRequest,
+): Promise<LibraryPdfImportResponse> {
+  return requestJson<LibraryPdfImportResponse>("/api/library/import-pdfs", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

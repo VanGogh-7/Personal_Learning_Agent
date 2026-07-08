@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 43: Frontend Library Add PDFs Product Flow.
+Stage 44: Managed PDF Storage and Library Item Robustness.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 PDF-centered learning workspace:
@@ -33,7 +33,9 @@ shape expected by the final Agent Chat. Stage 42 updates the right
 Agent Chat dock to use that product API as a clean chat box for the
 currently selected PDF context. Stage 43 adds the left Library
 Explorer product flow for adding PDFs through the desktop file picker
-and indexing them through the existing backend pipeline:
+and indexing them through the existing backend pipeline. Stage 44 copies
+imported PDFs into backend-managed Library storage before indexing so
+imported items do not depend on the original selected file path:
 
 ```text
 PDF -> page-aware extraction -> section classification -> math-PDF chunking
@@ -66,6 +68,7 @@ ZHIPU_API_KEY=your_zhipu_api_key_here
 ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 ZHIPU_EMBEDDING_MODEL=embedding-3
 ZHIPU_EMBEDDING_DIMENSION=2048
+LIBRARY_STORAGE_DIR=storage/library
 ```
 
 Real single-book smoke mode is opt-in:
@@ -77,21 +80,28 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 43 Does
+## What Stage 44 Does
 
 - Keeps the existing IDE-like layout: PDF Library Explorer, embedded
   PDF Workspace, and right Agent Chat dock.
-- Adds an `Add PDFs` action to the left Library Explorer.
-- Opens the Tauri system file picker with PDF-only filtering and
-  supports selecting multiple PDFs when the platform dialog allows it.
-- Creates Library items with `file_type: "pdf"` and indexes them by
-  calling the existing backend indexing endpoint.
+- Adds backend-managed PDF storage, configurable with
+  `LIBRARY_STORAGE_DIR` and defaulting to `backend/storage/library`.
+- Ensures `backend/storage/` is gitignored so imported PDFs are not
+  committed.
+- Adds a backend `POST /api/library/import-pdfs` path that validates
+  selected PDFs, copies them into managed storage with collision-safe
+  names, creates Library items, and indexes from the managed copy.
 - Reuses the backend PDF extraction, chunking, embedding, pgvector
   storage, and section metadata pipeline.
-- Shows basic add/index status and errors in the Library Explorer.
+- Preserves original title/filename metadata while using the managed
+  copy path for Library items, documents, embedded viewing, reindexing,
+  and "Open in system PDF reader".
+- Lets duplicate imports create separate managed copies rather than
+  corrupting existing Library items.
+- Keeps the frontend Add PDFs flow, Library refresh, Workspace viewer,
+  and selected-PDF Agent Chat context working.
 - Refreshes the Library list after indexing and selects the newly
   indexed PDF so it opens in the center Workspace.
-- Preserves the simplified Agent Chat selected-PDF context flow.
 
 Manual single-book smoke test:
 
@@ -118,14 +128,14 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 43 Does Not Do
+## What Stage 44 Does Not Do
 
 No Settings UI, embedding provider settings, local embedding provider,
 database schema changes, chunking/retrieval/citation changes, reranking,
 hybrid search, LangGraph topology changes, web search expansion, PDF
 viewer redesign, citation-to-page navigation, OCR, annotations,
 auth/user accounts, tool-calling framework, or autonomous planner.
-Stage 43 does not reintroduce low-level RAG/debug controls in Agent Chat.
+Stage 44 does not reintroduce low-level RAG/debug controls in Agent Chat.
 
 ## Commands
 

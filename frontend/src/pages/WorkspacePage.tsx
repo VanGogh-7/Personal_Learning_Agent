@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import {
-  createLibraryItem,
-  getLibraryItem,
-  indexLibraryItem,
+  importLibraryPdfs,
   listLibraryItems,
 } from "../api/client";
 import type { LibraryItem } from "../api/types";
@@ -103,28 +101,15 @@ export default function WorkspacePage() {
       }
 
       let lastIndexedItem: LibraryItem | null = null;
-      for (const [index, filePath] of selectedPaths.entries()) {
-        const title = titleFromPdfPath(filePath);
-        setAddPdfStatus(
-          `Indexing ${index + 1}/${selectedPaths.length}: ${fileNameFromPath(filePath)}`,
-        );
+      setAddPdfStatus(
+        selectedPaths.length === 1
+          ? `Indexing ${fileNameFromPath(selectedPaths[0])}`
+          : `Indexing ${selectedPaths.length} PDFs`,
+      );
 
-        const created = await createLibraryItem({
-          title,
-          file_path: filePath,
-          file_type: "pdf",
-          status: "registered",
-        });
-        setItems((current) => [{ ...created, status: "indexing" }, ...current]);
-        setSelectedItemId(created.id);
-
-        await indexLibraryItem(created.id);
-        lastIndexedItem = await getLibraryItem(created.id);
-        setItems((current) =>
-          current.map((item) => (item.id === lastIndexedItem?.id ? lastIndexedItem : item)),
-        );
-        setAddPdfStatus(`Indexed ${fileNameFromPath(filePath)}`);
-      }
+      const importResponse = await importLibraryPdfs({ source_paths: selectedPaths });
+      lastIndexedItem =
+        importResponse.items[importResponse.items.length - 1]?.library_item || null;
 
       const response = await listLibraryItems({ limit: 100 });
       setItems(response.items);
@@ -317,7 +302,7 @@ export default function WorkspacePage() {
                 <div className="detail-row wide">
                   <dt>File</dt>
                   <dd className="mono-value">
-                    {selectedItem.file_path || "No PDF file path"}
+                    {workspaceFileLabel(selectedItem)}
                   </dd>
                 </div>
                 <div className="detail-row">
@@ -392,13 +377,12 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function workspaceFileLabel(item: LibraryItem): string {
+  const title = item.title.trim();
+  if (title) {
+    return title.toLowerCase().endsWith(".pdf") ? title : `${title}.pdf`;
+  }
   if (!item.file_path) {
     return "No PDF file path";
   }
   return fileNameFromPath(item.file_path) || item.file_path;
-}
-
-function titleFromPdfPath(filePath: string): string {
-  const fileName = fileNameFromPath(filePath);
-  return fileName.replace(/\.pdf$/i, "") || "Untitled PDF";
 }

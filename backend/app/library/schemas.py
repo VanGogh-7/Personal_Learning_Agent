@@ -110,7 +110,33 @@ class LibraryItemIndexResponse(BaseModel):
     chunks_created: int
     embeddings_created: int
     message: str
-    supported_file_types: list[str] = Field(default_factory=lambda: ["txt", "md"])
+    supported_file_types: list[str] = Field(default_factory=lambda: ["txt", "md", "pdf"])
+
+
+class LibraryPdfImportRequest(BaseModel):
+    source_paths: list[str]
+
+    @field_validator("source_paths")
+    @classmethod
+    def source_paths_must_not_be_empty(cls, value: list[str]) -> list[str]:
+        paths = [path.strip() for path in value if path.strip()]
+        if not paths:
+            raise ValueError("source_paths must contain at least one path")
+        return paths
+
+
+class LibraryPdfImportItemResponse(BaseModel):
+    library_item: LibraryItemRead
+    index_result: LibraryItemIndexResponse
+    original_filename: str
+    original_source_path: str
+    managed_file_path: str
+    file_size_bytes: int
+
+
+class LibraryPdfImportResponse(BaseModel):
+    items: list[LibraryPdfImportItemResponse]
+    total: int
 
 
 class LibraryMetadataDraftResponse(BaseModel):

@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 43: Frontend Library Add PDFs Product Flow.
+Stage 44: Managed PDF Storage and Library Item Robustness.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -175,17 +175,23 @@ Stage 43: Frontend Library Add PDFs Product Flow.
   now opens a PDF-only Tauri file picker, creates PDF Library items,
   indexes them through the existing backend item indexing endpoint,
   refreshes the Library list, and selects the newly indexed PDF without
-  backend behavior changes (Stage 43, current)
+  backend behavior changes (Stage 43, completed)
+- Managed PDF Storage and Library Item Robustness: imported PDFs are
+  copied into configurable backend-managed Library storage before
+  Library item creation and indexing. Imported Library items and
+  documents point at the managed copy so moving or deleting the original
+  selected file does not break Workspace viewing, system opening, or
+  reindexing (Stage 44, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 43 is a frontend Library product-flow
-pass on top of existing Library item create and indexing APIs. It does
-not change backend routes, database schema, Tauri architecture, Vite
-architecture, local retrieval algorithms, chunking, memory behavior,
-learning-event semantics, Notes APIs, provider behavior, or response
-contracts. It does not add frontend settings UI, auth, autonomous
+**not implemented yet**. Stage 44 is a managed PDF import robustness
+pass on top of existing Library indexing services. It does not change
+database schema, Tauri architecture, Vite architecture, local retrieval
+algorithms, chunking, memory behavior, learning-event semantics, Notes
+APIs, provider behavior, or existing response contracts. It does not
+add frontend settings UI, auth, autonomous
 planning, broad tool calling, open-ended multi-agent systems, web
 browsing, streaming, reranking, hybrid search, BM25, full-text search,
 query expansion, OCR, annotations, selected-text workflows, whole-book
@@ -254,9 +260,13 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 | `DEEPSEEK_BASE_URL` | DeepSeek API base URL                     | `https://api.deepseek.com`      |
 | `DEEPSEEK_MODEL`    | DeepSeek model name                       | `deepseek-chat`                 |
 | `DATABASE_URL`      | PostgreSQL connection string (SQLAlchemy) | *(none — set in `.env`)*        |
+| `LIBRARY_STORAGE_DIR` | Managed imported-PDF storage directory | `backend/storage/library`       |
 
 `DATABASE_URL` uses the SQLAlchemy + psycopg (v3) format, e.g.
 `postgresql+psycopg://user:password@localhost:5432/personal_learning_agent`.
+Relative `LIBRARY_STORAGE_DIR` values are resolved under the `backend/`
+directory; the default stores imported PDFs under
+`backend/storage/library`.
 
 `backend/.env` is loaded automatically for local backend startup and
 Alembic migrations, and is never committed. Only `backend/.env.example`
@@ -1134,6 +1144,28 @@ batch/folder import, background queues, Redis, Celery/RQ, real embedding
 providers, OpenAI/DeepSeek embedding calls, LLM summaries, automatic
 book summaries, notes generation, authentication, Docker, and production
 packaging are not implemented in this indexing foundation.
+
+Stage 44 adds managed PDF import for the product Workspace flow:
+
+```http
+POST /api/library/import-pdfs
+```
+
+Request:
+
+```json
+{
+  "source_paths": ["/path/to/Analysis.pdf"]
+}
+```
+
+The endpoint validates each source as a PDF, copies it into
+`LIBRARY_STORAGE_DIR` using a collision-safe managed filename, creates a
+PDF Library item whose `file_path` points at the managed copy, indexes
+that item through the existing `index_library_item` pipeline, and returns
+the imported Library item plus index metadata. Duplicate imports create
+separate managed copies. Existing developer/manual indexing scripts and
+`POST /api/library/items/{item_id}/index` continue to work.
 
 ## Backend PDF-to-RAG Pipeline (Stage 34)
 

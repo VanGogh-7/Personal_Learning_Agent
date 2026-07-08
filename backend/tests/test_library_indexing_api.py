@@ -1,4 +1,5 @@
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -7,7 +8,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 import app.api.library_routes as library_routes_module
-from app.api.library_routes import index_library_item_endpoint
+from app.api.library_routes import import_pdfs_endpoint, index_library_item_endpoint
+from app.core.config import get_settings
+from app.library.schemas import LibraryPdfImportRequest
 from app.library.service import create_library_item
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
@@ -40,6 +43,14 @@ def indexing_api_session():
     finally:
         session.close()
         engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def clear_settings_cache_after_test():
+    try:
+        yield
+    finally:
+        get_settings.cache_clear()
 
 
 def _patch_db(monkeypatch, indexing_api_session) -> None:
@@ -130,3 +141,96 @@ def test_index_library_item_endpoint_creates_chunks_with_embeddings(
     ).scalars().all()
     assert chunks
     assert all(chunk.embedding is not None for chunk in chunks)
+
+
+def test_import_pdfs_endpoint_copies_to_managed_storage_and_indexes(
+    monkeypatch, indexing_api_session, tmp_path
+) -> None:
+    _patch_db(monkeypatch, indexing_api_session)
+    storage_dir = tmp_path / "managed-library"
+    monkeypatch.setenv("LIBRARY_STORAGE_DIR", str(storage_dir))
+    get_settings.cache_clear()
+    source_path = tmp_path / "Analysis.pdf"
+    source_path.write_bytes(make_pdf_bytes(["Complete metric spaces.", "Banach spaces."]))
+
+    response = import_pdfs_endpoint(
+        LibraryPdfImportRequest(source_paths=[str(source_path)])
+    )
+
+    assert response.total == 1
+    imported = response.items[0]
+    assert imported.original_filename == "Analysis.pdf"
+    assert imported.file_size_bytes == source_path.stat().st_size
+    assert imported.library_item.title == "Analysis"
+    assert imported.library_item.status == "indexed"
+    assert imported.library_item.file_type == "pdf"
+    assert imported.library_item.file_path == imported.managed_file_path
+    assert imported.managed_file_path != str(source_path)
+    assert imported.managed_file_path.startswith(str(storage_dir))
+    assert "Analysis.pdf" in imported.managed_file_path
+    assert Path(imported.managed_file_path).exists()
+    assert imported.index_result.status == "indexed"
+    assert imported.index_result.chunks_created > 0
+
+    source_path.unlink()
+    reindex_response = index_library_item_endpoint(
+        uuid.UUID(imported.library_item.id)
+    )
+    assert reindex_response.status == "indexed"
+
+
+def test_import_pdfs_endpoint_rejects_non_pdf_source(
+    monkeypatch, indexing_api_session, tmp_path
+) -> None:
+    _patch_db(monkeypatch, indexing_api_session)
+    storage_dir = tmp_path / "managed-library"
+    monkeypatch.setenv("LIBRARY_STORAGE_DIR", str(storage_dir))
+    get_settings.cache_clear()
+    source_path = tmp_path / "notes.txt"
+    source_path.write_text("not a pdf", encoding="utf-8")
+
+    with pytest.raises(HTTPException) as exc_info:
+        import_pdfs_endpoint(LibraryPdfImportRequest(source_paths=[str(source_path)]))
+
+    assert exc_info.value.status_code == 400
+    assert "Only .pdf files can be imported" in str(exc_info.value.detail)
+
+    fake_pdf_path = tmp_path / "fake.pdf"
+    fake_pdf_path.write_text("not a pdf", encoding="utf-8")
+    with pytest.raises(HTTPException) as invalid_pdf_exc:
+        import_pdfs_endpoint(
+            LibraryPdfImportRequest(source_paths=[str(fake_pdf_path)])
+        )
+
+    assert invalid_pdf_exc.value.status_code == 400
+    assert "Selected file is not a valid PDF" in str(invalid_pdf_exc.value.detail)
+
+    malformed_pdf_path = tmp_path / "malformed.pdf"
+    malformed_pdf_path.write_bytes(b"%PDF-broken")
+    with pytest.raises(HTTPException):
+        import_pdfs_endpoint(
+            LibraryPdfImportRequest(source_paths=[str(malformed_pdf_path)])
+        )
+
+    assert not list(storage_dir.glob("*.pdf"))
+
+
+def test_import_pdfs_endpoint_duplicate_imports_create_separate_managed_copies(
+    monkeypatch, indexing_api_session, tmp_path
+) -> None:
+    _patch_db(monkeypatch, indexing_api_session)
+    monkeypatch.setenv("LIBRARY_STORAGE_DIR", str(tmp_path / "managed-library"))
+    get_settings.cache_clear()
+    source_path = tmp_path / "Analysis.pdf"
+    source_path.write_bytes(make_pdf_bytes(["Duplicate import."]))
+
+    response = import_pdfs_endpoint(
+        LibraryPdfImportRequest(source_paths=[str(source_path), str(source_path)])
+    )
+
+    assert response.total == 2
+    item_ids = {item.library_item.id for item in response.items}
+    managed_paths = {item.managed_file_path for item in response.items}
+    assert len(item_ids) == 2
+    assert len(managed_paths) == 2
+    assert all(Path(path).exists() for path in managed_paths)

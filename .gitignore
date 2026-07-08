@@ -2,6 +2,7 @@
 /data/
 backend/data/*
 !backend/data/.gitkeep
+backend/storage/
 /datasets/*
 !/datasets/.gitignore
 !/datasets/README.md

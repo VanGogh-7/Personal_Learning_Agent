@@ -15,6 +15,7 @@ from app.library.indexing import (
     LibraryIndexingError,
     index_library_item,
 )
+from app.library.importing import LibraryImportError, import_pdf_paths
 from app.library.metadata_generation import (
     LibraryMetadataDraftResult,
     LibraryMetadataGenerationError,
@@ -27,6 +28,9 @@ from app.library.schemas import (
     LibraryItemRead,
     LibraryItemUpdate,
     LibraryMetadataDraftResponse,
+    LibraryPdfImportItemResponse,
+    LibraryPdfImportRequest,
+    LibraryPdfImportResponse,
 )
 from app.library.service import (
     DEFAULT_LIST_LIMIT,
@@ -83,6 +87,17 @@ def _to_metadata_draft_response(
     )
 
 
+def _to_import_item_response(result) -> LibraryPdfImportItemResponse:
+    return LibraryPdfImportItemResponse(
+        library_item=_to_response(result.item),
+        index_result=_to_index_response(result.index_result),
+        original_filename=result.original_filename,
+        original_source_path=result.original_source_path,
+        managed_file_path=result.managed_file_path,
+        file_size_bytes=result.file_size_bytes,
+    )
+
+
 @router.post("/items", response_model=LibraryItemRead)
 def create_library_item_endpoint(request: LibraryItemCreate) -> LibraryItemRead:
     try:
@@ -113,6 +128,49 @@ def create_library_item_endpoint(request: LibraryItemCreate) -> LibraryItemRead:
         session.close()
 
     return _to_response(item)
+
+
+@router.post("/import-pdfs", response_model=LibraryPdfImportResponse)
+def import_pdfs_endpoint(request: LibraryPdfImportRequest) -> LibraryPdfImportResponse:
+    try:
+        session = get_db_session()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    try:
+        try:
+            results = import_pdf_paths(session, request.source_paths)
+            for result in results:
+                create_learning_event(
+                    session,
+                    event_type=EVENT_LIBRARY_INDEXED,
+                    title=f"Imported and indexed PDF: {result.item.title}",
+                    source_type=SOURCE_LIBRARY,
+                    source_id=result.item.item_id,
+                    library_item_id=result.item.item_id,
+                    metadata_json={
+                        "original_filename": result.original_filename,
+                        "managed_file_path": result.managed_file_path,
+                        "file_size_bytes": result.file_size_bytes,
+                        "chunks_created": result.index_result.chunks_created,
+                        "embeddings_created": result.index_result.embeddings_created,
+                        "document_id": str(result.index_result.document_id)
+                        if result.index_result.document_id
+                        else None,
+                    },
+                )
+            session.commit()
+        except (LibraryImportError, LibraryIndexingError) as exc:
+            session.rollback()
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except SQLAlchemyError as exc:
+            session.rollback()
+            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+    finally:
+        session.close()
+
+    responses = [_to_import_item_response(result) for result in results]
+    return LibraryPdfImportResponse(items=responses, total=len(responses))
 
 
 @router.post("/items/{item_id}/index", response_model=LibraryItemIndexResponse)

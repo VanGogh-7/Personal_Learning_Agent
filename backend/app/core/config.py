@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     zhipu_embedding_dimension: int = 2048
 
     database_url: str = ""
+    library_storage_dir: str = str(BACKEND_DIR / "storage" / "library")
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_ENV_FILE,

@@ -211,6 +211,24 @@ export interface LibraryItemIndexResponse {
   supported_file_types: string[];
 }
 
+export interface LibraryPdfImportRequest {
+  source_paths: string[];
+}
+
+export interface LibraryPdfImportItemResponse {
+  library_item: LibraryItem;
+  index_result: LibraryItemIndexResponse;
+  original_filename: string;
+  original_source_path: string;
+  managed_file_path: string;
+  file_size_bytes: number;
+}
+
+export interface LibraryPdfImportResponse {
+  items: LibraryPdfImportItemResponse[];
+  total: number;
+}
+
 export interface LibraryMetadataDraft {
   library_item_id: string;
   title: string;
