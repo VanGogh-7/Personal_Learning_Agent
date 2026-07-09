@@ -348,6 +348,36 @@ def test_agent_chat_web_only_route_skips_local_retrieval(
     assert response.memory.saved_current_turn is True
 
 
+def test_agent_chat_web_only_route_with_mock_web_results(
+    monkeypatch, agent_chat_session
+) -> None:
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("web_only route should not retrieve local chunks")
+
+    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called)
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "run_web_research_agent_service",
+        lambda question: DeterministicWebResearchProvider().research(question),
+    )
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            question="What is the latest news about calculus?",
+            scope_type="global",
+            session_id="web-mock-session",
+        )
+    )
+
+    assert response.route == "web_only"
+    assert response.retrieved_chunks == []
+    assert response.local_citations == []
+    assert response.web_sources[0].source_id == "W1"
+    assert response.web_sources[0].provider == "deterministic"
+    assert response.warnings == []
+    assert "[W1]" in response.answer
+
+
 def test_agent_chat_both_route_returns_local_citations_and_web_sources(
     monkeypatch, agent_chat_session
 ) -> None:
@@ -391,8 +421,9 @@ def test_agent_chat_both_route_returns_local_citations_and_web_sources(
     assert response.warnings
     assert response.local_summary is not None
     assert response.web_summary is None
-    assert "Web research:" not in response.answer
+    assert "External web context:" not in response.answer
     assert "Derivatives measure local rates of change" in response.answer
+    assert "[S1]" in response.answer
 
 
 def test_agent_chat_both_route_with_mock_web_results(
@@ -439,7 +470,10 @@ def test_agent_chat_both_route_with_mock_web_results(
     assert response.local_citations[0].citation_id == "S1"
     assert response.web_sources[0].provider == "deterministic"
     assert response.web_summary is not None
-    assert "Web research:" in response.answer
+    assert "Local book evidence:" in response.answer
+    assert "External web context:" in response.answer
+    assert "[S1]" in response.answer
+    assert "[W1]" in response.answer
 
 
 def test_agent_chat_synthesis_uses_configured_llm_provider(

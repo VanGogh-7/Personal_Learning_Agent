@@ -6,6 +6,7 @@ from app.agents.router import route_question
 from app.agents.synthesis import synthesize_agent_answer
 from app.agents.web_research import (
     DeterministicWebResearchProvider,
+    TavilyWebResearchProvider,
     run_web_research_agent,
 )
 from app.rag.retrieval import RetrievedChunkResult
@@ -83,6 +84,7 @@ def test_web_research_agent_is_deterministic_without_network(monkeypatch) -> Non
     assert result.sources[0].source_id == "W1"
     assert result.sources[0].provider == "deterministic"
     assert result.sources[0].url.startswith("mock://")
+    assert result.sources[0].published_date is None
 
 
 def test_web_research_agent_is_unavailable_without_provider() -> None:
@@ -92,6 +94,61 @@ def test_web_research_agent_is_unavailable_without_provider() -> None:
     assert result.summary is None
     assert result.sources == []
     assert "no web provider is configured" in result.warnings[0]
+
+
+def test_tavily_web_provider_maps_structured_results_without_network() -> None:
+    captured: dict[str, object] = {}
+
+    def fake_post_json(url, payload, headers, timeout_seconds):
+        captured["url"] = url
+        captured["payload"] = payload
+        captured["auth"] = headers["Authorization"]
+        captured["timeout"] = timeout_seconds
+        return {
+            "answer": "DeepSeek released API documentation updates.",
+            "results": [
+                {
+                    "title": "DeepSeek API Docs",
+                    "url": "https://api-docs.deepseek.com/news",
+                    "content": "DeepSeek API update summary.",
+                    "published_date": "2026-07-01",
+                },
+                {
+                    "title": "Ignored empty result",
+                    "url": "",
+                    "content": "No URL.",
+                },
+            ],
+        }
+
+    provider = TavilyWebResearchProvider(
+        api_key="fake-tavily-key",
+        max_results=3,
+        http_post_json=fake_post_json,
+    )
+
+    result = run_web_research_agent("latest DeepSeek API", provider=provider)
+
+    assert result.status == "available"
+    assert captured["url"] == "https://api.tavily.com/search"
+    assert captured["payload"]["query"] == "latest DeepSeek API"
+    assert captured["payload"]["max_results"] == 3
+    assert captured["auth"] == "Bearer fake-tavily-key"
+    assert result.summary == "DeepSeek released API documentation updates. (W1)"
+    assert result.sources[0].source_id == "W1"
+    assert result.sources[0].title == "DeepSeek API Docs"
+    assert result.sources[0].provider == "tavily"
+    assert result.sources[0].published_date == "2026-07-01"
+
+
+def test_tavily_web_provider_missing_key_returns_warning() -> None:
+    provider = TavilyWebResearchProvider(api_key="")
+
+    result = run_web_research_agent("latest DeepSeek API", provider=provider)
+
+    assert result.status == "unavailable"
+    assert result.sources == []
+    assert "TAVILY_API_KEY is not configured" in result.warnings[0]
 
 
 def test_synthesis_handles_local_only() -> None:
@@ -191,10 +248,11 @@ def test_synthesis_handles_both_with_local_evidence_and_unavailable_web() -> Non
     )
 
     assert local_result.summary in result.answer
-    assert "Web research:" not in result.answer
+    assert "External web context:" not in result.answer
     assert result.local_summary == local_result.summary
     assert result.web_summary is None
     assert any("local Library evidence only" in warning for warning in result.warnings)
+    assert "[S1]" in result.answer
 
 
 def test_synthesis_handles_both_with_mock_web_results() -> None:
@@ -219,7 +277,8 @@ def test_synthesis_handles_both_with_mock_web_results() -> None:
         web_result=web_result,
     )
 
-    assert f"Web research: {web_result.summary}" in result.answer
+    assert f"External web context: {web_result.summary}" in result.answer
+    assert "[W1]" in result.answer
     assert result.web_summary == web_result.summary
 
 

@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     embedding_provider: str = "mock"
     web_research_provider: str = "none"
 
+    tavily_api_key: str = ""
+    tavily_base_url: str = "https://api.tavily.com/search"
+    tavily_search_depth: str = "basic"
+    tavily_max_results: int = 5
+
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"

@@ -21,6 +21,7 @@ class WebSource(BaseModel):
     url: str
     excerpt: str
     provider: str = "deterministic"
+    published_date: str | None = None
 
 
 class AgentChatRequest(BaseModel):

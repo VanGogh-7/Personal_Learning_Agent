@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from app.agents.local_library import LocalLibraryAgentResult
 from app.agents.router import AgentRoute
-from app.agents.web_research import WebResearchResult
+from app.agents.web_research import WebResearchResult, WebSourceResult
 from app.llm.providers import DETERMINISTIC_ANSWER_MARKER, LLMProvider
 from app.rag.citations import ChunkCitationResult, format_citation_source
 
@@ -33,9 +33,14 @@ def synthesize_agent_answer(
     has_local_evidence = (
         local_result is not None and local_result.evidence_quality != "none"
     )
+    local_answer = (
+        append_local_source_ids(local_summary, local_result.citations)
+        if local_summary and local_result is not None and has_local_evidence
+        else local_summary
+    )
 
     if route == "local_only":
-        answer = local_summary or "I could not find relevant information in the local Library."
+        answer = local_answer or "I could not find relevant information in the local Library."
     elif route == "web_only":
         if web_unavailable:
             answer = (
@@ -46,10 +51,10 @@ def synthesize_agent_answer(
             answer = web_summary or "No web research result is available."
     else:
         parts: list[str] = []
-        if local_summary and has_local_evidence:
-            parts.append(local_summary)
+        if local_answer and has_local_evidence:
+            parts.append(f"Local book evidence: {local_answer}")
         if web_summary and not web_unavailable:
-            parts.append(f"Web research: {web_summary}")
+            parts.append(f"External web context: {web_summary}")
         if web_unavailable and has_local_evidence:
             warnings.append(
                 "Web research was skipped because no web provider is configured; answer uses local Library evidence only."
@@ -68,6 +73,7 @@ def synthesize_agent_answer(
                 deterministic_answer=answer,
                 local_summary=local_summary,
                 web_summary=web_summary,
+                web_sources=web_result.sources if web_result is not None else [],
                 local_citations=local_result.citations
                 if local_result is not None
                 else [],
@@ -96,6 +102,7 @@ def build_synthesis_prompt(
     deterministic_answer: str,
     local_summary: str | None,
     web_summary: str | None,
+    web_sources: list[WebSourceResult] | None = None,
     local_citations: list[ChunkCitationResult] | None = None,
     local_citation_count: int,
     web_source_count: int,
@@ -129,8 +136,31 @@ def build_synthesis_prompt(
     if web_summary:
         lines.extend(["", "Web Research Agent summary:", web_summary.strip()])
 
+    if web_sources:
+        lines.extend(["", "Web Research sources:"])
+        for source in web_sources:
+            label = f"[{source.source_id}] {source.title}; {source.url}"
+            if source.published_date:
+                label += f"; published {source.published_date}"
+            lines.append(label)
+            lines.append("Text:")
+            lines.append(source.excerpt.strip())
+
     lines.extend(["", DETERMINISTIC_ANSWER_MARKER, deterministic_answer])
     return "\n".join(lines)
+
+
+def append_local_source_ids(
+    answer: str,
+    local_citations: list[ChunkCitationResult],
+) -> str:
+    if not local_citations:
+        return answer
+    source_ids = [citation.citation_id for citation in local_citations]
+    if any(f"[{source_id}]" in answer for source_id in source_ids):
+        return answer
+    formatted_ids = ", ".join(f"[{source_id}]" for source_id in source_ids)
+    return f"{answer} Local book sources: {formatted_ids}."
 
 
 def dedupe_strings(values: list[str]) -> list[str]:

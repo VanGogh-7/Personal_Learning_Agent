@@ -123,6 +123,7 @@ export interface WebSource {
   url: string;
   excerpt: string;
   provider: string;
+  published_date?: string | null;
 }
 
 export interface LongTermMemoryCreateRequest {

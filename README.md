@@ -7,7 +7,7 @@ Tauri + React desktop frontend.
 
 ## Current Stage
 
-Stage 46: LangGraph Dual-Agent Core.
+Stage 47: Web Research Agent Provider MVP.
 
 The frontend now uses Bun + Tauri + React + Vite and opens to a
 Repository + Chat learning workspace:
@@ -40,7 +40,9 @@ imported items do not depend on the original selected file path. Stage
 frontend focused on PDF Repository selection plus Agent Chat. Stage 46
 formalizes `/api/agent/chat` as an explicit LangGraph dual-agent graph
 with router, Local Library Agent, Web Research Agent, and synthesis
-nodes:
+nodes. Stage 47 adds an optional Tavily-backed real web search provider
+behind the Web Research Agent while keeping mock and unavailable modes
+deterministic:
 
 ```text
 PDF -> page-aware extraction -> section classification -> math-PDF chunking
@@ -68,6 +70,10 @@ Example placeholders are tracked in `backend/.env.example` only:
 LLM_PROVIDER=deterministic
 EMBEDDING_PROVIDER=mock
 WEB_RESEARCH_PROVIDER=none
+TAVILY_API_KEY=your_tavily_api_key_here
+TAVILY_BASE_URL=https://api.tavily.com/search
+TAVILY_SEARCH_DEPTH=basic
+TAVILY_MAX_RESULTS=5
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
@@ -87,26 +93,22 @@ LLM_PROVIDER=deepseek
 
 Do not commit real `.env` files or expose API keys to the frontend.
 
-## What Stage 46 Does
+## What Stage 47 Does
 
-- Defines an explicit `AgentGraphState` with user message, selected
-  Library item IDs, route decision, structured local/web results, final
-  answer, local citations, web sources, warnings, and errors.
-- Wires `/api/agent/chat` through explicit LangGraph nodes:
-  `router_node`, `local_library_agent_node`, `web_research_agent_node`,
-  and `synthesis_node`.
+- Keeps the Stage 46 LangGraph dual-agent graph and makes the Web
+  Research Agent minimally useful through a provider abstraction.
+- Supports `WEB_RESEARCH_PROVIDER=none`, `mock`, or `tavily`.
+- Adds a minimal Tavily Search provider using `TAVILY_API_KEY` and
+  `POST https://api.tavily.com/search`.
+- Maps web provider output into structured `[W#]` sources with title,
+  URL, excerpt, provider, and optional published date.
+- Preserves local book citations separately as `[S#]` citations and
+  keeps web sources separately as `[W#]` sources.
+- Keeps web failures non-fatal: misconfiguration, network errors, and
+  provider errors return warnings instead of exposing API keys or
+  crashing the Agent Chat endpoint.
 - Keeps the product request shape simple: `message` plus optional
   `selected_library_item_id` or `selected_library_item_ids`.
-- Reuses existing pgvector local retrieval, section filtering, and
-  normalized `[S#]` citations with page metadata.
-- Adds simple local evidence quality: `strong`, `partial`, `weak`, or
-  `none`.
-- Adds a Web Research Provider boundary. The default
-  `WEB_RESEARCH_PROVIDER=none` returns a structured unavailable result;
-  deterministic mock web results remain available for tests.
-- Returns additive `local_citations`, `web_sources`, `warnings`, and
-  `errors` fields while preserving existing `citations`,
-  `retrieved_chunks`, `session_id`, and memory response fields.
 
 Manual single-book smoke test:
 
@@ -132,14 +134,14 @@ Today Log is the learning record; Calendar remains future expansion.
 Settings will stay simple: theme + long-term memory only.
 ```
 
-## What Stage 46 Does Not Do
+## What Stage 47 Does Not Do
 
 No Settings UI, embedding provider settings, local embedding provider,
 database schema changes, chunking/retrieval/citation changes, reranking,
-hybrid search, LLM router, complex crawling/deep research, live web
-provider integration, embedded PDF reader, citation-to-page navigation,
-OCR, annotations, auth/user accounts, Settings UI, Calendar work, Notes
-work, tool-calling framework, or autonomous planner. Stage 46 does not
+hybrid search, LLM router, complex crawling/deep research, browser
+automation, embedded PDF reader, citation-to-page navigation, OCR,
+annotations, auth/user accounts, Settings UI, Calendar work, Notes work,
+tool-calling framework, or autonomous planner. Stage 47 does not
 reintroduce low-level RAG/debug controls in Agent Chat.
 
 ## Commands

@@ -1,7 +1,8 @@
 # Personal Learning Agent Frontend
 
-Stage 46 keeps the simplified PDF Repository plus Agent Chat MVP UI and
-uses the backend LangGraph dual-agent core for `/api/agent/chat`. The
+Stage 47 keeps the simplified PDF Repository plus Agent Chat MVP UI and
+uses the backend LangGraph dual-agent core plus optional Web Research
+provider for `/api/agent/chat`. The
 stack remains Bun + Tauri + React and Vite. The default page keeps PDF
 adding/selection as knowledge-source context and makes Agent Chat the
 main interaction surface. There is no embedded PDF preview/reader in the
@@ -104,7 +105,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Agent Chat Sources section displays normalized citation IDs, source
   title, page/page range, chunk index, and chapter/section metadata when
   returned by the backend
-- Agent Chat response typing includes additive Stage 46 fields for
+- Agent Chat response typing includes additive Stage 47 fields for
   local citations, web sources, warnings, and errors
 - Citations show source Library item metadata for each chunk
 - Empty citation/retrieval results show a clear no relevant chunks message
@@ -179,7 +180,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 46
+  Stage 47
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary
@@ -191,8 +192,8 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   reranking, hybrid search, BM25, query expansion, streaming, agent
   planner, or real LLM answer generation by default
 - Agent Chat uses the backend LangGraph dual-agent boundary; there is no
-  tool calling, planner UI, graph visualization, streaming, live web
-  browsing UI, or frontend settings UI
+  tool calling, planner UI, graph visualization, streaming, browser
+  crawling UI, or frontend settings UI
 - RAG citations show chunk/document/library metadata only; there is no
   citation-to-PDF-page navigation, source highlighting,
   CSL/BibTeX/Zotero integration, or citation formatting engine

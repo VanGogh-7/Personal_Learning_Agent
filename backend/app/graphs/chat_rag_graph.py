@@ -711,6 +711,7 @@ def _web_source_to_state(source: WebSourceResult) -> dict[str, Any]:
         "url": source.url,
         "excerpt": source.excerpt,
         "provider": source.provider,
+        "published_date": source.published_date,
     }
 
 
@@ -721,6 +722,7 @@ def _state_to_web_source(data: dict[str, Any]) -> WebSourceResult:
         url=data["url"],
         excerpt=data["excerpt"],
         provider=data.get("provider", "deterministic"),
+        published_date=data.get("published_date"),
     )
 
 

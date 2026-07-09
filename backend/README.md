@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 46: LangGraph Dual-Agent Core.
+Stage 47: Web Research Agent Provider MVP.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -193,22 +193,28 @@ Stage 46: LangGraph Dual-Agent Core.
   and synthesis. Local retrieval/citations are preserved, web research
   is unavailable by default unless a provider is configured or injected,
   and responses include additive local citations, web sources, warnings,
-  and errors (Stage 46, current)
+  and errors (Stage 46, completed)
+- Web Research Agent Provider MVP: the Web Research Agent supports
+  unavailable, deterministic mock, and optional Tavily Search provider
+  modes. Tavily results are normalized into structured `[W#]` web
+  sources with title, URL, excerpt, provider, and optional published
+  date; provider failures become warnings instead of endpoint crashes
+  (Stage 47, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 46 formalizes the existing Agent Chat API
-around a clear deterministic dual-agent LangGraph core. It does not
-change database schema, local retrieval algorithms, chunking, memory
-behavior, learning-event semantics, Notes APIs, embedding provider
-behavior, retrieval ranking, or page-aware citation metadata. It does
-not add frontend settings UI, auth, autonomous planning, broad tool
-calling, open-ended multi-agent systems, live web browsing, streaming,
-reranking, hybrid search, BM25, full-text search, query expansion, OCR,
-annotations, selected-text workflows, whole-book synthesis, background
-jobs, theme management, deployment, complex theorem/definition/proof
-parsing, OCR, or ML-based layout parsing.
+**not implemented yet**. Stage 47 adds one optional search-API provider
+behind the existing Web Research Agent boundary. It does not change
+database schema, local retrieval algorithms, chunking, memory behavior,
+learning-event semantics, Notes APIs, embedding provider behavior,
+retrieval ranking, or page-aware citation metadata. It does not add
+frontend settings UI, auth, autonomous planning, broad tool calling,
+open-ended multi-agent systems, browser crawling, deep research,
+streaming, reranking, hybrid search, BM25, full-text search, query
+expansion, OCR, annotations, selected-text workflows, whole-book
+synthesis, background jobs, theme management, deployment, complex
+theorem/definition/proof parsing, OCR, or ML-based layout parsing.
 
 ## Setup
 
@@ -267,7 +273,11 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 | `APP_ENV`           | Environment name (development/production)| `development`                   |
 | `APP_VERSION`       | Application version                       | `0.1.0`                         |
 | `LLM_PROVIDER`      | RAG answer provider: `deterministic` or `deepseek` | `deterministic`        |
-| `WEB_RESEARCH_PROVIDER` | Agent Chat web boundary: `none` or deterministic `mock` | `none`          |
+| `WEB_RESEARCH_PROVIDER` | Agent Chat web provider: `none`, deterministic `mock`, or `tavily` | `none` |
+| `TAVILY_API_KEY`  | Tavily API key when `WEB_RESEARCH_PROVIDER=tavily` | *(none - set in `.env`)* |
+| `TAVILY_BASE_URL` | Tavily Search endpoint | `https://api.tavily.com/search` |
+| `TAVILY_SEARCH_DEPTH` | Tavily search depth | `basic` |
+| `TAVILY_MAX_RESULTS` | Tavily search results to request | `5` |
 | `DEEPSEEK_API_KEY`  | DeepSeek API key                          | *(none — set in `.env`)*        |
 | `DEEPSEEK_BASE_URL` | DeepSeek API base URL                     | `https://api.deepseek.com`      |
 | `DEEPSEEK_MODEL`    | DeepSeek model name                       | `deepseek-chat`                 |
@@ -295,11 +305,12 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 ```
 
-Stage 46 keeps web research disabled by default with
+Stage 47 keeps web research disabled by default with
 `WEB_RESEARCH_PROVIDER=none`. In that mode, web-routed Agent Chat
 requests return a structured unavailable result with warnings instead
-of making network calls. Deterministic mock web results are used in
-tests by injecting the mock provider.
+of making network calls. Use `WEB_RESEARCH_PROVIDER=mock` for
+deterministic local/demo web sources, or `WEB_RESEARCH_PROVIDER=tavily`
+plus `TAVILY_API_KEY` for the optional real Tavily Search provider.
 
 ## Running the API
 

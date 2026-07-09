@@ -9,6 +9,9 @@ def test_env_example_contains_llm_placeholders_only() -> None:
 
     assert "LLM_PROVIDER=deterministic" in content
     assert "EMBEDDING_PROVIDER=mock" in content
+    assert "WEB_RESEARCH_PROVIDER=none" in content
+    assert "TAVILY_API_KEY=your_tavily_api_key_here" in content
+    assert "TAVILY_BASE_URL=https://api.tavily.com/search" in content
     assert "DEEPSEEK_API_KEY=your_deepseek_api_key_here" in content
     assert "DEEPSEEK_MODEL=deepseek-chat" in content
     assert "DEEPSEEK_BASE_URL=https://api.deepseek.com" in content
