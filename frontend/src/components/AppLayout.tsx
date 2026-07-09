@@ -5,7 +5,7 @@ import Sidebar from "./Sidebar";
 export type AppPage = "workspace" | "chat" | "library" | "notes" | "progress";
 
 const PAGE_TITLES: Record<AppPage, string> = {
-  workspace: "Workspace",
+  workspace: "Repository + Chat",
   chat: "Agent Chat",
   library: "PDF Library",
   notes: "Legacy Notes",
@@ -33,7 +33,7 @@ export default function AppLayout({
       >
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Stage 44</p>
+            <p className="eyebrow">Stage 46</p>
             <h1>{PAGE_TITLES[activePage]}</h1>
           </div>
           <p className="backend-note">Backend: {getBackendBaseUrl()}</p>

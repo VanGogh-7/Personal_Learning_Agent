@@ -12,6 +12,8 @@ class AgentSynthesisResult:
     answer: str
     local_summary: str | None
     web_summary: str | None
+    warnings: list[str]
+    errors: list[str]
 
 
 def synthesize_agent_answer(
@@ -25,19 +27,37 @@ def synthesize_agent_answer(
     """Combine fixed local and web agent outputs into one deterministic answer."""
     local_summary = local_result.summary if local_result is not None else None
     web_summary = web_result.summary if web_result is not None else None
+    warnings = list(web_result.warnings) if web_result is not None else []
+    errors = list(web_result.errors) if web_result is not None else []
+    web_unavailable = web_result is not None and web_result.status == "unavailable"
+    has_local_evidence = (
+        local_result is not None and local_result.evidence_quality != "none"
+    )
 
     if route == "local_only":
         answer = local_summary or "I could not find relevant information in the local Library."
     elif route == "web_only":
-        answer = web_summary or "No web research result is available."
+        if web_unavailable:
+            answer = (
+                "Web research is unavailable because no web provider is configured. "
+                "I cannot answer this current or external question from web evidence."
+            )
+        else:
+            answer = web_summary or "No web research result is available."
     else:
         parts: list[str] = []
-        if local_summary:
+        if local_summary and has_local_evidence:
             parts.append(local_summary)
-        if web_summary:
+        if web_summary and not web_unavailable:
             parts.append(f"Web research: {web_summary}")
+        if web_unavailable and has_local_evidence:
+            warnings.append(
+                "Web research was skipped because no web provider is configured; answer uses local Library evidence only."
+            )
         answer = " ".join(parts) if parts else (
-            "I could not find local or web evidence for this question."
+            "I could not find supported local evidence, and web research is unavailable."
+            if web_unavailable
+            else "I could not find local or web evidence for this question."
         )
 
     if llm_provider is not None:
@@ -64,6 +84,8 @@ def synthesize_agent_answer(
         answer=answer,
         local_summary=local_summary,
         web_summary=web_summary,
+        warnings=dedupe_strings(warnings),
+        errors=dedupe_strings(errors),
     )
 
 
@@ -109,3 +131,14 @@ def build_synthesis_prompt(
 
     lines.extend(["", DETERMINISTIC_ANSWER_MARKER, deterministic_answer])
     return "\n".join(lines)
+
+
+def dedupe_strings(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        stripped = value.strip()
+        if stripped and stripped not in seen:
+            deduped.append(stripped)
+            seen.add(stripped)
+    return deduped

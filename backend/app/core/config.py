@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     llm_provider: str = "deterministic"
     embedding_provider: str = "mock"
+    web_research_provider: str = "none"
 
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"

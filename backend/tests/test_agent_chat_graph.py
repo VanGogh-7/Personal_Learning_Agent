@@ -25,6 +25,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
 from app.models.note import Note
+from app.agents.web_research import DeterministicWebResearchProvider
 from app.rag.retrieval import RetrievedChunkResult
 
 
@@ -197,7 +198,9 @@ def test_agent_chat_http_endpoint_works(monkeypatch, agent_chat_session) -> None
     assert data["route"] == "both"
     assert data["total_retrieved"] == 1
     assert data["citations"][0]["citation_id"] == "S1"
-    assert data["web_sources"][0]["source_id"] == "W1"
+    assert data["local_citations"][0]["citation_id"] == "S1"
+    assert data["web_sources"] == []
+    assert data["warnings"]
 
 
 def test_agent_chat_product_request_message_only_uses_defaults(
@@ -338,9 +341,10 @@ def test_agent_chat_web_only_route_skips_local_retrieval(
     assert response.citations == []
     assert response.total_retrieved == 0
     assert response.local_summary is None
-    assert response.web_summary is not None
-    assert response.web_sources[0].source_id == "W1"
-    assert "No live network request was made" in response.answer
+    assert response.web_summary is None
+    assert response.web_sources == []
+    assert response.warnings
+    assert "Web research is unavailable" in response.answer
     assert response.memory.saved_current_turn is True
 
 
@@ -383,8 +387,57 @@ def test_agent_chat_both_route_returns_local_citations_and_web_sources(
     assert response.total_retrieved == 1
     assert response.citations[0].page_number == 8
     assert response.retrieved_chunks[0].citation == response.citations[0]
-    assert response.web_sources[0].provider == "deterministic"
+    assert response.web_sources == []
+    assert response.warnings
     assert response.local_summary is not None
+    assert response.web_summary is None
+    assert "Web research:" not in response.answer
+    assert "Derivatives measure local rates of change" in response.answer
+
+
+def test_agent_chat_both_route_with_mock_web_results(
+    monkeypatch, agent_chat_session
+) -> None:
+    library_item_id = uuid.uuid4()
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Learning PDF",
+        document_source_path="/tmp/learning.pdf",
+        library_item_id=library_item_id,
+        library_title="Learning Book",
+        library_author="Author",
+        chunk_index=0,
+        content="Derivatives measure local rates of change.",
+        char_start=0,
+        char_end=42,
+        page_start=8,
+        page_end=8,
+        score=0.02,
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [chunk],
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "run_web_research_agent_service",
+        lambda question: DeterministicWebResearchProvider().research(question),
+    )
+
+    response = agent_chat_endpoint(
+        AgentChatRequest(
+            question="Explain derivatives",
+            scope_type="global",
+            session_id="both-mock-web-session",
+        )
+    )
+
+    assert response.route == "both"
+    assert response.total_retrieved == 1
+    assert response.local_citations[0].citation_id == "S1"
+    assert response.web_sources[0].provider == "deterministic"
     assert response.web_summary is not None
     assert "Web research:" in response.answer
 
@@ -422,7 +475,8 @@ def test_agent_chat_synthesis_uses_configured_llm_provider(
     assert response.route == "both"
     assert prompts
     assert "Local Library Agent summary:" in prompts[0]
-    assert "Web Research Agent summary:" in prompts[0]
+    assert "Web Research Agent summary:" not in prompts[0]
+    assert "web research is unavailable" in prompts[0]
 
 
 def test_agent_chat_provider_configuration_error_is_clean(

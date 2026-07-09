@@ -8,7 +8,7 @@ and knowledge retrieval.
 
 ## Current Stage
 
-Stage 44: Managed PDF Storage and Library Item Robustness.
+Stage 46: LangGraph Dual-Agent Core.
 
 - FastAPI app with health/status endpoints (Stage 1, completed)
 - Document ingestion MVP: text chunking and safe `.txt`/`.md` loading (Stage 2, completed)
@@ -180,24 +180,35 @@ Stage 44: Managed PDF Storage and Library Item Robustness.
   copied into configurable backend-managed Library storage before
   Library item creation and indexing. Imported Library items and
   documents point at the managed copy so moving or deleting the original
-  selected file does not break Workspace viewing, system opening, or
-  reindexing (Stage 44, current)
+  selected file does not break indexing, system opening, or reindexing
+  (Stage 44, completed)
+- UI Scope Simplification - Repository + Chat: the frontend MVP removes
+  the embedded PDF preview/workspace and focuses the default page on PDF
+  Repository selection plus Agent Chat. Backend PDF metadata, page-aware
+  citation fields, indexing, retrieval, and LangGraph behavior are
+  unchanged (Stage 45, completed)
+- LangGraph Dual-Agent Core: `/api/agent/chat` now runs through an
+  explicit `AgentGraphState` and named LangGraph nodes for routing,
+  Local Library Agent retrieval, Web Research Agent boundary handling,
+  and synthesis. Local retrieval/citations are preserved, web research
+  is unavailable by default unless a provider is configured or injected,
+  and responses include additive local citations, web sources, warnings,
+  and errors (Stage 46, current)
 
 Semantic/vector search over long-term memory, open-ended agent
 workflows, MCP, backend auto-start from Tauri, complex Rust backend
 logic, repository analysis, and production packaging are planned but
-**not implemented yet**. Stage 44 is a managed PDF import robustness
-pass on top of existing Library indexing services. It does not change
-database schema, Tauri architecture, Vite architecture, local retrieval
-algorithms, chunking, memory behavior, learning-event semantics, Notes
-APIs, provider behavior, or existing response contracts. It does not
-add frontend settings UI, auth, autonomous
-planning, broad tool calling, open-ended multi-agent systems, web
-browsing, streaming, reranking, hybrid search, BM25, full-text search,
-query expansion, OCR, annotations, selected-text workflows, whole-book
-synthesis, background jobs, theme management, deployment, retrieval
-ranking, complex theorem/definition/proof parsing, OCR, or ML-based
-layout parsing.
+**not implemented yet**. Stage 46 formalizes the existing Agent Chat API
+around a clear deterministic dual-agent LangGraph core. It does not
+change database schema, local retrieval algorithms, chunking, memory
+behavior, learning-event semantics, Notes APIs, embedding provider
+behavior, retrieval ranking, or page-aware citation metadata. It does
+not add frontend settings UI, auth, autonomous planning, broad tool
+calling, open-ended multi-agent systems, live web browsing, streaming,
+reranking, hybrid search, BM25, full-text search, query expansion, OCR,
+annotations, selected-text workflows, whole-book synthesis, background
+jobs, theme management, deployment, complex theorem/definition/proof
+parsing, OCR, or ML-based layout parsing.
 
 ## Setup
 
@@ -256,6 +267,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 | `APP_ENV`           | Environment name (development/production)| `development`                   |
 | `APP_VERSION`       | Application version                       | `0.1.0`                         |
 | `LLM_PROVIDER`      | RAG answer provider: `deterministic` or `deepseek` | `deterministic`        |
+| `WEB_RESEARCH_PROVIDER` | Agent Chat web boundary: `none` or deterministic `mock` | `none`          |
 | `DEEPSEEK_API_KEY`  | DeepSeek API key                          | *(none — set in `.env`)*        |
 | `DEEPSEEK_BASE_URL` | DeepSeek API base URL                     | `https://api.deepseek.com`      |
 | `DEEPSEEK_MODEL`    | DeepSeek model name                       | `deepseek-chat`                 |
@@ -282,6 +294,12 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 ```
+
+Stage 46 keeps web research disabled by default with
+`WEB_RESEARCH_PROVIDER=none`. In that mode, web-routed Agent Chat
+requests return a structured unavailable result with warnings instead
+of making network calls. Deterministic mock web results are used in
+tests by injecting the mock provider.
 
 ## Running the API
 

@@ -109,7 +109,10 @@ export interface AgentChatResponse extends RagQueryResponse {
   scope_type: AgentChatScopeType;
   route: AgentChatRoute;
   selected_library_items: SelectedLibraryItem[];
+  local_citations?: RagCitation[];
   web_sources?: WebSource[];
+  warnings?: string[];
+  errors?: string[];
   local_summary?: string | null;
   web_summary?: string | null;
 }

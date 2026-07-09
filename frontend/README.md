@@ -1,11 +1,11 @@
 # Personal Learning Agent Frontend
 
-Stage 44 makes imported PDFs robust by copying them into backend-managed
-Library storage before indexing. The stack remains Bun + Tauri + React
-and Vite. The default page is the IDE-like Workspace with a
-collapsible/resizable PDF Library Explorer, a center embedded PDF
-Workspace, and a collapsible/resizable Agent Chat dock. The FastAPI
-backend must be started separately on
+Stage 46 keeps the simplified PDF Repository plus Agent Chat MVP UI and
+uses the backend LangGraph dual-agent core for `/api/agent/chat`. The
+stack remains Bun + Tauri + React and Vite. The default page keeps PDF
+adding/selection as knowledge-source context and makes Agent Chat the
+main interaction surface. There is no embedded PDF preview/reader in the
+MVP UI. The FastAPI backend must be started separately on
 `http://127.0.0.1:8081`.
 
 This project uses the `pla` conda environment for backend work. Do not
@@ -71,48 +71,41 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 ## Current Features
 
 - Bun is used for frontend dependency management and scripts
-- Sidebar navigation emphasizes Workspace and Today Log
-- Workspace page, opened by default, with PDF Library Explorer, PDF
-  Workspace viewer, and Agent Chat dock
-- Left PDF Library panel has an `Add PDFs` button that opens the Tauri
+- Sidebar navigation emphasizes Repository + Chat and Today Log
+- Repository + Chat page, opened by default, with a PDF Repository panel
+  and Agent Chat as the main area
+- PDF Repository panel has an `Add PDFs` button that opens the Tauri
   system file picker, accepts PDF files, imports them into
   backend-managed storage, indexes them through the backend, refreshes
   the list, and selects the newly indexed PDF
-- Left PDF Library panel lists existing Library items compactly with
+- PDF Repository panel lists existing Library items compactly with
   title, PDF/unsupported label, indexed/unindexed status, filename,
   and selected-item highlighting
-- Center PDF Workspace shows "No PDF selected" until an item is
-  selected, then shows selected title, file, status, PDF support, and
-  an embedded PDF viewer
-- Embedded PDF viewer renders selected local PDFs with loading/error
-  states, current page, total pages, previous/next controls, and zoom
-  controls
-- Center workspace exposes "Open in system PDF reader" for selected
-  items that have a local `file_path`
+- Selected Repository item metadata is shown as current Agent context
+- The MVP UI does not render PDFs in-app and has no PDF page navigation,
+  zoom controls, or citation-to-page jump behavior
 - Library file picker is restricted to `.pdf` files
-- New file-picker selections infer `file_type: "pdf"` and Workspace
+- New file-picker selections infer `file_type: "pdf"` and Repository
   Add PDFs supports selecting multiple PDFs when available
 - Imported PDFs are copied into backend-managed storage before indexing,
-  so the Workspace viewer and system PDF reader action use the managed
-  copy rather than the original selected path
+  so backend indexing and future reindexing use the managed copy rather
+  than the original selected path
 - Visible Library create/edit forms reject non-PDF paths and non-PDF
   file types
 - Legacy non-PDF records are marked unsupported in the PDF Library UI
-- Left Library and right Agent Chat panels can be hidden, shown, and
-  resized by dragging their panel borders
-- Workspace panel visibility and widths persist in `localStorage` as
-  `pla.workspace.layout`
-- Agent Chat dock uses `POST /api/agent/chat` with a product request:
-  `message` plus the selected indexed Workspace item as
+- Agent Chat uses `POST /api/agent/chat` with a product request:
+  `message` plus the selected indexed Repository item as
   `selected_library_item_id` when available
 - Agent Chat no longer shows main-panel controls for RAG mode, `top_k`,
   `session_id`, long-term memory, manual context selection, or
   embedding/indexing debug details
-- Selecting an indexed Library item in the Workspace automatically uses
+- Selecting an indexed Library item in the Repository automatically uses
   that item as the current PDF context for Agent Chat
 - Agent Chat Sources section displays normalized citation IDs, source
   title, page/page range, chunk index, and chapter/section metadata when
   returned by the backend
+- Agent Chat response typing includes additive Stage 46 fields for
+  local citations, web sources, warnings, and errors
 - Citations show source Library item metadata for each chunk
 - Empty citation/retrieval results show a clear no relevant chunks message
 - Agent Chat `Create LaTeX Note` action for the latest RAG response
@@ -120,7 +113,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Legacy Library page with PDF Library metadata create/list/search/edit/archive
 - Library item selection and detail metadata panel
 - Library `Choose PDF` button in Tauri to fill `file_path` metadata
-- Library `Open PDF` button in Tauri for local PDF `file_path` values
+- Legacy Library `Open PDF` button in Tauri for local PDF `file_path` values
 - Library `Index PDF` action indexes PDFs through the backend
   and stores page-aware chunk metadata
 - Agent Chat Sources show page metadata when indexed PDF chunks include it
@@ -142,14 +135,11 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 
 - Does not auto-start the FastAPI backend
 - Library `file_path` is still metadata stored in the backend. For PDFs
-  imported through Workspace Add PDFs, it points to the managed copy.
+  imported through Repository Add PDFs, it points to the managed copy.
 - Choosing a file in the legacy Library form records that local path as
-  metadata. Workspace Add PDFs imports into managed backend storage
-  first. Embedded viewing reads local bytes through Tauri from the
-  stored Library path, and indexing reads PDFs in the backend from that
-  same path.
-- The embedded viewer renders local PDFs but does not annotate,
-  highlight, select text, or jump to citation pages
+  metadata. Repository Add PDFs imports into managed backend storage
+  first, and indexing reads PDFs in the backend from that managed path.
+- The MVP UI has no embedded PDF preview/reader
 - Opening local files is performed by Tauri, not the backend
 - Local file picking and opening should be tested with `bun run tauri dev`
 - `Open PDF` opens the file with the system default app
@@ -189,7 +179,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
   charts, goals, spaced repetition, reminders, or AI progress evaluation
 - Settings are planned to stay simple around theme and long-term memory,
   but no settings, theme, or long-term memory management UI was added in
-  Stage 44
+  Stage 46
 - Notes/LaTeX remains available as legacy functionality but is no
   longer the primary product direction
 - No automatic indexing, real embedding provider, automatic book summary
@@ -200,9 +190,9 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - Multi-book RAG is a retrieval-scope extension only; there is no
   reranking, hybrid search, BM25, query expansion, streaming, agent
   planner, or real LLM answer generation by default
-- Agent Chat uses the backend LangGraph boundary as orchestration only;
-  there is no tool calling, planner, graph visualization, streaming, or
-  frontend settings UI
+- Agent Chat uses the backend LangGraph dual-agent boundary; there is no
+  tool calling, planner UI, graph visualization, streaming, live web
+  browsing UI, or frontend settings UI
 - RAG citations show chunk/document/library metadata only; there is no
   citation-to-PDF-page navigation, source highlighting,
   CSL/BibTeX/Zotero integration, or citation formatting engine
@@ -212,7 +202,7 @@ use, stop the existing local Vite/Tauri dev server and rerun the command.
 - No repository analysis
 - No production packaging workflow
 
-The Tauri app opens files with the operating system default application
-and reads selected PDF bytes for the embedded viewer. Workspace Add PDFs
-passes selected local paths to the backend, which copies supported PDFs
-into managed storage and indexes them there.
+The Tauri app opens legacy Library files with the operating system
+default application. Repository Add PDFs passes selected local paths to
+the backend, which copies supported PDFs into managed storage and
+indexes them there.

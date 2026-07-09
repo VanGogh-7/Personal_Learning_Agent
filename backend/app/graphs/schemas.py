@@ -140,7 +140,10 @@ class AgentChatResponse(BaseModel):
     selected_library_items: list[SelectedLibraryItemRead] = Field(default_factory=list)
     retrieved_chunks: list[RetrievedChunk]
     citations: list[RagCitation]
+    local_citations: list[RagCitation] = Field(default_factory=list)
     web_sources: list[WebSource] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
     local_summary: str | None = None
     web_summary: str | None = None
     total_retrieved: int

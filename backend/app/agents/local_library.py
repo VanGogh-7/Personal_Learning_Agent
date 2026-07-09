@@ -28,6 +28,7 @@ MultiBookRetrieve = Callable[
     tuple[list[LibraryItemRagContext], list[RetrievedChunkResult]],
 ]
 LocalLibraryScope = Literal["global", "single_book", "multi_book"]
+EvidenceQuality = Literal["strong", "partial", "weak", "none"]
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class LocalLibraryAgentResult:
     selected_library_items: list[LibraryItemRagContext]
     retrieved_chunks: list[RetrievedChunkResult]
     citations: list[ChunkCitationResult]
+    evidence_quality: EvidenceQuality
 
 
 def run_local_library_agent(
@@ -88,4 +90,18 @@ def run_local_library_agent(
         selected_library_items=selected_items,
         retrieved_chunks=retrieved,
         citations=citations,
+        evidence_quality=classify_evidence_quality(retrieved),
     )
+
+
+def classify_evidence_quality(retrieved_chunks: list[RetrievedChunkResult]) -> EvidenceQuality:
+    """Classify local evidence using only already-computed retrieval scores."""
+    if not retrieved_chunks:
+        return "none"
+
+    best_score = min(chunk.score for chunk in retrieved_chunks)
+    if best_score <= 0.15:
+        return "strong"
+    if best_score <= 0.35:
+        return "partial"
+    return "weak"

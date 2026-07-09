@@ -1,7 +1,7 @@
 import type { AppPage } from "./AppLayout";
 
 const NAV_ITEMS: Array<{ id: AppPage; label: string; description: string }> = [
-  { id: "workspace", label: "Workspace", description: "PDF workspace" },
+  { id: "workspace", label: "Repository + Chat", description: "PDF context" },
   { id: "progress", label: "Today Log", description: "Learning record" },
 ];
 
