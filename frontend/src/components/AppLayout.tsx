@@ -2,14 +2,10 @@ import { getBackendBaseUrl } from "../api/config";
 import type { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 
-export type AppPage = "workspace" | "chat" | "library" | "notes" | "progress";
+export type AppPage = "workspace";
 
 const PAGE_TITLES: Record<AppPage, string> = {
   workspace: "Repository + Chat",
-  chat: "Agent Chat",
-  library: "PDF Library",
-  notes: "Legacy Notes",
-  progress: "Today Log",
 };
 
 export default function AppLayout({
@@ -33,7 +29,7 @@ export default function AppLayout({
       >
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Stage 47</p>
+            <p className="eyebrow">Stage 50</p>
             <h1>{PAGE_TITLES[activePage]}</h1>
           </div>
           <p className="backend-note">Backend: {getBackendBaseUrl()}</p>

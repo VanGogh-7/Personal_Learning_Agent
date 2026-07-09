@@ -1,16 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
-import {
-  createChatNoteDraft,
-  createNote,
-  queryAgentChat,
-} from "../api/client";
+import { queryAgentChat } from "../api/client";
 import type {
   AgentChatRequest,
   AgentChatResponse,
-  ChatNoteDraftResponse,
   LibraryItem,
-  Note,
   RagCitation,
+  WebSource,
 } from "../api/types";
 
 export default function RagQueryPanel({
@@ -21,21 +16,13 @@ export default function RagQueryPanel({
   const [question, setQuestion] = useState("");
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
   const [result, setResult] = useState<AgentChatResponse | null>(null);
-  const [lastQuestion, setLastQuestion] = useState("");
-  const [noteDraft, setNoteDraft] = useState<ChatNoteDraftResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [noteError, setNoteError] = useState<string | null>(null);
-  const [noteSuccess, setNoteSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [generatingNote, setGeneratingNote] = useState(false);
-  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     setChatTurns([]);
     setResult(null);
-    setLastQuestion("");
     setError(null);
-    clearNoteDraft();
   }, [workspaceSelectedItem?.id]);
 
   async function submitQuery(event: FormEvent<HTMLFormElement>) {
@@ -58,7 +45,6 @@ export default function RagQueryPanel({
       }
       const response = await queryAgentChat(payload);
       setResult(response);
-      setLastQuestion(payload.message);
       setChatTurns((current) => [
         ...current,
         {
@@ -68,79 +54,12 @@ export default function RagQueryPanel({
         },
       ]);
       setQuestion("");
-      clearNoteDraft();
     } catch (err) {
       setResult(null);
       setError(formatAgentChatError(err));
     } finally {
       setLoading(false);
     }
-  }
-
-  async function generateNoteDraft() {
-    if (!result) {
-      return;
-    }
-
-    setNoteError(null);
-    setNoteSuccess(null);
-    setGeneratingNote(true);
-    try {
-      const draft = await createChatNoteDraft({
-        question: lastQuestion || question.trim(),
-        answer: result.answer,
-        retrieved_chunks: result.retrieved_chunks.map((chunk) => ({
-          id: chunk.chunk_id,
-          document_id: chunk.document_id,
-          document_title: chunk.document_title,
-          chunk_index: chunk.chunk_index,
-          content: chunk.content,
-          score: chunk.score,
-        })),
-        library_item:
-          result.scope_type === "single_book"
-            ? result.selected_library_items[0] || null
-            : null,
-        session_id: result.session_id,
-      });
-      setNoteDraft(draft);
-    } catch (err) {
-      setNoteError(err instanceof Error ? err.message : "Could not generate note draft.");
-    } finally {
-      setGeneratingNote(false);
-    }
-  }
-
-  async function saveNoteDraft() {
-    if (!noteDraft) {
-      return;
-    }
-
-    setNoteError(null);
-    setNoteSuccess(null);
-    setSavingNote(true);
-    try {
-      const note: Note = await createNote({
-        title: noteDraft.title,
-        content_latex: noteDraft.content_latex,
-        description: noteDraft.description || null,
-        library_item_id: noteDraft.library_item_id || null,
-        source_session_id: noteDraft.source_session_id || null,
-        topic_tags: noteDraft.topic_tags || null,
-      });
-      setNoteSuccess(`Saved note "${note.title}".`);
-      setNoteDraft(null);
-    } catch (err) {
-      setNoteError(err instanceof Error ? err.message : "Could not save note.");
-    } finally {
-      setSavingNote(false);
-    }
-  }
-
-  function clearNoteDraft() {
-    setNoteDraft(null);
-    setNoteError(null);
-    setNoteSuccess(null);
   }
 
   return (
@@ -203,72 +122,7 @@ export default function RagQueryPanel({
           </div>
 
           <div className="result-block">
-            <div className="panel-heading compact-heading">
-              <div>
-                <h3>Create LaTeX Note</h3>
-                <p>
-                  Generate a deterministic draft from this answer, review it, then save it to
-                  Notes.
-                </p>
-              </div>
-              <button type="button" disabled={generatingNote} onClick={generateNoteDraft}>
-                {generatingNote ? "Generating..." : "Create LaTeX Note"}
-              </button>
-            </div>
-
-            {noteError && <p className="error compact-error">{noteError}</p>}
-            {noteSuccess && <p className="success">{noteSuccess}</p>}
-
-            {noteDraft && (
-              <div className="chat-note-draft">
-                <label>
-                  title
-                  <input
-                    value={noteDraft.title}
-                    onChange={(event) =>
-                      setNoteDraft({ ...noteDraft, title: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  description
-                  <input
-                    value={noteDraft.description || ""}
-                    onChange={(event) =>
-                      setNoteDraft({ ...noteDraft, description: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="full-width">
-                  content_latex
-                  <textarea
-                    className="latex-textarea"
-                    rows={14}
-                    value={noteDraft.content_latex}
-                    onChange={(event) =>
-                      setNoteDraft({ ...noteDraft, content_latex: event.target.value })
-                    }
-                  />
-                </label>
-                <p className="muted compact-note">
-                  {noteDraft.library_item_id
-                    ? "Will save with the selected book."
-                    : "Will save without an associated book."}
-                </p>
-                <div className="button-row full-width">
-                  <button type="button" disabled={savingNote} onClick={saveNoteDraft}>
-                    {savingNote ? "Saving..." : "Save note"}
-                  </button>
-                  <button type="button" className="secondary-button" onClick={clearNoteDraft}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="result-block">
-            <h3>Sources</h3>
+            <h3>Local Citations</h3>
             {result.citations.length === 0 ? (
               <p className="empty-state">
                 No relevant indexed chunks were retrieved for this question.
@@ -289,10 +143,40 @@ export default function RagQueryPanel({
               </ul>
             )}
           </div>
+
+          <div className="result-block">
+            <h3>Web Sources</h3>
+            {!result.web_sources || result.web_sources.length === 0 ? (
+              <p className="empty-state">No web sources were returned for this answer.</p>
+            ) : (
+              <ul className="citation-list">
+                {result.web_sources.map((source) => (
+                  <li key={source.source_id}>
+                    <div className="item-title">
+                      <span>
+                        [{source.source_id}] {source.title}
+                      </span>
+                    </div>
+                    <small className="citation-meta">{webSourceMetadata(source)}</small>
+                    <p>{source.excerpt || "No summary available."}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </section>
   );
+}
+
+function webSourceMetadata(source: WebSource): string {
+  const parts = [
+    source.provider ? `Provider: ${source.provider}` : null,
+    source.published_date ? `Published: ${source.published_date}` : null,
+    source.url,
+  ];
+  return parts.filter(Boolean).join(" · ");
 }
 
 type ChatTurn = {

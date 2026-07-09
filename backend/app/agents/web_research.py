@@ -171,8 +171,8 @@ class DeterministicWebResearchProvider:
 def get_web_research_provider() -> WebResearchProvider:
     """Resolve the configured Web Research provider.
 
-    Stage 47 keeps live web search opt-in. The deterministic provider
-    remains available for tests and local demos.
+    Live web search is opt-in. The deterministic provider remains
+    available for tests and local demos.
     """
     provider_name = get_settings().web_research_provider.strip().lower()
     if provider_name in {"", "none", "unavailable", "disabled"}:

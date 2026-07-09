@@ -32,6 +32,8 @@ def import_pdf_paths(
     if not source_paths:
         raise LibraryImportError("At least one PDF path is required.")
 
+    # Repository imports always copy PDFs into backend-managed storage before
+    # indexing so later retrieval never depends on the user's original path.
     app_settings = settings or get_settings()
     storage_dir = _resolve_storage_dir(app_settings.library_storage_dir)
     storage_dir.mkdir(parents=True, exist_ok=True)
@@ -59,6 +61,8 @@ def import_pdf_path(
     )
 
     try:
+        # Create the Library item against the managed copy, then index through
+        # the normal PDF extraction/chunking/embedding pipeline.
         item = create_library_item(
             session,
             title=title,

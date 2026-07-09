@@ -3,6 +3,8 @@
 backend/data/*
 !backend/data/.gitkeep
 backend/storage/
+*.pdf
+*baseline*.txt
 /datasets/*
 !/datasets/.gitignore
 !/datasets/README.md

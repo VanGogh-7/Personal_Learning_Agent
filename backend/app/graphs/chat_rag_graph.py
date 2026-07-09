@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Literal, TypedDict
+from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
@@ -32,8 +32,7 @@ from app.memory.short_term import (
     get_recent_turns,
     save_turn,
 )
-from app.rag.citations import ChunkCitationResult, build_chunk_citations
-from app.rag.qa import build_deterministic_answer, build_rag_prompt
+from app.rag.citations import ChunkCitationResult
 from app.rag.retrieval import (
     LibraryItemRagContext,
     RetrievedChunkResult,
@@ -55,6 +54,8 @@ class ChatRAGValidationError(ChatRAGGraphError):
 
 
 class AgentGraphState(TypedDict, total=False):
+    # Stable graph contract for the dual-agent MVP. Values are kept JSON-like
+    # because LangGraph passes state between independent node functions.
     user_message: str
     selected_library_item_ids: list[str]
     route_decision: AgentRoute
@@ -91,7 +92,7 @@ ChatRAGState = AgentGraphState
 
 
 def build_chat_rag_graph(session: Session):
-    """Build the explicit Stage 46 dual-agent LangGraph boundary."""
+    """Build the explicit dual-agent LangGraph boundary."""
     graph = StateGraph(AgentGraphState)
 
     graph.add_node("validate_input", validate_input)
@@ -234,11 +235,13 @@ def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
 
 
 def router_node(state: ChatRAGState) -> ChatRAGState:
+    # Routing is intentionally deterministic so MVP demos and tests are stable.
     route = route_question(state["question"])
     return {"route": route, "route_decision": route}
 
 
 def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGState:
+    # The local agent owns pgvector retrieval and [S#] citation creation.
     if state["route"] == "web_only":
         return {
             "retrieved_chunks": [],
@@ -277,6 +280,7 @@ def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGSt
 
 
 def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
+    # The web agent is provider-backed and always returns structured [W#] sources.
     if state["route"] == "local_only":
         return {
             "web_summary": None,
@@ -296,6 +300,7 @@ def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
 
 
 def synthesis_node(state: ChatRAGState) -> ChatRAGState:
+    # Synthesis combines agent outputs without merging local citations and web sources.
     local_result = _state_to_local_library_agent_result(state)
     web_result = _state_to_web_research_result(state)
     synthesis = synthesize_agent_answer(
@@ -315,75 +320,6 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         ),
         "errors": _merge_unique_strings(state.get("errors", []), synthesis.errors),
     }
-
-
-def retrieve_chunks(state: ChatRAGState, session: Session) -> ChatRAGState:
-    scope_type = state["scope_type"]
-    question = state["question"]
-    top_k = state["top_k"]
-
-    if scope_type == "single_book":
-        selected_item, retrieved = retrieve_relevant_chunks_for_library_item(
-            session,
-            library_item_id=uuid.UUID(state["library_item_id"]),
-            question=question,
-            top_k=top_k,
-        )
-        selected_items = [selected_item]
-    elif scope_type == "multi_book":
-        selected_items, retrieved = retrieve_relevant_chunks_for_library_items(
-            session,
-            library_item_ids=[uuid.UUID(item_id) for item_id in state["library_item_ids"]],
-            question=question,
-            top_k=top_k,
-        )
-    else:
-        selected_items = []
-        retrieved = retrieve_relevant_chunks(session, question, top_k=top_k)
-
-    return {
-        "selected_library_items": [
-            _library_item_context_to_state(item) for item in selected_items
-        ],
-        "retrieved_chunks": [_retrieved_chunk_to_state(chunk) for chunk in retrieved],
-    }
-
-
-def build_citations(state: ChatRAGState) -> ChatRAGState:
-    retrieved = [_state_to_retrieved_chunk(chunk) for chunk in state.get("retrieved_chunks", [])]
-    citation_results = build_chunk_citations(retrieved)
-    return {"citations": [_citation_to_state(citation) for citation in citation_results]}
-
-
-def build_prompt(state: ChatRAGState) -> ChatRAGState:
-    retrieved = [_state_to_retrieved_chunk(chunk) for chunk in state.get("retrieved_chunks", [])]
-    recent_turns = [_state_to_conversation_turn(turn) for turn in state["short_term_context"]]
-    long_term_memories = [
-        _state_to_long_term_memory(memory) for memory in state["long_term_context"]
-    ]
-    deterministic_answer = build_deterministic_answer(
-        state["question"],
-        retrieved,
-        recent_turns=recent_turns,
-        long_term_memories=long_term_memories,
-    )
-    prompt = build_rag_prompt(
-        state["question"],
-        retrieved,
-        recent_turns=recent_turns,
-        long_term_memories=long_term_memories,
-        library_item_context=_build_selected_items_context(
-            state["scope_type"], state.get("selected_library_items", [])
-        ),
-        deterministic_answer=deterministic_answer,
-    )
-    return {"prompt": prompt}
-
-
-def generate_answer(state: ChatRAGState) -> ChatRAGState:
-    provider = get_llm_provider()
-    return {"answer": provider.generate(state["prompt"])}
-
 
 def save_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
     metadata: dict[str, Any] = {
@@ -797,21 +733,3 @@ def _retrieved_chunk_response(
         score=chunk["score"],
         citation=citation,
     )
-
-
-def _build_selected_items_context(
-    scope_type: Literal["global", "single_book", "multi_book"],
-    selected_items: list[dict[str, Any]],
-) -> str | None:
-    if scope_type == "global" or not selected_items:
-        return None
-
-    lines = ["Selected books:"]
-    for index, item in enumerate(selected_items, start=1):
-        parts = [f"{index}. {item['title']}", f"status: {item['status']}"]
-        if item.get("author"):
-            parts.append(f"author: {item['author']}")
-        if item.get("file_type"):
-            parts.append(f"file type: {item['file_type']}")
-        lines.append("; ".join(parts))
-    return "\n".join(lines)

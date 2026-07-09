@@ -373,6 +373,9 @@ def test_agent_chat_web_only_route_with_mock_web_results(
     assert response.retrieved_chunks == []
     assert response.local_citations == []
     assert response.web_sources[0].source_id == "W1"
+    assert response.web_sources[0].title == "Deterministic web research placeholder"
+    assert response.web_sources[0].url.startswith("mock://")
+    assert response.web_sources[0].excerpt
     assert response.web_sources[0].provider == "deterministic"
     assert response.warnings == []
     assert "[W1]" in response.answer
@@ -421,7 +424,8 @@ def test_agent_chat_both_route_returns_local_citations_and_web_sources(
     assert response.warnings
     assert response.local_summary is not None
     assert response.web_summary is None
-    assert "External web context:" not in response.answer
+    assert "External context" in response.answer
+    assert "Web research is unavailable" in response.answer
     assert "Derivatives measure local rates of change" in response.answer
     assert "[S1]" in response.answer
 
@@ -468,10 +472,24 @@ def test_agent_chat_both_route_with_mock_web_results(
     assert response.route == "both"
     assert response.total_retrieved == 1
     assert response.local_citations[0].citation_id == "S1"
+    assert response.local_citations[0].document_title == "Learning PDF"
+    assert response.local_citations[0].chunk_index == 0
+    assert response.local_citations[0].page_start == 8
+    assert response.local_citations[0].page_end == 8
+    assert response.local_citations[0].chunk_id == str(chunk.chunk_id)
+    assert response.local_citations[0].document_id == str(chunk.document_id)
     assert response.web_sources[0].provider == "deterministic"
+    assert response.web_sources[0].source_id == "W1"
+    assert response.web_sources[0].title == "Deterministic web research placeholder"
+    assert response.web_sources[0].url.startswith("mock://")
+    assert response.web_sources[0].excerpt
     assert response.web_summary is not None
-    assert "Local book evidence:" in response.answer
-    assert "External web context:" in response.answer
+    assert "From your library" in response.answer
+    assert "External context" in response.answer
+    assert "Synthesis" in response.answer
+    assert "Sources" in response.answer
+    assert "Library: [S1]" in response.answer
+    assert "Web: [W1]" in response.answer
     assert "[S1]" in response.answer
     assert "[W1]" in response.answer
 
@@ -510,7 +528,7 @@ def test_agent_chat_synthesis_uses_configured_llm_provider(
     assert prompts
     assert "Local Library Agent summary:" in prompts[0]
     assert "Web Research Agent summary:" not in prompts[0]
-    assert "web research is unavailable" in prompts[0]
+    assert "Web research is unavailable" in prompts[0]
 
 
 def test_agent_chat_provider_configuration_error_is_clean(

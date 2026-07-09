@@ -46,6 +46,8 @@ def build_chunk_citations(
 ) -> list[ChunkCitationResult]:
     citations: list[ChunkCitationResult] = []
     for index, chunk in enumerate(retrieved_chunks, start=1):
+        # Local Library evidence always uses S-prefixed source IDs; web sources
+        # use W-prefixed IDs and are kept separate by the agent response schema.
         citations.append(
             ChunkCitationResult(
                 citation_id=f"S{index}",

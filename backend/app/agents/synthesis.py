@@ -24,7 +24,7 @@ def synthesize_agent_answer(
     web_result: WebResearchResult | None = None,
     llm_provider: LLMProvider | None = None,
 ) -> AgentSynthesisResult:
-    """Combine fixed local and web agent outputs into one deterministic answer."""
+    """Combine fixed local and web agent outputs into one stable MVP answer."""
     local_summary = local_result.summary if local_result is not None else None
     web_summary = web_result.summary if web_result is not None else None
     warnings = list(web_result.warnings) if web_result is not None else []
@@ -40,29 +40,20 @@ def synthesize_agent_answer(
     )
 
     if route == "local_only":
-        answer = local_answer or "I could not find relevant information in the local Library."
+        answer = build_local_only_answer(local_result, local_answer)
     elif route == "web_only":
-        if web_unavailable:
-            answer = (
-                "Web research is unavailable because no web provider is configured. "
-                "I cannot answer this current or external question from web evidence."
-            )
-        else:
-            answer = web_summary or "No web research result is available."
+        answer = build_web_only_answer(web_result, web_summary, web_unavailable)
     else:
-        parts: list[str] = []
-        if local_answer and has_local_evidence:
-            parts.append(f"Local book evidence: {local_answer}")
-        if web_summary and not web_unavailable:
-            parts.append(f"External web context: {web_summary}")
         if web_unavailable and has_local_evidence:
             warnings.append(
                 "Web research was skipped because no web provider is configured; answer uses local Library evidence only."
             )
-        answer = " ".join(parts) if parts else (
-            "I could not find supported local evidence, and web research is unavailable."
-            if web_unavailable
-            else "I could not find local or web evidence for this question."
+        answer = build_both_answer(
+            local_result=local_result,
+            local_answer=local_answer,
+            web_result=web_result,
+            web_summary=web_summary,
+            web_unavailable=web_unavailable,
         )
 
     if llm_provider is not None:
@@ -113,7 +104,10 @@ def build_synthesis_prompt(
         "Use only the provided local and web summaries.",
         "If evidence is missing, say so clearly.",
         "When using local Library evidence, cite claims with the provided [S#] IDs.",
+        "When using web evidence, cite claims with the provided [W#] IDs.",
         "Do not invent source IDs or alternate source labels.",
+        "Keep local Library citations and web source IDs visually separate.",
+        "For route=both, use concise sections: From your library, External context, Synthesis, Sources.",
         "",
         "Question:",
         question.strip(),
@@ -148,6 +142,156 @@ def build_synthesis_prompt(
 
     lines.extend(["", DETERMINISTIC_ANSWER_MARKER, deterministic_answer])
     return "\n".join(lines)
+
+
+def build_local_only_answer(
+    local_result: LocalLibraryAgentResult | None,
+    local_answer: str | None,
+) -> str:
+    if local_result is None or local_result.evidence_quality == "none":
+        return "\n\n".join(
+            [
+                "From your library",
+                "I could not find relevant information in the selected local Library evidence.",
+                "Sources",
+                "No local citations were available.",
+            ]
+        )
+
+    lines = [
+        "From your library",
+        local_answer or "I found local Library evidence, but no summary was produced.",
+    ]
+    if local_result.evidence_quality == "weak":
+        lines.append(
+            "The retrieved local evidence looks weak, so treat this as limited book evidence."
+        )
+    lines.extend(["Sources", format_local_source_list(local_result.citations)])
+    return "\n\n".join(lines)
+
+
+def build_web_only_answer(
+    web_result: WebResearchResult | None,
+    web_summary: str | None,
+    web_unavailable: bool,
+) -> str:
+    if web_result is None or web_unavailable:
+        return "\n\n".join(
+            [
+                "External context",
+                (
+                    "Web research is unavailable or skipped, so I cannot answer this "
+                    "current or external question from web evidence."
+                ),
+                "Sources",
+                "No web sources were available.",
+            ]
+        )
+
+    return "\n\n".join(
+        [
+            "External context",
+            web_summary or "Web research completed, but no usable summary was produced.",
+            "Sources",
+            format_web_source_list(web_result.sources),
+        ]
+    )
+
+
+def build_both_answer(
+    *,
+    local_result: LocalLibraryAgentResult | None,
+    local_answer: str | None,
+    web_result: WebResearchResult | None,
+    web_summary: str | None,
+    web_unavailable: bool,
+) -> str:
+    has_local_evidence = (
+        local_result is not None and local_result.evidence_quality != "none"
+    )
+    has_web_evidence = (
+        web_result is not None
+        and not web_unavailable
+        and bool(web_summary or web_result.sources)
+    )
+
+    if has_local_evidence:
+        local_section = local_answer or "Local Library evidence was found, but no summary was produced."
+        if local_result.evidence_quality == "weak":
+            local_section += (
+                " The retrieved local evidence looks weak, so treat this as limited book evidence."
+            )
+    else:
+        local_section = "I could not find supported local Library evidence for this question."
+
+    if has_web_evidence:
+        web_section = web_summary or "Web research returned sources, but no summary was produced."
+    elif web_unavailable:
+        web_section = "Web research is unavailable or skipped for this request."
+    else:
+        web_section = "No usable web research result was available."
+
+    synthesis_section = build_combined_synthesis_sentence(
+        has_local_evidence=has_local_evidence,
+        has_web_evidence=has_web_evidence,
+        web_unavailable=web_unavailable,
+    )
+
+    local_sources = (
+        format_local_source_list(local_result.citations)
+        if local_result is not None
+        else "none"
+    )
+    web_sources = (
+        format_web_source_list(web_result.sources)
+        if web_result is not None and not web_unavailable
+        else "none"
+    )
+
+    return "\n\n".join(
+        [
+            "From your library",
+            local_section,
+            "External context",
+            web_section,
+            "Synthesis",
+            synthesis_section,
+            "Sources",
+            f"Library: {local_sources}\nWeb: {web_sources}",
+        ]
+    )
+
+
+def build_combined_synthesis_sentence(
+    *,
+    has_local_evidence: bool,
+    has_web_evidence: bool,
+    web_unavailable: bool,
+) -> str:
+    if has_local_evidence and has_web_evidence:
+        return (
+            "Use the library evidence as the book-grounded answer and the web result "
+            "only as external context."
+        )
+    if has_local_evidence and web_unavailable:
+        return "The answer is based on local Library evidence only because web research is unavailable."
+    if has_local_evidence:
+        return "The answer is based on local Library evidence; no usable web context was available."
+    if has_web_evidence:
+        return "No supported local Library evidence was found, so the answer relies on external web context."
+    return "Neither supported local Library evidence nor usable web context was available."
+
+
+def format_local_source_list(local_citations: list[ChunkCitationResult]) -> str:
+    if not local_citations:
+        return "none"
+    return ", ".join(f"[{citation.citation_id}]" for citation in local_citations)
+
+
+def format_web_source_list(web_sources: list[WebSourceResult]) -> str:
+    if not web_sources:
+        return "none"
+    return ", ".join(f"[{source.source_id}]" for source in web_sources)
 
 
 def append_local_source_ids(

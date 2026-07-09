@@ -151,7 +151,7 @@ def test_tavily_web_provider_missing_key_returns_warning() -> None:
     assert "TAVILY_API_KEY is not configured" in result.warnings[0]
 
 
-def test_synthesis_handles_local_only() -> None:
+def test_synthesis_handles_local_only_without_evidence() -> None:
     local_result = run_local_library_agent(
         None,  # type: ignore[arg-type]
         question="Use my books",
@@ -168,8 +168,50 @@ def test_synthesis_handles_local_only() -> None:
         local_result=local_result,
     )
 
-    assert result.answer == local_result.summary
+    assert result.answer.startswith("From your library")
+    assert "I could not find relevant information" in result.answer
+    assert "No local citations were available" in result.answer
     assert result.local_summary == local_result.summary
+    assert result.web_summary is None
+
+
+def test_synthesis_handles_local_only_with_local_citations() -> None:
+    chunk = RetrievedChunkResult(
+        chunk_id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        document_title="Analysis",
+        document_source_path="/tmp/analysis.pdf",
+        library_item_id=uuid.uuid4(),
+        library_title="Analysis",
+        library_author="Author",
+        chunk_index=4,
+        content="Complete metric spaces are spaces where every Cauchy sequence converges.",
+        char_start=0,
+        char_end=74,
+        page_start=31,
+        page_end=31,
+        score=0.02,
+    )
+    local_result = run_local_library_agent(
+        None,  # type: ignore[arg-type]
+        question="What does this book say about complete metric spaces?",
+        scope_type="global",
+        library_item_id=None,
+        library_item_ids=[],
+        top_k=1,
+        retrieve_global=lambda session, question, top_k: [chunk],
+    )
+
+    result = synthesize_agent_answer(
+        question="What does this book say about complete metric spaces?",
+        route="local_only",
+        local_result=local_result,
+    )
+
+    assert "From your library" in result.answer
+    assert "Sources" in result.answer
+    assert "[S1]" in result.answer
+    assert "Complete metric spaces" in result.answer
     assert result.web_summary is None
 
 
@@ -183,9 +225,30 @@ def test_synthesis_handles_web_only() -> None:
     )
 
     assert "Web research is unavailable" in result.answer
+    assert "External context" in result.answer
+    assert "No web sources were available" in result.answer
     assert result.local_summary is None
     assert result.web_summary is None
     assert result.warnings == web_result.warnings
+
+
+def test_synthesis_handles_web_only_with_mock_sources() -> None:
+    web_result = run_web_research_agent(
+        "What is current?",
+        provider=DeterministicWebResearchProvider(),
+    )
+
+    result = synthesize_agent_answer(
+        question="What is current?",
+        route="web_only",
+        web_result=web_result,
+    )
+
+    assert "External context" in result.answer
+    assert "[W1]" in result.answer
+    assert "Sources" in result.answer
+    assert result.local_summary is None
+    assert result.web_summary == web_result.summary
 
 
 def test_synthesis_handles_both() -> None:
@@ -207,9 +270,11 @@ def test_synthesis_handles_both() -> None:
         web_result=web_result,
     )
 
-    assert result.answer == (
-        "I could not find supported local evidence, and web research is unavailable."
-    )
+    assert "From your library" in result.answer
+    assert "External context" in result.answer
+    assert "Synthesis" in result.answer
+    assert "Library: none" in result.answer
+    assert "Web: none" in result.answer
     assert result.local_summary == local_result.summary
     assert result.web_summary is None
     assert result.warnings
@@ -248,7 +313,8 @@ def test_synthesis_handles_both_with_local_evidence_and_unavailable_web() -> Non
     )
 
     assert local_result.summary in result.answer
-    assert "External web context:" not in result.answer
+    assert "External context" in result.answer
+    assert "Web research is unavailable" in result.answer
     assert result.local_summary == local_result.summary
     assert result.web_summary is None
     assert any("local Library evidence only" in warning for warning in result.warnings)
@@ -277,7 +343,12 @@ def test_synthesis_handles_both_with_mock_web_results() -> None:
         web_result=web_result,
     )
 
-    assert f"External web context: {web_result.summary}" in result.answer
+    assert "From your library" in result.answer
+    assert "External context" in result.answer
+    assert web_result.summary in result.answer
+    assert "Synthesis" in result.answer
+    assert "Library: none" in result.answer
+    assert "Web: [W1]" in result.answer
     assert "[W1]" in result.answer
     assert result.web_summary == web_result.summary
 
