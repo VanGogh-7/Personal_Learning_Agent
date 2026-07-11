@@ -1,7 +1,18 @@
+import type { RagCitation, WebSource } from "../api/types";
+import type {
+  AgentActivityState,
+  AssistantMessageStatus,
+} from "../streaming/types";
+
 export interface ChatTurn {
-  id: number;
+  id: number | string;
   question: string;
   answer: string;
+  status?: AssistantMessageStatus;
+  citations?: RagCitation[];
+  webSources?: WebSource[];
+  activity?: AgentActivityState;
+  serverMessageId?: string | null;
 }
 
 export interface ConversationState {
@@ -68,7 +79,7 @@ export function restoreConversationState(): ConversationRestoreResult {
     return {
       state: {
         conversationId: parsed.conversationId || null,
-        messages: parsed.messages.filter(isChatTurn),
+        messages: parsed.messages.filter(isChatTurn).map(normalizeChatTurn),
         selectedLibraryItemIds: dedupeStrings(parsed.selectedLibraryItemIds),
       },
       warning: null,
@@ -98,10 +109,25 @@ function isChatTurn(value: unknown): value is ChatTurn {
   }
   const turn = value as Partial<ChatTurn>;
   return (
-    typeof turn.id === "number" &&
+    (typeof turn.id === "number" || typeof turn.id === "string") &&
     typeof turn.question === "string" &&
     typeof turn.answer === "string"
   );
+}
+
+function normalizeChatTurn(turn: ChatTurn): ChatTurn {
+  const activeStatuses: AssistantMessageStatus[] = [
+    "pending",
+    "streaming",
+    "persisting",
+  ];
+  return {
+    ...turn,
+    status:
+      turn.status && activeStatuses.includes(turn.status)
+        ? "failed"
+        : turn.status || "completed",
+  };
 }
 
 function dedupeStrings(values: unknown[]): string[] {

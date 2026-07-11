@@ -1,13 +1,4 @@
-import {
-  Dispatch,
-  FormEvent,
-  SetStateAction,
-  UIEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { queryAgentChat } from "../api/client";
+import { queryAgentChat, queryAgentChatStream } from "../api/client";
 import type {
   AgentChatRequest,
   AgentChatResponse,
@@ -15,11 +6,25 @@ import type {
   RagCitation,
   WebSource,
 } from "../api/types";
+import type {
+  AgentRunState,
+  AgentStreamEvent,
+  CancelledEvent,
+  ErrorEvent,
+} from "../streaming/types";
+import {
+  assistantStatus,
+  batchedTokenEvent,
+  createAgentRunState,
+  reduceAgentRun,
+} from "../streaming/stateMachine";
+import { useEffect, useRef, useState } from "react";
+import type { Dispatch, FormEvent, SetStateAction, UIEvent } from "react";
 import {
   ConversationState,
   createEmptyConversationState,
 } from "../chat/conversationState";
-import { MarkdownMessage } from "./MarkdownMessage";
+import { ChatTurnMessage } from "./ChatTurnMessage";
 import { FrontendLatencyTracker } from "../chat/latency";
 
 export default function RagQueryPanel({
@@ -34,9 +39,21 @@ export default function RagQueryPanel({
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState<AgentChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [activeRun, setActiveRun] = useState<AgentRunState | null>(null);
   const scrollRegionRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  const activeRunRef = useRef<AgentRunState | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const pendingTokensRef = useRef("");
+  const tokenFlushTimerRef = useRef<number | null>(null);
+  const flushIntervalRef = useRef(50);
+  const runLockedRef = useRef(false);
+  const latencyTrackerRef = useRef<FrontendLatencyTracker | null>(null);
+  const loading =
+    activeRun !== null &&
+    !["completed", "cancelled", "failed"].includes(activeRun.status);
+  const lastAnswerLength =
+    conversation.messages[conversation.messages.length - 1]?.answer.length || 0;
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current || !scrollRegionRef.current) {
@@ -49,7 +66,102 @@ export default function RagQueryPanel({
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [conversation.messages.length, loading]);
+  }, [conversation.messages.length, lastAnswerLength, activeRun?.status]);
+
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort();
+      if (tokenFlushTimerRef.current !== null) {
+        window.clearTimeout(tokenFlushTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  function commitRunState(next: AgentRunState) {
+    activeRunRef.current = next;
+    setActiveRun(next);
+    onConversationChange((current) => ({
+      ...current,
+      messages: current.messages.map((turn) =>
+        turn.id === next.messageId
+          ? {
+              ...turn,
+              answer: next.content,
+              status: assistantStatus(next.status),
+              citations: next.citations,
+              webSources: next.webSources,
+              activity: next.activity,
+              serverMessageId: next.serverMessageId,
+            }
+          : turn,
+      ),
+    }));
+  }
+
+  function flushPendingTokens() {
+    if (!pendingTokensRef.current || !activeRunRef.current) {
+      return;
+    }
+    const delta = pendingTokensRef.current;
+    const isFirstVisibleToken = activeRunRef.current.content.length === 0;
+    pendingTokensRef.current = "";
+    if (tokenFlushTimerRef.current !== null) {
+      window.clearTimeout(tokenFlushTimerRef.current);
+      tokenFlushTimerRef.current = null;
+    }
+    commitRunState(
+      reduceAgentRun(activeRunRef.current, batchedTokenEvent(delta)),
+    );
+    if (isFirstVisibleToken) {
+      window.requestAnimationFrame(() =>
+        latencyTrackerRef.current?.recordFirstTokenRender(),
+      );
+    }
+  }
+
+  function handleStreamEvent(event: AgentStreamEvent) {
+    latencyTrackerRef.current?.recordLastChunk();
+    if (event.type === "status") {
+      latencyTrackerRef.current?.recordFirstStatus();
+      window.requestAnimationFrame(() =>
+        latencyTrackerRef.current?.recordFirstActivityRender(),
+      );
+    } else if (event.type === "token") {
+      latencyTrackerRef.current?.recordFirstToken();
+    } else if (event.type === "done") {
+      latencyTrackerRef.current?.recordDone();
+    }
+    if (event.type === "run_started") {
+      flushIntervalRef.current = Math.max(
+        30,
+        Math.min(80, event.ui_flush_interval_ms),
+      );
+    }
+    if (event.type === "token") {
+      pendingTokensRef.current += event.delta;
+      if (tokenFlushTimerRef.current === null) {
+        tokenFlushTimerRef.current = window.setTimeout(
+          flushPendingTokens,
+          flushIntervalRef.current,
+        );
+      }
+      return;
+    }
+    flushPendingTokens();
+    if (!activeRunRef.current) return;
+    const next = reduceAgentRun(activeRunRef.current, event);
+    commitRunState(next);
+    if (event.type === "final") {
+      setResult(event.response);
+      onConversationChange((current) => ({
+        ...current,
+        conversationId: event.response.conversation_id,
+      }));
+    } else if (event.type === "error") {
+      setError(event.message);
+    }
+  }
 
   async function submitQuery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,48 +172,129 @@ export default function RagQueryPanel({
       setError("Question is required.");
       return;
     }
-
-    setLoading(true);
+    if (runLockedRef.current) return;
+    runLockedRef.current = true;
     const latency = new FrontendLatencyTracker();
+    latencyTrackerRef.current = latency;
+    const payload = buildAgentChatRequest(
+      conversation,
+      workspaceSelectedItems,
+      submittedQuestion,
+    );
+    const messageId = createClientMessageId();
+    const initialRun = createAgentRunState(messageId);
+    activeRunRef.current = initialRun;
+    setActiveRun(initialRun);
+    pendingTokensRef.current = "";
+    setResult(null);
+    setQuestion("");
+    shouldAutoScrollRef.current = true;
+    onConversationChange((current) => ({
+      ...current,
+      messages: [
+        ...current.messages,
+        {
+          id: messageId,
+          question: submittedQuestion,
+          answer: "",
+          status: "pending",
+          activity: initialRun.activity,
+        },
+      ],
+    }));
+    const controller = new AbortController();
+    controllerRef.current = controller;
     try {
-      shouldAutoScrollRef.current = true;
-      const payload = buildAgentChatRequest(
-        conversation,
-        workspaceSelectedItems,
-        submittedQuestion,
-      );
-      const response = await queryAgentChat(payload);
+      await queryAgentChatStream(payload, {
+        signal: controller.signal,
+        onEvent: handleStreamEvent,
+      });
       latency.recordCompleteResponse();
-      setResult(response);
-      onConversationChange((current) => ({
-        ...current,
-        conversationId: response.conversation_id,
-        messages: [
-          ...current.messages,
-          {
-            id: current.messages.length + 1,
-            question: submittedQuestion,
-            answer: response.answer,
-          },
-        ],
-      }));
-      setQuestion("");
+    } catch (err) {
+      if (controller.signal.aborted) {
+        flushPendingTokens();
+        if (activeRunRef.current) {
+          commitRunState(
+            reduceAgentRun(activeRunRef.current, clientCancelledEvent()),
+          );
+        }
+      } else if (isStreamingDisabledError(err)) {
+        try {
+          await completeWithNonStreamingFallback(payload, controller.signal);
+        } catch (fallbackError) {
+          if (controller.signal.aborted) {
+            flushPendingTokens();
+            if (activeRunRef.current) {
+              commitRunState(
+                reduceAgentRun(activeRunRef.current, clientCancelledEvent()),
+              );
+            }
+          } else {
+            failActiveRun(fallbackError);
+          }
+        }
+      } else if (activeRunRef.current?.status !== "failed") {
+        failActiveRun(err);
+      }
+    } finally {
+      flushPendingTokens();
+      controllerRef.current = null;
+      runLockedRef.current = false;
       window.requestAnimationFrame(() => {
         const summary = latency.recordRenderComplete();
         if (import.meta.env.DEV) {
           console.debug("Agent frontend latency", summary);
         }
+        if (latencyTrackerRef.current === latency) {
+          latencyTrackerRef.current = null;
+        }
       });
-    } catch (err) {
-      setResult(null);
-      setError(formatAgentChatError(err));
-    } finally {
-      setLoading(false);
     }
+  }
+
+  async function completeWithNonStreamingFallback(
+    payload: AgentChatRequest,
+    signal: AbortSignal,
+  ) {
+    const response = await queryAgentChat(payload, signal);
+    if (!activeRunRef.current) return;
+    const next: AgentRunState = {
+      ...activeRunRef.current,
+      status: "completed",
+      content: response.answer,
+      citations: response.citations,
+      webSources: response.web_sources || [],
+      finalResponse: response,
+      activity: { steps: [], compact: true },
+    };
+    commitRunState(next);
+    setResult(response);
+    onConversationChange((current) => ({
+      ...current,
+      conversationId: response.conversation_id,
+    }));
+  }
+
+  function failActiveRun(reason: unknown) {
+    const message = formatAgentChatError(reason);
+    setResult(null);
+    setError(message);
+    if (activeRunRef.current) {
+      commitRunState(
+        reduceAgentRun(activeRunRef.current, clientErrorEvent(message)),
+      );
+    }
+  }
+
+  function stopGeneration() {
+    if (!loading || activeRunRef.current?.status === "persisting") return;
+    controllerRef.current?.abort();
   }
 
   function startNewChat() {
     onConversationChange(createEmptyConversationState());
+    activeRunRef.current = null;
+    setActiveRun(null);
     setQuestion("");
     setResult(null);
     setError(null);
@@ -159,16 +352,8 @@ export default function RagQueryPanel({
           ) : (
             <>
               {conversation.messages.map((turn) => (
-                <div className="chat-turn" key={turn.id}>
-                  <div className="chat-message user-message">
-                    <p>{turn.question}</p>
-                  </div>
-                  <div className="chat-message assistant-message">
-                    <MarkdownMessage content={turn.answer} />
-                  </div>
-                </div>
+                <ChatTurnMessage turn={turn} key={turn.id} />
               ))}
-              {loading && <p className="empty-state">Sending...</p>}
             </>
           )}
         </div>
@@ -188,8 +373,16 @@ export default function RagQueryPanel({
             placeholder="Ask about the selected PDFs..."
           />
         </label>
-        <button type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Send"}
+        <button
+          type={loading ? "button" : "submit"}
+          disabled={activeRun?.status === "persisting"}
+          onClick={loading ? stopGeneration : undefined}
+        >
+          {activeRun?.status === "persisting"
+            ? "正在保存..."
+            : loading
+              ? "停止生成"
+              : "Send"}
         </button>
       </form>
     </section>
@@ -368,4 +561,50 @@ function formatAgentChatError(error: unknown): string {
   }
 
   return message || "Agent chat request failed.";
+}
+
+function isStreamingDisabledError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 409 &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.toLowerCase().includes("streaming is disabled")
+  );
+}
+
+function createClientMessageId(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
+}
+
+function clientCancelledEvent(): CancelledEvent {
+  return {
+    type: "cancelled",
+    request_id: "client",
+    conversation_id: "client",
+    run_id: "client",
+    sequence: 0,
+    timestamp: new Date().toISOString(),
+    partial_output_preserved: true,
+  };
+}
+
+function clientErrorEvent(message: string): ErrorEvent {
+  return {
+    type: "error",
+    request_id: "client",
+    conversation_id: "client",
+    run_id: "client",
+    sequence: 0,
+    timestamp: new Date().toISOString(),
+    code: "stream_interrupted",
+    message,
+    recoverable: true,
+    partial_output_preserved: true,
+  };
 }

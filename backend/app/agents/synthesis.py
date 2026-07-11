@@ -18,6 +18,16 @@ class AgentSynthesisResult:
     errors: list[str]
 
 
+@dataclass(frozen=True)
+class PreparedAgentSynthesis:
+    deterministic_answer: str
+    prompt: str
+    local_summary: str | None
+    web_summary: str | None
+    warnings: list[str]
+    errors: list[str]
+
+
 def synthesize_agent_answer(
     *,
     question: str,
@@ -28,6 +38,53 @@ def synthesize_agent_answer(
     memory_context: str = "",
 ) -> AgentSynthesisResult:
     """Combine fixed local and web agent outputs into one stable MVP answer."""
+    prepared = prepare_agent_synthesis(
+        question=question,
+        route=route,
+        local_result=local_result,
+        web_result=web_result,
+        memory_context=memory_context,
+    )
+    answer = prepared.deterministic_answer
+    if llm_provider is not None:
+        trace = current_latency_trace()
+        generate_with_metrics = getattr(llm_provider, "generate_with_metrics", None)
+        if callable(generate_with_metrics):
+            metrics = generate_with_metrics(prepared.prompt)
+            answer = metrics.text
+            if trace is not None:
+                if metrics.ttft_ms is not None:
+                    trace.record("synthesis_ttft", metrics.ttft_ms)
+                if metrics.generation_ms is not None:
+                    trace.record("synthesis_generation", metrics.generation_ms)
+                trace.record("synthesis_total", metrics.total_ms)
+                trace.set_counter("prompt_input_tokens", metrics.prompt_tokens)
+                trace.set_counter("completion_tokens", metrics.completion_tokens)
+                trace.set_counter("streaming_enabled", metrics.streaming)
+        else:
+            with measure_latency_sync("synthesis_total"):
+                answer = llm_provider.generate(prepared.prompt)
+        if trace is not None:
+            trace.set_counter("output_character_count", len(answer))
+
+    return AgentSynthesisResult(
+        answer=answer,
+        local_summary=prepared.local_summary,
+        web_summary=prepared.web_summary,
+        warnings=prepared.warnings,
+        errors=prepared.errors,
+    )
+
+
+def prepare_agent_synthesis(
+    *,
+    question: str,
+    route: AgentRoute,
+    local_result: LocalLibraryAgentResult | None = None,
+    web_result: WebResearchResult | None = None,
+    memory_context: str = "",
+) -> PreparedAgentSynthesis:
+    """Prepare the one final-answer prompt shared by sync and streaming paths."""
     local_summary = local_result.summary if local_result is not None else None
     web_summary = web_result.summary if web_result is not None else None
     warnings = list(web_result.warnings) if web_result is not None else []
@@ -59,70 +116,45 @@ def synthesize_agent_answer(
             web_unavailable=web_unavailable,
         )
 
-    if llm_provider is not None:
-        with measure_latency_sync("prompt_build"):
-            prompt = build_synthesis_prompt(
-                question=question,
-                route=route,
-                deterministic_answer=answer,
-                local_summary=local_summary,
-                web_summary=web_summary,
-                web_sources=web_result.sources if web_result is not None else [],
-                local_citations=local_result.citations
-                if local_result is not None
-                else [],
-                local_citation_count=(
-                    len(local_result.citations) if local_result is not None else 0
-                ),
-                web_source_count=(
-                    len(web_result.sources) if web_result is not None else 0
-                ),
-                memory_context=memory_context,
-            )
-        trace = current_latency_trace()
-        if trace is not None:
-            trace.set_counter("prompt_characters", len(prompt))
-            trace.set_counter("memory_context_characters", len(memory_context))
-            trace.set_counter(
-                "local_context_characters",
-                len(local_summary or "")
-                + sum(
-                    len(item.content)
-                    for item in (
-                        local_result.citations if local_result is not None else []
-                    )
-                ),
-            )
-            trace.set_counter(
-                "web_context_characters",
-                len(web_summary or "")
-                + sum(
-                    len(item.excerpt)
-                    for item in (web_result.sources if web_result is not None else [])
-                ),
-            )
-            trace.set_counter("output_character_count", len(answer))
-        generate_with_metrics = getattr(llm_provider, "generate_with_metrics", None)
-        if callable(generate_with_metrics):
-            metrics = generate_with_metrics(prompt)
-            answer = metrics.text
-            if trace is not None:
-                if metrics.ttft_ms is not None:
-                    trace.record("synthesis_ttft", metrics.ttft_ms)
-                if metrics.generation_ms is not None:
-                    trace.record("synthesis_generation", metrics.generation_ms)
-                trace.record("synthesis_total", metrics.total_ms)
-                trace.set_counter("prompt_input_tokens", metrics.prompt_tokens)
-                trace.set_counter("completion_tokens", metrics.completion_tokens)
-                trace.set_counter("streaming_enabled", metrics.streaming)
-        else:
-            with measure_latency_sync("synthesis_total"):
-                answer = llm_provider.generate(prompt)
-        if trace is not None:
-            trace.set_counter("output_character_count", len(answer))
-
-    return AgentSynthesisResult(
-        answer=answer,
+    with measure_latency_sync("prompt_build"):
+        prompt = build_synthesis_prompt(
+            question=question,
+            route=route,
+            deterministic_answer=answer,
+            local_summary=local_summary,
+            web_summary=web_summary,
+            web_sources=web_result.sources if web_result is not None else [],
+            local_citations=local_result.citations if local_result is not None else [],
+            local_citation_count=(
+                len(local_result.citations) if local_result is not None else 0
+            ),
+            web_source_count=(len(web_result.sources) if web_result is not None else 0),
+            memory_context=memory_context,
+        )
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("prompt_characters", len(prompt))
+        trace.set_counter("memory_context_characters", len(memory_context))
+        trace.set_counter(
+            "local_context_characters",
+            len(local_summary or "")
+            + sum(
+                len(item.content)
+                for item in (local_result.citations if local_result is not None else [])
+            ),
+        )
+        trace.set_counter(
+            "web_context_characters",
+            len(web_summary or "")
+            + sum(
+                len(item.excerpt)
+                for item in (web_result.sources if web_result is not None else [])
+            ),
+        )
+        trace.set_counter("output_character_count", len(answer))
+    return PreparedAgentSynthesis(
+        deterministic_answer=answer,
+        prompt=prompt,
         local_summary=local_summary,
         web_summary=web_summary,
         warnings=dedupe_strings(warnings),

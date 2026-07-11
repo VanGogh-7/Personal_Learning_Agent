@@ -54,3 +54,26 @@ def resolve_conversation(
         session_id=conversation.legacy_session_id or str(conversation.id),
         namespace=conversation.namespace,
     )
+
+
+def ensure_conversation(
+    session: Session,
+    *,
+    conversation_id: uuid.UUID,
+    thread_id: str,
+    session_id: str,
+    namespace: str,
+) -> bool:
+    """Create a provisioned streaming conversation only at final persistence."""
+    if session.get(Conversation, conversation_id) is not None:
+        return False
+    session.add(
+        Conversation(
+            id=conversation_id,
+            thread_id=thread_id,
+            namespace=namespace,
+            legacy_session_id=session_id,
+        )
+    )
+    session.flush()
+    return True

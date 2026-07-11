@@ -464,6 +464,89 @@ small {
   color: #111827;
 }
 
+.assistant-message.streaming,
+.assistant-message.persisting,
+.assistant-message.pending {
+  min-width: min(440px, 92%);
+}
+
+.streaming-answer {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.stream-placeholder {
+  color: #64748b;
+}
+
+.agent-activity {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #475569;
+  font-size: 0.86rem;
+}
+
+.agent-activity.compact {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.agent-activity ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-activity li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.activity-dot.active {
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 14%);
+  animation: activity-pulse 1.2s ease-in-out infinite;
+}
+
+.activity-dot.completed {
+  background: #16a34a;
+}
+
+.activity-dot.failed,
+.activity-dot.cancelled {
+  background: #dc2626;
+}
+
+.message-status {
+  display: block;
+  margin-top: 8px;
+  color: #b91c1c;
+}
+
+@keyframes activity-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-dot.active {
+    animation: none;
+  }
+}
+
 .answer-text {
   overflow-wrap: anywhere;
   min-width: 0;

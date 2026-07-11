@@ -1,4 +1,6 @@
 import json
+import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Protocol
@@ -22,11 +24,29 @@ class LLMGenerationMetrics:
     streaming: bool = False
 
 
+@dataclass(frozen=True)
+class TokenUsage:
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+
+
+@dataclass(frozen=True)
+class LLMStreamChunk:
+    delta: str = ""
+    finish_reason: str | None = None
+    usage: TokenUsage | None = None
+
+
 class LLMProvider(Protocol):
     """Small synchronous text-generation boundary used by backend services."""
 
     def generate(self, prompt: str) -> str:
         """Generate text for a prompt."""
+
+    def stream_chat_completion(
+        self, prompt: str, *, max_tokens: int | None = None
+    ) -> AsyncIterator[LLMStreamChunk]:
+        """Stream normalized final-answer chunks."""
 
 
 class LLMConfigurationError(ValueError):
@@ -68,6 +88,15 @@ class DeterministicLLMProvider:
             streaming=False,
         )
 
+    async def stream_chat_completion(
+        self, prompt: str, *, max_tokens: int | None = None
+    ) -> AsyncIterator[LLMStreamChunk]:
+        text = self.generate(prompt)
+        for delta in re.findall(r"\S+\s*|\s+", text):
+            if delta:
+                yield LLMStreamChunk(delta=delta)
+        yield LLMStreamChunk(finish_reason="stop")
+
 
 class OpenAICompatibleLLMProvider:
     """Minimal OpenAI-compatible chat completions provider.
@@ -83,11 +112,13 @@ class OpenAICompatibleLLMProvider:
         base_url: str,
         model: str,
         client: httpx.Client | None = None,
+        async_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._client = client
+        self._async_client = async_client
 
     def generate(self, prompt: str) -> str:
         trace = current_latency_trace()
@@ -132,7 +163,9 @@ class OpenAICompatibleLLMProvider:
         except httpx.HTTPError as exc:
             raise LLMProviderError("Real LLM provider request failed.") from exc
         except (KeyError, TypeError, ValueError) as exc:
-            raise LLMProviderError("Real LLM provider returned an invalid response.") from exc
+            raise LLMProviderError(
+                "Real LLM provider returned an invalid response."
+            ) from exc
 
     def generate_with_metrics(self, prompt: str) -> LLMGenerationMetrics:
         trace = current_latency_trace()
@@ -197,7 +230,9 @@ class OpenAICompatibleLLMProvider:
                     last_token_at = now
                     chunks.append(content)
         except (httpx.HTTPError, json.JSONDecodeError) as exc:
-            raise LLMProviderError("Real LLM provider streaming request failed.") from exc
+            raise LLMProviderError(
+                "Real LLM provider streaming request failed."
+            ) from exc
         text = "".join(chunks).strip()
         if not text or first_token_at is None or last_token_at is None:
             raise LLMProviderError("Real LLM provider returned an empty stream.")
@@ -210,6 +245,84 @@ class OpenAICompatibleLLMProvider:
             completion_tokens=completion_tokens,
             streaming=True,
         )
+
+    async def stream_chat_completion(
+        self, prompt: str, *, max_tokens: int | None = None
+    ) -> AsyncIterator[LLMStreamChunk]:
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("llm_call_count")
+            trace.set_counter("streaming_enabled", True)
+        payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer using only the provided retrieval context. "
+                        "If the context is insufficient, say so clearly."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        client = self._async_client or provider_http_clients.get_async("llm")
+        try:
+            async with client.stream(
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if not data or data == "[DONE]":
+                        continue
+                    event = json.loads(data)
+                    usage_data = event.get("usage") or {}
+                    usage = (
+                        TokenUsage(
+                            prompt_tokens=usage_data.get("prompt_tokens"),
+                            completion_tokens=usage_data.get("completion_tokens"),
+                        )
+                        if usage_data
+                        else None
+                    )
+                    choices = event.get("choices") or []
+                    if not choices:
+                        if usage is not None:
+                            yield LLMStreamChunk(usage=usage)
+                        continue
+                    choice = choices[0]
+                    delta = (choice.get("delta") or {}).get("content") or ""
+                    finish_reason = choice.get("finish_reason")
+                    if delta or finish_reason is not None or usage is not None:
+                        yield LLMStreamChunk(
+                            delta=delta if isinstance(delta, str) else "",
+                            finish_reason=(
+                                finish_reason
+                                if isinstance(finish_reason, str)
+                                else None
+                            ),
+                            usage=usage,
+                        )
+        except LLMProviderError:
+            raise
+        except (httpx.HTTPError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise LLMProviderError(
+                "Real LLM provider streaming request failed."
+            ) from exc
 
 
 class DeepSeekLLMProvider(OpenAICompatibleLLMProvider):
@@ -253,6 +366,11 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
             model=model,
             client=(
                 provider_http_clients.get("llm", resolved_settings)
+                if settings is None
+                else None
+            ),
+            async_client=(
+                provider_http_clients.get_async("llm", resolved_settings)
                 if settings is None
                 else None
             ),

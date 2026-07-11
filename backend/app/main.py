@@ -1,8 +1,13 @@
 from contextlib import asynccontextmanager
+import json
+import logging
+import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.agent_routes import router as agent_router
 from app.api.ingestion_routes import router as ingestion_router
@@ -17,6 +22,7 @@ from app.memory.checkpointer import checkpointer_manager
 from app.providers.http_clients import provider_http_clients
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 LOCAL_FRONTEND_ORIGINS = [
     "http://localhost:1420",
@@ -33,16 +39,62 @@ async def lifespan(_: FastAPI):
         yield
     finally:
         await run_in_threadpool(checkpointer_manager.shutdown)
+        await provider_http_clients.aclose()
         await run_in_threadpool(provider_http_clients.close)
 
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def request_correlation_middleware(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    errors = [
+        {
+            "loc": list(error.get("loc", ())),
+            "msg": error.get("msg", "Invalid request"),
+            "type": error.get("type", "validation_error"),
+        }
+        for error in exc.errors()
+    ]
+    logger.warning(
+        json.dumps(
+            {
+                "event": "request_validation_failed",
+                "request_id": request_id,
+                "path": request.url.path,
+                "method": request.method,
+                "status_code": 422,
+                "error_type": "RequestValidationError",
+            },
+            separators=(",", ":"),
+        )
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": errors, "request_id": request_id},
+        headers={"X-Request-ID": request_id},
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=LOCAL_FRONTEND_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
+    expose_headers=["X-Request-ID"],
 )
 app.include_router(router)
 app.include_router(agent_router)

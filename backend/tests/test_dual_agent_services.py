@@ -1,6 +1,8 @@
 import socket
 import uuid
 
+import httpx
+
 from app.agents.local_library import run_local_library_agent
 from app.agents.router import route_question
 from app.agents.synthesis import synthesize_agent_answer
@@ -26,7 +28,10 @@ def test_router_routes_web_only_questions() -> None:
 
 def test_router_routes_both_when_local_and_web_keywords_are_present() -> None:
     assert route_question("Use my PDFs and recent web context") == "both"
-    assert route_question("Explain the mean value theorem using my book if relevant.") == "both"
+    assert (
+        route_question("Explain the mean value theorem using my book if relevant.")
+        == "both"
+    )
 
 
 def test_router_defaults_uncertain_learning_questions_to_both() -> None:
@@ -149,6 +154,49 @@ def test_tavily_web_provider_missing_key_returns_warning() -> None:
     assert result.status == "unavailable"
     assert result.sources == []
     assert "TAVILY_API_KEY is not configured" in result.warnings[0]
+
+
+def test_tavily_httpx_transport_normalizes_429_and_timeout() -> None:
+    def rate_limited(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"detail": "rate limited"})
+
+    provider = TavilyWebResearchProvider(
+        api_key="fake",
+        client=httpx.Client(transport=httpx.MockTransport(rate_limited)),
+    )
+    result = provider.research("latest update")
+    assert result.status == "unavailable"
+    assert "status 429" in result.warnings[0]
+
+    def timed_out(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timeout", request=request)
+
+    provider = TavilyWebResearchProvider(
+        api_key="fake",
+        client=httpx.Client(transport=httpx.MockTransport(timed_out)),
+    )
+    result = provider.research("latest update")
+    assert result.status == "unavailable"
+    assert "network error" in result.warnings[0]
+
+
+def test_tavily_result_normalization_deduplicates_urls() -> None:
+    provider = TavilyWebResearchProvider(
+        api_key="fake",
+        http_post_json=lambda *args: {
+            "results": [
+                {"title": "First", "url": "https://example.test/a", "content": "A"},
+                {
+                    "title": "Duplicate",
+                    "url": "https://example.test/a/",
+                    "content": "Duplicate",
+                },
+            ]
+        },
+    )
+    result = provider.research("query")
+    assert len(result.sources) == 1
+    assert result.sources[0].source_id == "W1"
 
 
 def test_synthesis_handles_local_only_without_evidence() -> None:

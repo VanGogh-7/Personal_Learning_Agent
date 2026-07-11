@@ -160,12 +160,12 @@ def test_agent_chat_global_scope_works(monkeypatch, agent_chat_session) -> None:
     assert response.memory.saved_current_turn is True
 
     turn = agent_chat_session.execute(select(ConversationTurn)).scalar_one()
-    assert turn.metadata_json == {
-        "query_type": "agent_chat",
-        "scope_type": "global",
-        "retrieved_chunk_ids": [str(chunk.chunk_id)],
-        "citation_count": 1,
-    }
+    assert turn.metadata_json["query_type"] == "agent_chat"
+    assert turn.metadata_json["scope_type"] == "global"
+    assert turn.metadata_json["retrieved_chunk_ids"] == [str(chunk.chunk_id)]
+    assert turn.metadata_json["citation_count"] == 1
+    assert turn.metadata_json["citation_refs"][0]["citation_id"] == "S1"
+    assert turn.metadata_json["web_source_refs"] == []
 
     event = agent_chat_session.execute(select(LearningEvent)).scalar_one()
     assert event.event_type == EVENT_AGENT_CHAT_QUESTION_ASKED

@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -26,6 +27,8 @@ class Settings(BaseSettings):
     tavily_base_url: str = "https://api.tavily.com/search"
     tavily_search_depth: str = "basic"
     tavily_max_results: int = 5
+    tavily_connect_timeout_seconds: float = 10.0
+    tavily_read_timeout_seconds: float = 30.0
 
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -42,6 +45,19 @@ class Settings(BaseSettings):
 
     agent_latency_logging_enabled: bool = True
     agent_debug_timings_in_response: bool = False
+    agent_streaming_enabled: bool = True
+    agent_activity_events_enabled: bool = True
+    agent_stream_ui_flush_interval_ms: int = Field(default=50, ge=30, le=80)
+    agent_stream_heartbeat_seconds: float = Field(default=15.0, ge=10.0, le=20.0)
+
+    pla_real_provider_tests: bool = False
+    pla_real_provider_benchmark_runs: int = Field(default=10, ge=1, le=100)
+    pla_real_provider_warmup_runs: int = Field(default=1, ge=0, le=10)
+    pla_sse_soak_runs: int = Field(default=20, ge=1, le=1000)
+    pla_sse_target_url: str = "http://127.0.0.1:8081"
+    pla_sse_proxy_target_url: str = ""
+    pla_long_answer_max_tokens: int = Field(default=2000, ge=128, le=4096)
+    pla_fault_injection_enabled: bool = False
 
     database_url: str = ""
     library_storage_dir: str = str(BACKEND_DIR / "storage" / "library")
@@ -64,6 +80,17 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def prohibit_production_fault_injection(self) -> "Settings":
+        if (
+            self.app_env.strip().lower() == "production"
+            and self.pla_fault_injection_enabled
+        ):
+            raise ValueError(
+                "PLA_FAULT_INJECTION_ENABLED cannot be enabled in production"
+            )
+        return self
 
 
 @lru_cache

@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "build:vite": "vite build",
-    "format:check": "prettier --check src/api/types.ts src/chat src/components/MarkdownMessage.tsx src/components/MarkdownMessage.test.tsx src/components/RagQueryPanel.tsx src/components/RagQueryPanel.test.tsx src/main.tsx src/pages/WorkspacePage.tsx src/pages/WorkspacePage.test.tsx src/styles.css src/tauri/pdfOpener.ts src/tauri/pdfOpener.test.ts src/test src-tauri/capabilities/default.json vitest.config.ts",
+    "format:check": "prettier --check src/api/types.ts src/api/client.ts src/chat src/components src/streaming src/main.tsx src/pages/WorkspacePage.tsx src/pages/WorkspacePage.test.tsx src/styles.css src/tauri/pdfOpener.ts src/tauri/pdfOpener.test.ts src/test src-tauri/capabilities/default.json vitest.config.ts",
     "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1 --port 1420",
     "tauri": "tauri"

@@ -5,7 +5,10 @@ from typing import Any, Literal, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+import httpx
+
 from app.core.config import get_settings
+from app.providers.http_clients import provider_http_clients
 
 WEB_EXCERPT_LENGTH = 240
 WEB_SUMMARY_SNIPPET_LENGTH = 220
@@ -74,13 +77,31 @@ class TavilyWebResearchProvider:
         max_results: int = 5,
         timeout_seconds: float = 10.0,
         http_post_json: HttpPostJson | None = None,
+        client: httpx.Client | None = None,
     ) -> None:
         self.api_key = api_key.strip()
         self.base_url = base_url.strip() or "https://api.tavily.com/search"
         self.search_depth = search_depth.strip() or "basic"
         self.max_results = max(1, min(max_results, 10))
         self.timeout_seconds = timeout_seconds
-        self.http_post_json = http_post_json or post_json
+        self._client = client
+        self.http_post_json = http_post_json or self._post_json
+
+    def _post_json(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        headers: dict[str, str],
+        timeout_seconds: float,
+    ) -> dict[str, Any]:
+        if self._client is None:
+            return post_json(url, payload, headers, timeout_seconds)
+        response = self._client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        parsed = response.json()
+        if not isinstance(parsed, dict):
+            raise ValueError("Expected JSON object response")
+        return parsed
 
     def research(self, question: str) -> WebResearchResult:
         if not self.api_key:
@@ -119,6 +140,10 @@ class TavilyWebResearchProvider:
             )
         except HTTPError as exc:
             return tavily_failure_result(f"status {exc.code}")
+        except httpx.HTTPStatusError as exc:
+            return tavily_failure_result(f"status {exc.response.status_code}")
+        except httpx.HTTPError:
+            return tavily_failure_result("network error")
         except (URLError, TimeoutError, OSError):
             return tavily_failure_result("network error")
         except ValueError:
@@ -186,6 +211,8 @@ def get_web_research_provider() -> WebResearchProvider:
             base_url=settings.tavily_base_url,
             search_depth=settings.tavily_search_depth,
             max_results=settings.tavily_max_results,
+            timeout_seconds=settings.tavily_read_timeout_seconds,
+            client=provider_http_clients.get("web", settings),
         )
     return UnavailableWebResearchProvider()
 
@@ -234,6 +261,7 @@ def tavily_sources_from_response(response: dict[str, Any]) -> list[WebSourceResu
         return []
 
     sources: list[WebSourceResult] = []
+    seen_urls: set[str] = set()
     for item in raw_results:
         if not isinstance(item, dict):
             continue
@@ -242,6 +270,10 @@ def tavily_sources_from_response(response: dict[str, Any]) -> list[WebSourceResu
         excerpt = string_or_empty(item.get("content") or item.get("snippet"))
         if not url or not excerpt:
             continue
+        normalized_url = url.rstrip("/")
+        if normalized_url in seen_urls:
+            continue
+        seen_urls.add(normalized_url)
         sources.append(
             WebSourceResult(
                 source_id=f"W{len(sources) + 1}",

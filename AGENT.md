@@ -14,6 +14,8 @@ source management and Agent Chat as the main interaction surface.
 - Extract text from born-digital PDFs.
 - Chunk, embed, retrieve, and cite local Library evidence.
 - Run `/api/agent/chat` through an explicit LangGraph dual-agent graph.
+- Stream `/api/agent/chat/stream` as POST SSE while retaining `/api/agent/chat`
+  as the compatible complete-JSON route.
 - Keep conversation/thread mapping internal and persist production checkpoints in PostgreSQL.
 - Use bounded recent turns, rolling summaries, and typed long-term memory.
 - Keep `conversationId`, messages, and selected Library item IDs in one
@@ -23,6 +25,12 @@ source management and Agent Chat as the main interaction surface.
 - Preserve local citations as `[S1]`, `[S2]`, etc.
 - Preserve web sources as `[W1]`, `[W2]`, etc.
 - Emit request-scoped structured latency summaries without sensitive content.
+- Keep real Provider, network, soak, and manual Tauri validation explicitly
+  opt-in; ordinary pytest must never consume external quota.
+- Expose only real product-level Activity and final Synthesis token deltas;
+  never expose prompts, raw node state, tool payloads, or private reasoning.
+- Persist one complete Assistant answer and its citation payload atomically
+  before emitting successful `done`.
 - Run Local and Web branches concurrently for `both` and defer non-critical
   Memory post-processing until after the HTTP response.
 - Render Assistant messages as safe Markdown with GFM and locally bundled
@@ -85,6 +93,23 @@ Long-term memory is untrusted personalization context and cannot replace local
 - Synthesis Node: combines local and web outputs while keeping local
   citations and web sources structurally separate.
 
+The streaming route uses the same nodes and services through LangGraph
+`astream` with `custom` plus final `values`. Product statuses are written only
+at real node boundaries. Final-answer deltas use the private custom kind
+`synthesis_token`; the API whitelist maps only that kind to public `token`
+events. Local and Web branches remain parallel. The bounded event queue applies
+backpressure so disconnect checks and client delivery stay interleaved.
+
+During generation no token is persisted. The final transaction creates a
+provisional conversation if needed, writes one complete turn with full
+citations/web sources in turn metadata, and writes the learning event. Memory
+post-processing is deferred. Checkpoint durability is `exit`; the API emits
+`citations`, `final`, then `done` only after graph/checkpoint completion.
+Cancellation, Provider failure, or persistence failure must never emit `done`
+or leave a completed partial turn.
+One in-process run registry rejects a second active stream for the same
+conversation with `409`; it never serializes unrelated conversations.
+
 Routes:
 
 - `local_only`: questions about selected books/PDFs/library material,
@@ -114,11 +139,14 @@ Add PDF
 
 - `frontend/src/pages/WorkspacePage.tsx`: Repository + Chat page.
 - `frontend/src/components/RagQueryPanel.tsx`: Agent Chat UI.
+- `frontend/src/streaming/`: SSE protocol types, parser, and run state machine.
+- `frontend/src/components/AgentActivity.tsx`: real backend-driven Activity.
 - `frontend/src/tauri/filePicker.ts`: PDF-only desktop file picker.
 - `frontend/src/tauri/pdfOpener.ts`: managed-PDF system opener boundary.
 - `frontend/src/chat/conversationState.ts`: current conversation, messages,
   selected-book IDs, and refresh persistence.
-- `backend/app/api/agent_routes.py`: `/api/agent/chat` endpoint.
+- `backend/app/api/agent_routes.py`: JSON and SSE Agent endpoints.
+- `backend/app/streaming/`: public event schemas, SSE encoder, and execution service.
 - `backend/app/graphs/chat_rag_graph.py`: LangGraph state and nodes.
 - `backend/app/memory/`: checkpoint, conversation, summary, extraction,
   consolidation, retrieval, context, and repository boundaries.
@@ -135,6 +163,12 @@ Add PDF
 - `backend/scripts/eval_retrieval.py`: retrieval eval script.
 - `backend/scripts/ask_book.py`: single-book ask script.
 - `backend/scripts/benchmark_agent_latency.py`: mock-by-default latency benchmark.
+- `backend/scripts/benchmark_agent_streaming.py`: perceived-latency SSE benchmark.
+- `backend/scripts/benchmark_real_providers.py`: opt-in DeepSeek/Zhipu/Tavily benchmark.
+- `backend/scripts/verify_sse_delivery.py`: direct/proxy arrival-time verifier.
+- `backend/scripts/soak_agent_sse.py`: explicit repeated/cancellation HTTP soak.
+- `backend/app/reliability/`: safe reports, dimension checks, and SSE probe parser.
+- `backend/deployment/nginx-sse.example.conf`: optional non-buffering proxy location.
 - `backend/scripts/explain_vector_search.sql`: executable L2 query-plan template.
 
 ## Commands
@@ -148,6 +182,8 @@ pytest
 alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
 python scripts/benchmark_agent_latency.py --runs 10
+python scripts/benchmark_agent_streaming.py --runs 10
+python scripts/verify_sse_delivery.py --base-url http://127.0.0.1:8081 --route local_only
 ```
 
 Frontend:
@@ -181,6 +217,30 @@ response timings require both non-production `APP_ENV` and
 `AGENT_DEBUG_TIMINGS_IN_RESPONSE=true`. Never add prompts, messages, answers,
 chunk bodies, keys, or vectors to latency logs. Real Provider benchmarks must
 be explicitly enabled with `--real-providers` because they consume quota.
+Streaming is controlled by `AGENT_STREAMING_ENABLED`; Activity can be disabled
+independently with `AGENT_ACTIVITY_EVENTS_ENABLED`. UI flush and heartbeat
+settings are validated backend configuration, not user-facing request fields.
+SSE logs/events must follow the same sensitive-data exclusions as Stage 52.
+Real Provider work additionally requires `PLA_REAL_PROVIDER_TESTS=true` and an
+explicit marker/CLI confirmation. Reports may include Provider/model names,
+hostnames, timestamps, counts, and aggregate latency, but never keys, prompts,
+full questions, token text, or raw Provider responses.
+
+Stage 54 reliability rules:
+
+- Keep `real_provider`, `network`, `soak`, and `manual_tauri` excluded from
+  default pytest.
+- Validate actual embedding response length before any real write; never infer
+  it only from Settings or documentation.
+- Keep Tavily behavior unchanged above the transport boundary; client reuse,
+  timeout/error normalization, and URL deduplication are allowed.
+- Treat reverse-proxy and Tauri WebView checks as manual until actually run.
+- The active-run registry is process-local and must not be described as
+  multi-worker safe.
+- Assistant/citation/learning-event SQL writes are atomic with each other;
+  checkpointing remains outside that transaction and compensation is best effort.
+- Fault injection stays deterministic, test-only, default-off, and forbidden in
+  production. Do not add public debug failure endpoints.
 
 ## Repository Hygiene
 

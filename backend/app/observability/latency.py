@@ -24,11 +24,19 @@ def _default_counters() -> dict[str, int | float | str | None]:
         "retrieved_chunk_count": 0,
         "retrieved_memory_count": 0,
         "web_result_count": 0,
+        "web_search_call_count": 0,
+        "tavily_call_count": 0,
         "prompt_input_tokens": None,
         "completion_tokens": None,
         "output_character_count": 0,
         "route": None,
         "streaming_enabled": False,
+        "stream_event_count": 0,
+        "token_event_count": 0,
+        "streamed_character_count": 0,
+        "client_cancelled": False,
+        "stream_completed": False,
+        "stream_failed": False,
     }
 
 
@@ -77,7 +85,12 @@ class AgentLatencyTrace:
             (perf_counter() - self._started_at) * 1000, 2
         )
 
-    def summary(self, *, event: str, error: BaseException | None = None) -> dict[str, Any]:
+    def elapsed_ms(self) -> float:
+        return round((perf_counter() - self._started_at) * 1000, 2)
+
+    def summary(
+        self, *, event: str, error: BaseException | None = None
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "event": event,
             "request_id": self.request_id,
@@ -94,7 +107,9 @@ class AgentLatencyTrace:
         if self._logged:
             return
         self.finish()
-        event = "agent_request_failed" if error is not None else "agent_request_completed"
+        event = (
+            "agent_request_failed" if error is not None else "agent_request_completed"
+        )
         logger.info(
             json.dumps(
                 self.summary(event=event, error=error),

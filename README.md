@@ -10,7 +10,7 @@ The product is a learning agent, not a PDF reader. The MVP UI is:
 PDF Repository | Agent Chat
 ```
 
-Current stage: Agent latency observability and measured low-risk optimization.
+Current stage: real-Provider SSE reliability and deployment validation.
 
 ## What It Does
 
@@ -44,6 +44,8 @@ Current stage: Agent latency observability and measured low-risk optimization.
 - Web Research Agent provider boundary with unavailable, mock, and
   optional Tavily modes.
 - Synthesis that separates local evidence from external context.
+- POST-based SSE streaming with real Agent activity, final-answer token deltas,
+  cancellation, and atomic Assistant-turn persistence.
 - Conversation-scoped recent turns and rolling summaries.
 - PostgreSQL LangGraph checkpoints with an in-memory test backend.
 - Auditable semantic, episodic, and procedural long-term memory.
@@ -73,7 +75,8 @@ Add PDF
   -> answer with local citations and web sources
 ```
 
-`POST /api/agent/chat` runs this bounded memory and evidence flow:
+`POST /api/agent/chat/stream` runs this bounded memory and evidence flow.
+`POST /api/agent/chat` remains as the compatible complete-JSON endpoint:
 
 ```mermaid
 flowchart TD
@@ -84,15 +87,225 @@ flowchart TD
     C --> F[Web Research]
     E --> G[Synthesis LLM]
     F --> G
-    G --> H[Persist Conversation]
-    H --> I[Complete JSON Response]
-    I --> J[Background Memory Processing]
+    G --> H[Stream Final Answer Tokens]
+    H --> I[Persist Complete Turn and Citations]
+    I --> J[Final and Done Events]
+    J --> K[Background Memory Processing]
 ```
 
 For `both`, Local Retrieval and Web Research are LangGraph parallel branches.
 The answer turn is persisted before the response is returned. Rolling summary,
 memory extraction, and consolidation run afterward as managed FastAPI
 background work with a separate database session.
+
+### SSE streaming
+
+The frontend sends the normal `AgentChatRequest` JSON with `fetch`, then reads
+`text/event-stream` from `Response.body`. SSE is the only stream protocol; the
+app does not also maintain NDJSON, WebSocket, or `EventSource` paths. Public
+events are `run_started`, `status`, `route_selected`, `retrieval_completed`,
+`token`, `citations`, `warning`, `final`, `done`, `cancelled`, and `error`.
+Every event has a request/conversation/run ID, UTC timestamp, and monotonically
+increasing sequence. Heartbeats are SSE comments and are not Activity steps.
+
+Public Activity stages are `loading_context`, `retrieving_memory`, `routing`,
+`retrieving_local`, `searching_web`, `processing_sources`, `synthesizing`,
+`streaming`, and `persisting`. They are emitted by the backend at the real
+execution boundary. Skipped route branches emit no fake status. Only the
+Synthesis node can publish `synthesis_token`; the SSE mapper ignores every
+other custom payload, so Router, Memory, tool payloads, prompts, and private
+reasoning cannot become public token events.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant A as FastAPI
+    participant G as LangGraph
+    participant D as DeepSeek
+    participant P as PostgreSQL
+
+    U->>F: Submit question
+    F->>A: POST /api/agent/chat/stream
+    A-->>F: run_started + real status events
+    A->>G: astream(custom + values)
+    G-->>A: routing and retrieval status
+    A-->>F: Activity events
+    G->>D: Stream final Synthesis
+    D-->>G: Normalized token deltas
+    G-->>A: synthesis_token only
+    A-->>F: token events
+    F-->>U: Incremental plain-text preview
+    G->>P: Short transaction: complete turn + citation payload
+    P-->>G: Commit
+    G-->>A: Final state after checkpoint
+    A-->>F: citations + final + done
+```
+
+Tokens are accumulated in memory and are never written one by one. The final
+answer, full local citations, web sources, and learning event are committed in
+one short SQL transaction. The production LangGraph checkpoint is written with
+`durability="exit"`; `done` is emitted only after graph completion. If that
+separate checkpoint step fails after the SQL commit, the service attempts a
+targeted compensation delete and emits `error`, never successful `done`.
+Post-response extraction, consolidation, and rolling-summary work starts only
+after success and uses independent database sessions.
+
+The frontend creates one stable Assistant placeholder, batches token rendering
+at the server-advertised 30–80 ms interval, and updates only that turn.
+Incomplete Markdown/LaTeX is shown as safe plain text. After `done`, the full
+answer is rendered once with GFM, remark-math, and KaTeX; no raw HTML is used.
+An `AbortController` powers Stop Generation. Cancellation or disconnect closes
+the upstream async Provider iterator where possible, retains visible partial
+text as cancelled/failed, skips completed persistence and Memory post-work,
+and leaves the conversation and selected books usable for the next request.
+The frontend submission lock and a per-process backend conversation registry
+allow one active run per conversation while leaving other conversations free.
+
+Streaming controls are backend-only:
+
+```env
+AGENT_STREAMING_ENABLED=true
+AGENT_ACTIVITY_EVENTS_ENABLED=true
+AGENT_STREAM_UI_FLUSH_INTERVAL_MS=50
+AGENT_STREAM_HEARTBEAT_SECONDS=15
+```
+
+Set `AGENT_STREAMING_ENABLED=false` to make the frontend receive `409` and use
+the compatible JSON endpoint. The flush interval is validated to 30–80 ms and
+the heartbeat interval to 10–20 seconds.
+
+### Stage 54 reliability validation
+
+Real network tests are excluded from ordinary `pytest` through registered
+`real_provider`, `network`, `soak`, and `manual_tauri` markers. They additionally
+require `PLA_REAL_PROVIDER_TESTS=true`; missing Provider keys produce a clear
+skip rather than a mock result. Run them explicitly only when quota use is
+approved:
+
+```bash
+cd backend
+PLA_REAL_PROVIDER_TESTS=true pytest -m real_provider
+```
+
+The dedicated Provider benchmark also requires an explicit cost confirmation:
+
+```bash
+PLA_REAL_PROVIDER_TESTS=true python scripts/benchmark_real_providers.py \
+  --confirm-costs --runs 10 --warmups 1
+```
+
+With all Providers selected, this performs three DeepSeek scenarios, Zhipu
+embedding requests, Tavily searches, and one DeepSeek cancellation probe. For
+`runs=10` and `warmups=1`, that is 33 completed DeepSeek requests plus the
+cancellation request, 11 Zhipu calls, and 11 Tavily calls. Use repeated results,
+not one request, to interpret p50/p95. Provider latency depends on test time,
+network/VPN route, geography, and current DeepSeek/Zhipu/Tavily load.
+
+Provider-only measurements are separate from application orchestration. The
+former report DeepSeek TTFT/generation/tokens-per-second, Zhipu request latency
+and actual vector length, and Tavily search latency/result counts. The Stage 53
+route benchmark reports Router, retrieval, Provider, persistence, citation-ready,
+event/count, and total application measurements:
+
+```bash
+PLA_REAL_PROVIDER_TESTS=true python scripts/benchmark_agent_streaming.py \
+  --real-providers --runs 10 --warmups 1
+```
+
+The real embedding benchmark compares actual response length, configured
+dimension, and schema dimension before any write. A mismatch aborts the
+validation and requires a separate schema decision; Stage 54 never migrates or
+truncates vectors automatically.
+
+Verify HTTP delivery against the backend or any proxy target:
+
+```bash
+python scripts/verify_sse_delivery.py \
+  --base-url http://127.0.0.1:8081 --route local_only --runs 3
+
+python scripts/verify_sse_delivery.py \
+  --base-url http://127.0.0.1:9000 --route both --runs 3 --json
+
+python scripts/verify_sse_delivery.py \
+  --base-url http://127.0.0.1:8081 --route web_only \
+  --cancel-after-first-token
+```
+
+The verifier records network chunk boundaries and event arrival times without
+recording token text, questions, prompts, citations, or keys. It checks sequence
+monotonicity, first status/token before `done`, and the final
+`citations -> final -> done` order. If first token and `done` arrive in the same
+network chunk it flags probable buffering. The repository has no deployed
+reverse proxy; [the optional Nginx location](backend/deployment/nginx-sse.example.conf)
+disables proxy/compression buffering and raises the read timeout for manual
+deployment validation. It is an example, not a claim that Nginx was tested.
+
+Run a controlled live-backend soak explicitly:
+
+```bash
+python scripts/soak_agent_sse.py --confirm --runs 20 --route both \
+  --library-item-id <uuid>
+python scripts/soak_agent_sse.py --confirm --runs 20 --cancel-every 3
+pytest -m soak
+```
+
+The HTTP soak reuses one client, reports failures separately from percentiles,
+and verifies that a normal request can follow cancellation. The in-process soak
+checks pending asyncio tasks, completed turns, and active-run registry cleanup.
+These commands may consume real quota if the target backend uses real Providers.
+
+Fault injection remains test-only and deterministic. Provider timeout and
+interruption use mock transports/providers; SSE, citation persistence, SQL
+persistence, checkpoint, disconnect, and compensation failures use dependency
+injection. `PLA_FAULT_INJECTION_ENABLED` defaults to false and Settings rejects
+it in production. There is no public fault-injection endpoint and no random
+failure branch in application code.
+
+The Tavily boundary now reuses the shared synchronous `httpx.Client`, applies
+configured connect/read timeouts, normalizes HTTP/429/network failures, and
+deduplicates normalized URLs. Because the current Web node is intentionally a
+synchronous executor task, cancellation cannot interrupt an already-running
+Tavily socket read; its timeout bounds that work. Converting the Web Agent to an
+async transport is intentionally deferred rather than hidden inside Stage 54.
+
+#### Tauri WebView manual checklist
+
+Browser tests do not prove desktop WebView behavior. Run both `bun run tauri dev`
+and a production Tauri build against a reachable backend, then record date, OS,
+WebView version, backend target, Provider modes, and whether each item passed:
+
+1. Submit creates Activity before the first answer token.
+2. Activity changes while the request is still pending.
+3. First visible token appears before `done`/final citations.
+4. A long answer updates continuously without freezing input or scrolling.
+5. Completed Markdown, inline LaTeX, display LaTeX, and code blocks render.
+6. Local `[S]` and Web `[W]` citations match the completed answer.
+7. Stop Generation preserves partial text and marks the turn cancelled.
+8. A new request succeeds immediately after cancellation.
+9. Selected Library items and conversation ID remain unchanged.
+10. The composer stays fixed; manual upward scrolling is not overridden.
+11. DevTools Network shows multiple response chunks before completion.
+12. Development console records first chunk, Activity, token render, `done`, and
+    final render milestones without exposing them in production UI.
+13. Repeat the same checks in the production WebView build.
+14. If `VITE_BACKEND_URL` changes, update the Tauri `connect-src` allowlist; the
+    repository currently permits local ports 8081 and optional proxy port 9000.
+15. Capture cancellation and long-answer UI responsiveness with the same test
+    prompt so later runs are comparable.
+
+The active-run registry remains process-local. It protects one Conversation
+inside the current single-process desktop backend, releases on success/error/
+cancellation, and does not block other Conversations. It is not multi-worker
+safe and Stage 54 does not add Redis or database locks. SQL answer/citation/
+learning-event persistence is one short transaction; LangGraph checkpointing
+is outside that transaction. Checkpoint failure triggers best-effort
+compensation and a critical structured log if compensation itself fails.
+
+Exact token resume is unsupported because SSE runs are not stored as replayable
+token logs. The UI retains partial text and permits a fresh request instead.
+No ANN index was added: current data still does not demonstrate that HNSW or
+IVFFlat improves the existing L2 query plan.
 
 ## Agent latency diagnostics
 
@@ -149,11 +362,38 @@ actual L2 (`<->`) retrieval plan. An eventual ANN index must use an L2-matched
 operator class such as `vector_l2_ops`; do not add one solely because a small
 table uses a faster sequential scan.
 
-The current HTTP API still returns one complete JSON response. DeepSeek is
-consumed as a stream inside the provider so TTFT and generation can be measured,
-but partial tokens are not sent to the frontend yet. The frontend records
-request-to-response and final Markdown/KaTeX render time; for the current
-non-streaming protocol, first and last response chunk are the same event.
+Streaming summaries add `stream_open`, `first_event`, `first_status`,
+`first_token`, `stream_generation`, `final_persist`, and `done_event`, plus
+event/token/character counts and completion/cancellation flags. This separates
+total runtime from perceived waiting: first status measures when useful UI
+feedback appears, while first token measures when answer text begins. The
+frontend likewise distinguishes first visible status, first answer token,
+stream duration, and final Markdown/KaTeX render.
+
+Run the mock streaming benchmark:
+
+```bash
+python scripts/benchmark_agent_streaming.py --runs 10
+```
+
+It reports route-specific first-status, first-token, generation, final-persist,
+total, event counts, token counts, failures, and synthetic cancellation p50/p95.
+Add `--real-providers` only when API quota use is intentional. Mock results do
+not represent DeepSeek, Zhipu, or Tavily public-network p50/p95, and one real
+run is not a stable performance conclusion.
+
+Run streaming-focused tests with:
+
+```bash
+pytest -q tests/test_agent_streaming.py tests/test_llm_providers.py
+cd ../frontend && bun run test
+```
+
+Malformed 422 requests now receive an `X-Request-ID` and safe `request_id` JSON
+field. The correlated log includes method/path/error type but never the request
+body. No ANN index was added: current data still does not demonstrate that an
+L2-matched ANN plan beats the existing plan, and streaming does not change that
+Stage 52 database finding.
 
 ### Memory boundaries
 

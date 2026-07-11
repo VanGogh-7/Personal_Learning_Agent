@@ -78,7 +78,9 @@ def test_openai_compatible_provider_can_use_mocked_client_without_network() -> N
         assert request.headers["authorization"] == "Bearer test-key"
         return httpx.Response(
             200,
-            json={"choices": [{"message": {"content": "Mocked real-provider answer."}}]},
+            json={
+                "choices": [{"message": {"content": "Mocked real-provider answer."}}]
+            },
         )
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
@@ -164,6 +166,27 @@ def test_provider_http_client_manager_reuses_and_closes_clients() -> None:
     settings = Settings(_env_file=None)
     first = manager.get("llm", settings)
     second = manager.get("llm", settings)
+    assert first is second
+    manager.close()
+    assert first.is_closed
+
+
+@pytest.mark.anyio
+async def test_provider_http_client_manager_reuses_and_closes_async_clients() -> None:
+    manager = ProviderHttpClientManager()
+    settings = Settings(_env_file=None)
+    first = manager.get_async("llm", settings)
+    second = manager.get_async("llm", settings)
+    assert first is second
+    await manager.aclose()
+    assert first.is_closed
+
+
+def test_provider_http_client_manager_reuses_web_client() -> None:
+    manager = ProviderHttpClientManager()
+    settings = Settings(_env_file=None)
+    first = manager.get("web", settings)
+    second = manager.get("web", settings)
     assert first is second
     manager.close()
     assert first.is_closed

@@ -63,7 +63,9 @@ def test_mock_embedding_does_not_open_network_connections(monkeypatch) -> None:
 
 
 def test_embedding_provider_factory_returns_mock_by_default() -> None:
-    provider = get_embedding_provider(Settings(_env_file=None, embedding_provider="mock"))
+    provider = get_embedding_provider(
+        Settings(_env_file=None, embedding_provider="mock")
+    )
 
     assert isinstance(provider, MockEmbeddingProvider)
 
@@ -141,3 +143,18 @@ def test_zhipu_provider_failure_is_clean_and_does_not_leak_key() -> None:
     message = str(exc_info.value)
     assert message == "Zhipu embedding provider request failed."
     assert "secret-zhipu-key" not in message
+
+
+def test_zhipu_provider_timeout_is_normalized() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timeout", request=request)
+
+    provider = ZhipuEmbeddingProvider(
+        api_key="test-key",
+        base_url="https://open.bigmodel.cn/api/paas/v4",
+        model="embedding-3",
+        dimension=EMBEDDING_DIMENSION,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    with pytest.raises(EmbeddingProviderError, match="request failed"):
+        provider.embed_text("alpha")

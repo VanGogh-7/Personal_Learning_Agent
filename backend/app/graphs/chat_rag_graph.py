@@ -1,8 +1,11 @@
 import uuid
 import logging
+from collections.abc import Callable
 from datetime import datetime
+from time import perf_counter
 from typing import Any, TypedDict
 
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
@@ -11,7 +14,7 @@ from app.agents.local_library import (
     run_local_library_agent as run_local_library_agent_service,
 )
 from app.agents.router import AgentRoute, route_question
-from app.agents.synthesis import synthesize_agent_answer
+from app.agents.synthesis import prepare_agent_synthesis, synthesize_agent_answer
 from app.agents.web_research import (
     WebResearchResult,
     WebSourceResult,
@@ -20,7 +23,7 @@ from app.agents.web_research import (
 from app.graphs.schemas import AgentChatRequest, AgentChatResponse, AgentChatScope
 from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED, SOURCE_RAG
 from app.learning_events.service import create_learning_event
-from app.llm.providers import get_llm_provider
+from app.llm.providers import LLMProviderError, TokenUsage, get_llm_provider
 from app.memory.long_term import (
     LongTermMemoryResult,
 )
@@ -29,7 +32,12 @@ from app.memory.context_builder import (
     build_memory_context,
     render_untrusted_memory_context,
 )
-from app.memory.conversations import resolve_conversation
+from app.memory.conversations import (
+    ConversationIdentity,
+    ensure_conversation,
+    resolve_conversation,
+)
+from app.core.config import get_settings
 from app.memory.service import (
     extract_and_consolidate_turn,
     maintain_conversation_summary,
@@ -108,6 +116,9 @@ class AgentGraphState(TypedDict, total=False):
     answer: str
     memory_metadata: dict[str, Any]
     learning_event_created: bool
+    persisted_turn_id: str
+    persisted_learning_event_id: str
+    conversation_created: bool
     response: dict[str, Any]
 
 
@@ -163,6 +174,239 @@ def build_chat_rag_graph(
     return graph.compile(checkpointer=checkpointer)
 
 
+def build_streaming_chat_rag_graph(
+    *,
+    session_factory: Callable[[], Session],
+    deferred_tasks: Any,
+    persistence_receipt: dict[str, Any],
+    checkpointer: Any,
+):
+    """Build the async SSE graph while reusing the stable Agent node services."""
+    graph = StateGraph(AgentGraphState)
+    graph.add_node("validate_input", validate_input)
+    graph.add_node(
+        "resolve_scope",
+        lambda state: streaming_resolve_scope_node(state, session_factory),
+    )
+    graph.add_node(
+        "load_memory",
+        lambda state: streaming_load_memory_node(state, session_factory),
+    )
+    graph.add_node("router_node", streaming_router_node)
+    graph.add_node(
+        "local_library_agent_node",
+        lambda state: streaming_local_node(state, session_factory),
+    )
+    graph.add_node("web_research_agent_node", streaming_web_node)
+    graph.add_node("synthesis_node", streaming_synthesis_node)
+    graph.add_node(
+        "persist_final",
+        lambda state: streaming_persist_node(
+            state,
+            session_factory=session_factory,
+            deferred_tasks=deferred_tasks,
+            persistence_receipt=persistence_receipt,
+        ),
+    )
+    graph.add_node("format_response", format_response)
+
+    graph.set_entry_point("validate_input")
+    graph.add_edge("validate_input", "resolve_scope")
+    graph.add_edge("resolve_scope", "load_memory")
+    graph.add_edge("load_memory", "router_node")
+    graph.add_edge("router_node", "local_library_agent_node")
+    graph.add_edge("router_node", "web_research_agent_node")
+    graph.add_edge("local_library_agent_node", "synthesis_node")
+    graph.add_edge("web_research_agent_node", "synthesis_node")
+    graph.add_edge("synthesis_node", "persist_final")
+    graph.add_edge("persist_final", "format_response")
+    graph.add_edge("format_response", END)
+    return graph.compile(checkpointer=checkpointer)
+
+
+def streaming_resolve_scope_node(
+    state: ChatRAGState, session_factory: Callable[[], Session]
+) -> ChatRAGState:
+    _write_activity("loading_context", "正在读取会话上下文")
+    session = session_factory()
+    try:
+        return resolve_scope(state, session)
+    finally:
+        session.rollback()
+        session.close()
+
+
+def streaming_load_memory_node(
+    state: ChatRAGState, session_factory: Callable[[], Session]
+) -> ChatRAGState:
+    _write_activity("retrieving_memory", "正在检索相关记忆")
+    session = session_factory()
+    try:
+        return load_memory(state, session)
+    finally:
+        session.rollback()
+        session.close()
+
+
+def streaming_router_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("routing", "正在分析问题")
+    result = router_node(state)
+    _write_custom({"kind": "route_selected", "route": result["route"]})
+    return result
+
+
+def streaming_local_node(
+    state: ChatRAGState, session_factory: Callable[[], Session]
+) -> ChatRAGState:
+    session = session_factory()
+    try:
+        if state["route"] == "web_only":
+            return local_library_agent_node(state, session)
+        _write_activity("retrieving_local", "正在检索已选书籍")
+        result = local_library_agent_node(state, session)
+    finally:
+        session.rollback()
+        session.close()
+    _write_custom(
+        {
+            "kind": "retrieval_completed",
+            "source": "local",
+            "result_count": len(result.get("retrieved_chunks", [])),
+        }
+    )
+    return result
+
+
+def streaming_web_node(state: ChatRAGState) -> ChatRAGState:
+    if state["route"] == "local_only":
+        return web_research_agent_node(state)
+    _write_activity("searching_web", "正在搜索网络资料")
+    result = web_research_agent_node(state)
+    _write_custom(
+        {
+            "kind": "retrieval_completed",
+            "source": "web",
+            "result_count": len(result.get("web_sources", [])),
+        }
+    )
+    return result
+
+
+async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("processing_sources", "正在整合本地与网络证据")
+    local_result = _state_to_local_library_agent_result(state)
+    web_result = _state_to_web_research_result(state)
+    prepared = prepare_agent_synthesis(
+        question=state["question"],
+        route=state["route"],
+        local_result=local_result,
+        web_result=web_result,
+        memory_context=state.get("memory_prompt_context", ""),
+    )
+    _write_activity("synthesizing", "正在生成回答")
+    provider = get_llm_provider()
+    started_at = perf_counter()
+    first_token_at: float | None = None
+    last_token_at: float | None = None
+    finish_reason: str | None = None
+    usage: TokenUsage | None = None
+    chunks: list[str] = []
+    async for chunk in provider.stream_chat_completion(prepared.prompt):
+        if chunk.usage is not None:
+            usage = chunk.usage
+        if chunk.finish_reason is not None:
+            finish_reason = chunk.finish_reason
+        if not chunk.delta:
+            continue
+        now = perf_counter()
+        if first_token_at is None:
+            first_token_at = now
+            _write_activity("streaming", "正在生成回答")
+        last_token_at = now
+        chunks.append(chunk.delta)
+        _write_custom({"kind": "synthesis_token", "delta": chunk.delta})
+
+    answer = "".join(chunks)
+    if not answer.strip() or first_token_at is None or last_token_at is None:
+        raise LLMProviderError("Final synthesis returned no visible content.")
+    if finish_reason != "stop":
+        raise LLMProviderError(
+            f"Final synthesis did not complete normally ({finish_reason or 'missing'})."
+        )
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.record("synthesis_ttft", (first_token_at - started_at) * 1000)
+        trace.record("synthesis_generation", (last_token_at - first_token_at) * 1000)
+        trace.record("synthesis_total", (last_token_at - started_at) * 1000)
+        trace.set_counter(
+            "prompt_input_tokens", usage.prompt_tokens if usage is not None else None
+        )
+        trace.set_counter(
+            "completion_tokens",
+            usage.completion_tokens if usage is not None else None,
+        )
+        trace.set_counter("output_character_count", len(answer))
+        trace.set_counter("streaming_enabled", True)
+    return {
+        "answer": answer,
+        "final_answer": answer,
+        "local_summary": prepared.local_summary,
+        "web_summary": prepared.web_summary,
+        "warnings": _merge_unique_strings(state.get("warnings", []), prepared.warnings),
+        "errors": _merge_unique_strings(state.get("errors", []), prepared.errors),
+    }
+
+
+def streaming_persist_node(
+    state: ChatRAGState,
+    *,
+    session_factory: Callable[[], Session],
+    deferred_tasks: Any,
+    persistence_receipt: dict[str, Any],
+) -> ChatRAGState:
+    _write_activity("persisting", "正在保存完整回答")
+    session = session_factory()
+    try:
+        with measure_latency_sync("final_persist"):
+            created = ensure_conversation(
+                session,
+                conversation_id=uuid.UUID(state["conversation_id"]),
+                thread_id=state["thread_id"],
+                session_id=state["session_id"],
+                namespace=state["memory_namespace"],
+            )
+            memory_state = save_memory(
+                state,
+                session,
+                background_tasks=deferred_tasks,
+                background_session_factory=session_factory,
+            )
+            event_state = record_learning_event({**state, **memory_state}, session)
+            session.commit()
+        result = {
+            **memory_state,
+            **event_state,
+            "conversation_created": created,
+        }
+        persistence_receipt.update(result)
+        persistence_receipt["conversation_id"] = state["conversation_id"]
+        return result
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def _write_activity(stage: str, message: str) -> None:
+    if get_settings().agent_activity_events_enabled:
+        _write_custom({"kind": "status", "stage": stage, "message": message})
+
+
+def _write_custom(payload: dict[str, Any]) -> None:
+    get_stream_writer()(payload)
+
+
 def run_local_node_with_independent_session(
     state: ChatRAGState, request_session: Session
 ) -> ChatRAGState:
@@ -208,10 +452,24 @@ def run_chat_rag_graph(
         background_tasks=background_tasks,
         background_session_factory=background_session_factory,
     )
+    initial_state = build_initial_agent_state(request, conversation)
+    final_state = graph.invoke(
+        initial_state,
+        {"configurable": {"thread_id": conversation.thread_id}},
+    )
+    response = final_state.get("response")
+    if response is None:
+        raise ChatRAGGraphError("Chat RAG graph did not produce a response")
+    return AgentChatResponse.model_validate(response)
+
+
+def build_initial_agent_state(
+    request: AgentChatRequest, conversation: ConversationIdentity
+) -> AgentGraphState:
     selected_library_item_ids = request.library_item_ids or (
         [request.library_item_id] if request.library_item_id else []
     )
-    initial_state: AgentGraphState = {
+    return {
         "user_message": request.question or request.message or "",
         "selected_library_item_ids": selected_library_item_ids,
         "question": request.question or request.message or "",
@@ -241,14 +499,6 @@ def run_chat_rag_graph(
         "errors": [],
         "learning_event_created": False,
     }
-    final_state = graph.invoke(
-        initial_state,
-        {"configurable": {"thread_id": conversation.thread_id}},
-    )
-    response = final_state.get("response")
-    if response is None:
-        raise ChatRAGGraphError("Chat RAG graph did not produce a response")
-    return AgentChatResponse.model_validate(response)
 
 
 def validate_input(state: ChatRAGState) -> ChatRAGState:
@@ -338,7 +588,9 @@ def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
             "recent_turn_characters",
             sum(len(turn.question) + len(turn.answer) for turn in context.recent_turns),
         )
-        trace.set_counter("conversation_summary_characters", len(context.rolling_summary))
+        trace.set_counter(
+            "conversation_summary_characters", len(context.rolling_summary)
+        )
         trace.set_counter(
             "retrieved_memory_characters",
             sum(len(memory.content) for memory in context.long_term_memories),
@@ -439,12 +691,16 @@ def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
             },
         }
 
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.increment("web_search_call_count")
+        if get_settings().web_research_provider.strip().lower() == "tavily":
+            trace.increment("tavily_call_count")
     with measure_latency_sync("web_agent_total"):
         with measure_latency_sync("web_search"):
             result = run_web_research_agent_service(state["question"])
         with measure_latency_sync("web_result_processing"):
             result_state = _web_research_result_to_state(result)
-    trace = current_latency_trace()
     if trace is not None:
         trace.set_counter("web_result_count", len(result.sources))
     return result_state
@@ -488,6 +744,26 @@ def save_memory(
             chunk["chunk_id"] for chunk in state.get("retrieved_chunks", [])
         ],
         "citation_count": len(state.get("citations", [])),
+        "citations": state.get("citations", []),
+        "citation_refs": [
+            {
+                key: citation.get(key)
+                for key in (
+                    "citation_id",
+                    "chunk_id",
+                    "document_id",
+                    "library_item_id",
+                    "page_start",
+                    "page_end",
+                )
+            }
+            for citation in state.get("citations", [])
+        ],
+        "web_source_refs": [
+            {key: source.get(key) for key in ("source_id", "title", "url", "provider")}
+            for source in state.get("web_sources", [])
+        ],
+        "web_sources": state.get("web_sources", []),
     }
     if state["scope_type"] == "single_book":
         metadata["library_item_id"] = state["library_item_id"]
@@ -527,6 +803,7 @@ def save_memory(
             },
             "memory_updates": memory_updates,
             "summary_updated": summary_updated,
+            "persisted_turn_id": str(turn.turn_id),
         }
     try:
         with session.begin_nested():
@@ -569,6 +846,7 @@ def save_memory(
         },
         "memory_updates": memory_updates,
         "summary_updated": summary_updated,
+        "persisted_turn_id": str(turn.turn_id),
     }
 
 
@@ -579,7 +857,7 @@ def record_learning_event(state: ChatRAGState, session: Session) -> ChatRAGState
         if state["scope_type"] == "single_book"
         else None
     )
-    create_learning_event(
+    result = create_learning_event(
         session,
         event_type=EVENT_AGENT_CHAT_QUESTION_ASKED,
         title="Agent chat question asked",
@@ -596,7 +874,10 @@ def record_learning_event(state: ChatRAGState, session: Session) -> ChatRAGState
             "citation_count": len(state.get("citations", [])),
         },
     )
-    return {"learning_event_created": True}
+    return {
+        "learning_event_created": True,
+        "persisted_learning_event_id": str(result.event_id),
+    }
 
 
 def format_response(state: ChatRAGState) -> ChatRAGState:

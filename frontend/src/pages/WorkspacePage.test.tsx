@@ -14,6 +14,9 @@ vi.mock("../api/client", () => ({
   importLibraryPdfs: vi.fn(),
   listLibraryItems: vi.fn(),
   queryAgentChat: vi.fn(),
+  queryAgentChatStream: vi
+    .fn()
+    .mockRejectedValue({ status: 409, message: "Agent streaming is disabled" }),
 }));
 vi.mock("../tauri/filePicker", () => ({ selectLocalPdfFiles: vi.fn() }));
 vi.mock("../tauri/pdfOpener", () => ({ openManagedLibraryPdf: vi.fn() }));
