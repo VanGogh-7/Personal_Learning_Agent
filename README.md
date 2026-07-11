@@ -10,7 +10,7 @@ The product is a learning agent, not a PDF reader. The MVP UI is:
 PDF Repository | Agent Chat
 ```
 
-Current stage: production-oriented native Agent memory architecture.
+Current stage: Agent latency observability and measured low-risk optimization.
 
 ## What It Does
 
@@ -77,17 +77,83 @@ Add PDF
 
 ```mermaid
 flowchart TD
-    A[User Message] --> B[Conversation Context]
-    B --> C[Long-term Memory Retrieval]
-    C --> D[Router]
-    D --> E[Local Library Agent]
-    D --> F[Web Research Agent]
-    E --> G[Synthesis]
+    A[Frontend Request] --> B[Conversation and Memory Load]
+    B --> C[Router]
+    C --> D[Query Embedding]
+    D --> E[Local Retrieval]
+    C --> F[Web Research]
+    E --> G[Synthesis LLM]
     F --> G
-    G --> H[Persist Turn]
-    H --> I[Memory Extraction]
-    I --> J[Consolidation]
+    G --> H[Persist Conversation]
+    H --> I[Complete JSON Response]
+    I --> J[Background Memory Processing]
 ```
+
+For `both`, Local Retrieval and Web Research are LangGraph parallel branches.
+The answer turn is persisted before the response is returned. Rolling summary,
+memory extraction, and consolidation run afterward as managed FastAPI
+background work with a separate database session.
+
+## Agent latency diagnostics
+
+Set these backend options in local development:
+
+```env
+AGENT_LATENCY_LOGGING_ENABLED=true
+AGENT_DEBUG_TIMINGS_IN_RESPONSE=false
+LLM_CONNECT_TIMEOUT_SECONDS=10
+LLM_READ_TIMEOUT_SECONDS=60
+EMBEDDING_CONNECT_TIMEOUT_SECONDS=10
+EMBEDDING_READ_TIMEOUT_SECONDS=60
+```
+
+Every completed or failed Agent request emits one JSON summary with a random
+`request_id`, route, safe counters, and `timings_ms`. It never includes the
+full question, prompt, answer, chunk text, API key, or embedding vector.
+Post-response Memory work emits a second JSON event with the same `request_id`.
+
+`synthesis_ttft` is the time from sending the DeepSeek request until its first
+content token. `synthesis_generation` is first token to last token, while
+`synthesis_total` includes the complete streamed provider exchange. Embedding
+API latency is `query_embedding`; pgvector/database distance search is
+`document_vector_search`. Route-specific `local_agent_total` and
+`web_agent_total` show branch cost, and `both` should be close to the slower
+branch rather than their sum.
+
+Development-only response diagnostics can be enabled with
+`AGENT_DEBUG_TIMINGS_IN_RESPONSE=true`. They are included only when `APP_ENV`
+is not `production`; production never exposes internal timing data.
+
+Run the deterministic benchmark without network calls:
+
+```bash
+conda activate pla
+cd backend
+python scripts/benchmark_agent_latency.py --runs 10
+```
+
+It reports count, min, max, mean, p50, p90, p95, and failures separately. One
+warm-up is used by default. A real benchmark is opt-in and consumes API quota:
+
+```bash
+python scripts/benchmark_agent_latency.py \
+  --runs 3 \
+  --real-providers \
+  --scenario local_only \
+  --scenario web_only \
+  --scenario both
+```
+
+Use `backend/scripts/explain_vector_search.sql` with `psql` to inspect the
+actual L2 (`<->`) retrieval plan. An eventual ANN index must use an L2-matched
+operator class such as `vector_l2_ops`; do not add one solely because a small
+table uses a faster sequential scan.
+
+The current HTTP API still returns one complete JSON response. DeepSeek is
+consumed as a stream inside the provider so TTFT and generation can be measured,
+but partial tokens are not sent to the frontend yet. The frontend records
+request-to-response and final Markdown/KaTeX render time; for the current
+non-streaming protocol, first and last response chunk are the same event.
 
 ### Memory boundaries
 
@@ -310,6 +376,8 @@ These are developer/debug tools, not the main product UI:
 - `backend/scripts/search_book.py`
 - `backend/scripts/eval_retrieval.py`
 - `backend/scripts/ask_book.py`
+- `backend/scripts/benchmark_agent_latency.py`
+- `backend/scripts/explain_vector_search.sql`
 
 Do not commit generated baseline outputs or real PDFs used with these
 scripts.
@@ -326,6 +394,8 @@ scripts.
 - Calendar and Notes UI are not part of the MVP.
 - Web research depends on provider configuration.
 - The Web Research Agent is not a crawler or deep-research system.
+- Agent Chat does not yet expose partial tokens over SSE; the current JSON
+  response preserves atomic persistence, citations, and final Markdown/KaTeX.
 
 ## Development Status
 

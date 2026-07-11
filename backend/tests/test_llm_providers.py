@@ -10,6 +10,8 @@ from app.llm.providers import (
     OpenAICompatibleLLMProvider,
     get_llm_provider,
 )
+from app.observability.latency import AgentLatencyTrace, latency_trace_context
+from app.providers.http_clients import ProviderHttpClientManager
 
 
 def test_default_provider_is_deterministic() -> None:
@@ -108,3 +110,60 @@ def test_openai_compatible_provider_failure_is_clean_and_does_not_leak_key() -> 
     message = str(exc_info.value)
     assert message == "Real LLM provider request failed."
     assert "secret-test-key" not in message
+
+
+def test_streaming_provider_measures_ttft_and_generation() -> None:
+    body = "\n".join(
+        [
+            'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+            'data: {"choices":[{"delta":{"content":" world"}}]}',
+            'data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2}}',
+            "data: [DONE]",
+            "",
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert b'"stream":true' in request.content
+        return httpx.Response(200, text=body)
+
+    provider = OpenAICompatibleLLMProvider(
+        api_key="test-key",
+        base_url="https://api.example.com",
+        model="test-model",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    trace = AgentLatencyTrace()
+    with latency_trace_context(trace):
+        result = provider.generate_with_metrics("Question?")
+    assert result.text == "Hello world"
+    assert result.ttft_ms is not None and result.ttft_ms >= 0
+    assert result.generation_ms is not None and result.generation_ms >= 0
+    assert result.total_ms >= result.ttft_ms
+    assert result.prompt_tokens == 7
+    assert result.completion_tokens == 2
+    assert trace.counters["llm_call_count"] == 1
+
+
+def test_streaming_provider_timeout_is_clean() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timeout", request=request)
+
+    provider = OpenAICompatibleLLMProvider(
+        api_key="test-key",
+        base_url="https://api.example.com",
+        model="test-model",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    with pytest.raises(LLMProviderError, match="streaming request failed"):
+        provider.generate_with_metrics("Question?")
+
+
+def test_provider_http_client_manager_reuses_and_closes_clients() -> None:
+    manager = ProviderHttpClientManager()
+    settings = Settings(_env_file=None)
+    first = manager.get("llm", settings)
+    second = manager.get("llm", settings)
+    assert first is second
+    manager.close()
+    assert first.is_closed

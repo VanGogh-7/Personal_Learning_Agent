@@ -33,6 +33,7 @@ from app.memory.conversations import resolve_conversation
 from app.memory.service import (
     extract_and_consolidate_turn,
     maintain_conversation_summary,
+    run_post_response_memory_processing,
 )
 from app.memory.short_term import (
     ConversationTurnResult,
@@ -54,6 +55,8 @@ from app.rag.schemas import (
     RetrievedChunk,
     SelectedLibraryItemRead,
 )
+from app.observability.checkpointer import TimedCheckpointer
+from app.observability.latency import current_latency_trace, measure_latency_sync
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +114,12 @@ class AgentGraphState(TypedDict, total=False):
 ChatRAGState = AgentGraphState
 
 
-def build_chat_rag_graph(session: Session, checkpointer=None):
+def build_chat_rag_graph(
+    session: Session,
+    checkpointer=None,
+    background_tasks=None,
+    background_session_factory=None,
+):
     """Build the explicit dual-agent LangGraph boundary."""
     graph = StateGraph(AgentGraphState)
 
@@ -121,11 +129,19 @@ def build_chat_rag_graph(session: Session, checkpointer=None):
     graph.add_node("router_node", router_node)
     graph.add_node(
         "local_library_agent_node",
-        lambda state: local_library_agent_node(state, session),
+        lambda state: run_local_node_with_independent_session(state, session),
     )
     graph.add_node("web_research_agent_node", web_research_agent_node)
     graph.add_node("synthesis_node", synthesis_node)
-    graph.add_node("save_memory", lambda state: save_memory(state, session))
+    graph.add_node(
+        "save_memory",
+        lambda state: save_memory(
+            state,
+            session,
+            background_tasks=background_tasks,
+            background_session_factory=background_session_factory,
+        ),
+    )
     graph.add_node(
         "record_learning_event", lambda state: record_learning_event(state, session)
     )
@@ -136,7 +152,8 @@ def build_chat_rag_graph(session: Session, checkpointer=None):
     graph.add_edge("resolve_scope", "load_memory")
     graph.add_edge("load_memory", "router_node")
     graph.add_edge("router_node", "local_library_agent_node")
-    graph.add_edge("local_library_agent_node", "web_research_agent_node")
+    graph.add_edge("router_node", "web_research_agent_node")
+    graph.add_edge("local_library_agent_node", "synthesis_node")
     graph.add_edge("web_research_agent_node", "synthesis_node")
     graph.add_edge("synthesis_node", "save_memory")
     graph.add_edge("save_memory", "record_learning_event")
@@ -146,22 +163,51 @@ def build_chat_rag_graph(session: Session, checkpointer=None):
     return graph.compile(checkpointer=checkpointer)
 
 
+def run_local_node_with_independent_session(
+    state: ChatRAGState, request_session: Session
+) -> ChatRAGState:
+    """Use a read-only session so Local and Web can execute concurrently."""
+    if request_session.get_bind().dialect.name == "sqlite":
+        # SQLite test fixtures may use one StaticPool connection. A second
+        # session rollback would also roll back the request transaction.
+        return local_library_agent_node(state, request_session)
+    local_session = Session(bind=request_session.get_bind(), expire_on_commit=False)
+    try:
+        return local_library_agent_node(state, local_session)
+    finally:
+        local_session.rollback()
+        local_session.close()
+
+
 def run_chat_rag_graph(
-    request: AgentChatRequest, session: Session
+    request: AgentChatRequest,
+    session: Session,
+    *,
+    background_tasks=None,
+    background_session_factory=None,
 ) -> AgentChatResponse:
     """Run the Chat RAG graph for one request using an external transaction boundary."""
     try:
         requested_conversation_id = (
             uuid.UUID(request.conversation_id) if request.conversation_id else None
         )
-        conversation = resolve_conversation(
-            session,
-            conversation_id=requested_conversation_id,
-            legacy_session_id=request.session_id,
-        )
+        with measure_latency_sync("conversation_load"):
+            conversation = resolve_conversation(
+                session,
+                conversation_id=requested_conversation_id,
+                legacy_session_id=request.session_id,
+            )
     except ValueError as exc:
         raise ChatRAGValidationError(str(exc)) from exc
-    graph = build_chat_rag_graph(session, checkpointer_manager.get())
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.conversation_id = str(conversation.conversation_id)
+    graph = build_chat_rag_graph(
+        session,
+        TimedCheckpointer(checkpointer_manager.get()),
+        background_tasks=background_tasks,
+        background_session_factory=background_session_factory,
+    )
     selected_library_item_ids = request.library_item_ids or (
         [request.library_item_id] if request.library_item_id else []
     )
@@ -206,6 +252,11 @@ def run_chat_rag_graph(
 
 
 def validate_input(state: ChatRAGState) -> ChatRAGState:
+    with measure_latency_sync("request_validation"):
+        return _validate_input(state)
+
+
+def _validate_input(state: ChatRAGState) -> ChatRAGState:
     question = state.get("question", "")
     if not question or not question.strip():
         raise ChatRAGValidationError("question must not be empty")
@@ -274,12 +325,24 @@ def resolve_scope(state: ChatRAGState, session: Session) -> ChatRAGState:
 
 
 def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
-    context = build_memory_context(
-        session,
-        conversation_id=uuid.UUID(state["conversation_id"]),
-        namespace=state["memory_namespace"],
-        query=state["question"],
-    )
+    with measure_latency_sync("memory_load_total"):
+        context = build_memory_context(
+            session,
+            conversation_id=uuid.UUID(state["conversation_id"]),
+            namespace=state["memory_namespace"],
+            query=state["question"],
+        )
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter(
+            "recent_turn_characters",
+            sum(len(turn.question) + len(turn.answer) for turn in context.recent_turns),
+        )
+        trace.set_counter("conversation_summary_characters", len(context.rolling_summary))
+        trace.set_counter(
+            "retrieved_memory_characters",
+            sum(len(memory.content) for memory in context.long_term_memories),
+        )
     return {
         "short_term_context": [
             _conversation_turn_to_state(turn) for turn in context.recent_turns
@@ -302,7 +365,16 @@ def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
 
 def router_node(state: ChatRAGState) -> ChatRAGState:
     # Routing is intentionally deterministic so MVP demos and tests are stable.
-    route = route_question(state["question"])
+    with measure_latency_sync("router_total"):
+        route = route_question(state["question"])
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.route = route
+        trace.set_counter("route", route)
+        trace.set_counter(
+            "selected_library_item_count",
+            len(state.get("selected_library_items", [])),
+        )
     return {"route": route, "route_decision": route}
 
 
@@ -331,19 +403,23 @@ def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGSt
     long_term_memories = [
         _state_to_long_term_memory(memory) for memory in state["long_term_context"]
     ]
-    result = run_local_library_agent_service(
-        session,
-        question=state["question"],
-        scope_type=state["scope_type"],
-        library_item_id=state.get("library_item_id"),
-        library_item_ids=state.get("library_item_ids", []),
-        top_k=state["top_k"],
-        recent_turns=recent_turns,
-        long_term_memories=long_term_memories,
-        retrieve_global=retrieve_relevant_chunks,
-        retrieve_single_book=retrieve_relevant_chunks_for_library_item,
-        retrieve_multi_book=retrieve_relevant_chunks_for_library_items,
-    )
+    with measure_latency_sync("local_agent_total"):
+        result = run_local_library_agent_service(
+            session,
+            question=state["question"],
+            scope_type=state["scope_type"],
+            library_item_id=state.get("library_item_id"),
+            library_item_ids=state.get("library_item_ids", []),
+            top_k=state["top_k"],
+            recent_turns=recent_turns,
+            long_term_memories=long_term_memories,
+            retrieve_global=retrieve_relevant_chunks,
+            retrieve_single_book=retrieve_relevant_chunks_for_library_item,
+            retrieve_multi_book=retrieve_relevant_chunks_for_library_items,
+        )
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("retrieved_chunk_count", len(result.retrieved_chunks))
     return _local_library_agent_result_to_state(result)
 
 
@@ -363,8 +439,15 @@ def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
             },
         }
 
-    result = run_web_research_agent_service(state["question"])
-    return _web_research_result_to_state(result)
+    with measure_latency_sync("web_agent_total"):
+        with measure_latency_sync("web_search"):
+            result = run_web_research_agent_service(state["question"])
+        with measure_latency_sync("web_result_processing"):
+            result_state = _web_research_result_to_state(result)
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("web_result_count", len(result.sources))
+    return result_state
 
 
 def synthesis_node(state: ChatRAGState) -> ChatRAGState:
@@ -391,7 +474,13 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
     }
 
 
-def save_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
+def save_memory(
+    state: ChatRAGState,
+    session: Session,
+    *,
+    background_tasks=None,
+    background_session_factory=None,
+) -> ChatRAGState:
     metadata: dict[str, Any] = {
         "query_type": "agent_chat",
         "scope_type": state["scope_type"],
@@ -405,21 +494,46 @@ def save_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
     elif state["scope_type"] == "multi_book":
         metadata["library_item_ids"] = state["library_item_ids"]
 
-    turn = save_turn(
-        session,
-        state["session_id"],
-        state["question"],
-        state["answer"],
-        metadata=metadata,
-        conversation_id=uuid.UUID(state["conversation_id"]),
-    )
+    with measure_latency_sync("conversation_persist"):
+        turn = save_turn(
+            session,
+            state["session_id"],
+            state["question"],
+            state["answer"],
+            metadata=metadata,
+            conversation_id=uuid.UUID(state["conversation_id"]),
+        )
     memory_updates: list[dict[str, Any]] = []
     summary_updated = False
+    if background_tasks is not None:
+        trace = current_latency_trace()
+        background_tasks.add_task(
+            run_post_response_memory_processing,
+            request_id=trace.request_id if trace is not None else str(uuid.uuid4()),
+            conversation_id=uuid.UUID(state["conversation_id"]),
+            namespace=state["memory_namespace"],
+            source_turn_id=turn.turn_id,
+            user_message=state["question"],
+            route=state["route"],
+            session_factory=background_session_factory,
+        )
+        if trace is not None:
+            trace.set_counter("memory_post_processing_deferred", True)
+        return {
+            "memory_metadata": {
+                "used_recent_turns": len(state.get("short_term_context", [])),
+                "saved_current_turn": True,
+                "used_long_term_memories": len(state.get("long_term_context", [])),
+            },
+            "memory_updates": memory_updates,
+            "summary_updated": summary_updated,
+        }
     try:
         with session.begin_nested():
-            summary_updated = maintain_conversation_summary(
-                session, conversation_id=uuid.UUID(state["conversation_id"])
-            )
+            with measure_latency_sync("conversation_summary"):
+                summary_updated = maintain_conversation_summary(
+                    session, conversation_id=uuid.UUID(state["conversation_id"])
+                )
     except Exception as exc:
         logger.warning(
             "memory_summary_failed conversation_id=%s thread_id=%s error_type=%s",
@@ -486,6 +600,11 @@ def record_learning_event(state: ChatRAGState, session: Session) -> ChatRAGState
 
 
 def format_response(state: ChatRAGState) -> ChatRAGState:
+    with measure_latency_sync("response_serialization"):
+        return _format_response(state)
+
+
+def _format_response(state: ChatRAGState) -> ChatRAGState:
     citations = [
         RagCitation.model_validate(citation) for citation in state["citations"]
     ]

@@ -5,6 +5,7 @@ import httpx
 from app.core.config import Settings, get_settings
 from app.embeddings.base import EMBEDDING_DIMENSION, EmbeddingProvider
 from app.embeddings.mock import MockEmbeddingProvider
+from app.providers.http_clients import provider_http_clients
 
 MOCK_EMBEDDING_PROVIDER_NAMES = {"", "mock", "deterministic"}
 ZHIPU_EMBEDDING_PROVIDER_NAME = "zhipu"
@@ -91,15 +92,13 @@ class ZhipuEmbeddingProvider(EmbeddingProvider):
                     f"{self._base_url}/embeddings",
                     json=payload,
                     headers=headers,
-                    timeout=60.0,
                 )
             else:
-                with httpx.Client(timeout=60.0) as client:
-                    response = client.post(
-                        f"{self._base_url}/embeddings",
-                        json=payload,
-                        headers=headers,
-                    )
+                response = provider_http_clients.get("embedding").post(
+                    f"{self._base_url}/embeddings",
+                    json=payload,
+                    headers=headers,
+                )
             response.raise_for_status()
             data = response.json()
             return self._extract_embeddings(data, expected_count=len(texts))
@@ -150,10 +149,14 @@ def get_embedding_provider(settings: Settings | None = None) -> EmbeddingProvide
             base_url=resolved_settings.zhipu_base_url,
             model=resolved_settings.zhipu_embedding_model,
             dimension=resolved_settings.zhipu_embedding_dimension,
+            client=(
+                provider_http_clients.get("embedding", resolved_settings)
+                if settings is None
+                else None
+            ),
         )
 
     raise EmbeddingConfigurationError(
         "Unsupported EMBEDDING_PROVIDER "
         f"'{resolved_settings.embedding_provider}'. Supported values: mock, zhipu."
     )
-

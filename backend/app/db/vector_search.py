@@ -137,11 +137,39 @@ def search_similar_chunks_for_documents(
     if exclude_section_types:
         stmt = stmt.where(DocumentChunk.section_type.not_in(list(exclude_section_types)))
 
-    rows = (
-        session.execute(stmt)
-        .scalars()
-        .all()
-    )
+    if session.bind is not None and session.bind.dialect.name == "postgresql":
+        distance = DocumentChunk.embedding.l2_distance(list(query_embedding))
+        vector_stmt = (
+            select(DocumentChunk, distance.label("distance"))
+            .where(DocumentChunk.document_id.in_(list(document_ids)))
+            .where(DocumentChunk.embedding.is_not(None))
+            .order_by(distance)
+            .limit(limit)
+        )
+        if exclude_section_types:
+            vector_stmt = vector_stmt.where(
+                DocumentChunk.section_type.not_in(list(exclude_section_types))
+            )
+        vector_rows = session.execute(vector_stmt).all()
+        return [
+            SimilarChunkResult(
+                chunk_id=chunk.id,
+                document_id=chunk.document_id,
+                chunk_index=chunk.chunk_index,
+                content=chunk.content,
+                char_start=chunk.char_start,
+                char_end=chunk.char_end,
+                page_start=chunk.page_start,
+                page_end=chunk.page_end,
+                section_type=chunk.section_type,
+                chapter_title=chunk.chapter_title,
+                section_title=chunk.section_title,
+                distance=float(distance_value),
+            )
+            for chunk, distance_value in vector_rows
+        ]
+
+    rows = session.execute(stmt).scalars().all()
 
     scored = [
         (

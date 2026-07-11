@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode, memo } from "react";
+import { Component, ComponentProps, ErrorInfo, ReactNode, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
@@ -7,6 +7,22 @@ import remarkMath from "remark-math";
 interface MarkdownMessageProps {
   content: string;
 }
+
+const REMARK_PLUGINS: ComponentProps<typeof ReactMarkdown>["remarkPlugins"] = [
+  remarkGfm,
+  remarkMath,
+];
+const REHYPE_PLUGINS: ComponentProps<typeof ReactMarkdown>["rehypePlugins"] = [
+  [rehypeKatex, { strict: "warn", trust: false, throwOnError: false }],
+];
+const MARKDOWN_COMPONENTS: ComponentProps<typeof ReactMarkdown>["components"] =
+  {
+    a: ({ children, ...props }) => (
+      <a {...props} rel="noreferrer noopener" target="_blank">
+        {children}
+      </a>
+    ),
+  };
 
 class MarkdownMessageErrorBoundary extends Component<
   { children: ReactNode; content: string },
@@ -43,20 +59,9 @@ function MarkdownMessageView({ content }: MarkdownMessageProps) {
     <MarkdownMessageErrorBoundary content={content}>
       <div className="answer-text markdown-message">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[
-            [
-              rehypeKatex,
-              { strict: "warn", trust: false, throwOnError: false },
-            ],
-          ]}
-          components={{
-            a: ({ children, ...props }) => (
-              <a {...props} rel="noreferrer noopener" target="_blank">
-                {children}
-              </a>
-            ),
-          }}
+          remarkPlugins={REMARK_PLUGINS}
+          rehypePlugins={REHYPE_PLUGINS}
+          components={MARKDOWN_COMPONENTS}
         >
           {content}
         </ReactMarkdown>

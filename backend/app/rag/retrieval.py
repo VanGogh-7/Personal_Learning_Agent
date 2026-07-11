@@ -11,6 +11,11 @@ from app.embeddings.providers import get_embedding_provider
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
+from app.observability.latency import (
+    current_latency_trace,
+    get_request_query_embedding,
+    measure_latency_sync,
+)
 
 
 @dataclass
@@ -56,9 +61,10 @@ def resolve_library_item_rag_context(
     if item is None:
         raise LibraryItemRagError("Library item not found")
 
-    documents = session.execute(
-        select(Document).where(Document.library_item_id == item.id)
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        documents = session.execute(
+            select(Document).where(Document.library_item_id == item.id)
+        ).scalars().all()
     if not documents:
         raise LibraryItemRagError("Library item has not been indexed yet.")
 
@@ -93,18 +99,20 @@ def resolve_library_items_rag_context(
     if not deduped_item_ids:
         raise LibraryItemRagError("library_item_ids must not be empty")
 
-    items = session.execute(
-        select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        items = session.execute(
+            select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+        ).scalars().all()
     items_by_id = {item.id: item for item in items}
 
     for item_id in deduped_item_ids:
         if item_id not in items_by_id:
             raise LibraryItemRagError("Library item not found")
 
-    documents = session.execute(
-        select(Document).where(Document.library_item_id.in_(deduped_item_ids))
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        documents = session.execute(
+            select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+        ).scalars().all()
     documents_by_item_id: dict[uuid.UUID, list[Document]] = {
         item_id: [] for item_id in deduped_item_ids
     }
@@ -165,39 +173,43 @@ def retrieve_relevant_chunks(
     explicitly. Tests force the mock provider through environment setup.
     """
     provider = embedding_provider or get_embedding_provider()
-    query_embedding = provider.embed_text(question)
+    query_embedding = get_request_query_embedding(provider, question)
 
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
-    similar_chunks = search_similar_chunks(
-        session,
-        query_embedding,
-        limit=top_k,
-        exclude_section_types=exclude_section_types,
-    )
+    with measure_latency_sync("document_vector_search"):
+        similar_chunks = search_similar_chunks(
+            session,
+            query_embedding,
+            limit=top_k,
+            exclude_section_types=exclude_section_types,
+        )
     if not similar_chunks:
         return []
 
-    document_ids = {chunk.document_id for chunk in similar_chunks}
-    documents = {
-        document.id: document
-        for document in session.execute(
-            select(Document).where(Document.id.in_(document_ids))
-        ).scalars()
-    }
-
-    library_item_ids = {
-        document.library_item_id for document in documents.values() if document.library_item_id
-    }
-    library_items = (
-        {
-            item.id: item
-            for item in session.execute(
-                select(LibraryItem).where(LibraryItem.id.in_(library_item_ids))
+    with measure_latency_sync("document_chunk_load"):
+        document_ids = {chunk.document_id for chunk in similar_chunks}
+        documents = {
+            document.id: document
+            for document in session.execute(
+                select(Document).where(Document.id.in_(document_ids))
             ).scalars()
         }
-        if library_item_ids
-        else {}
-    )
+
+        library_item_ids = {
+            document.library_item_id
+            for document in documents.values()
+            if document.library_item_id
+        }
+        library_items = (
+            {
+                item.id: item
+                for item in session.execute(
+                    select(LibraryItem).where(LibraryItem.id.in_(library_item_ids))
+                ).scalars()
+            }
+            if library_item_ids
+            else {}
+        )
 
     results: list[RetrievedChunkResult] = []
     for chunk in similar_chunks:
@@ -245,23 +257,25 @@ def retrieve_relevant_chunks_for_library_item(
     if item is None:
         raise LibraryItemRagError("Library item not found")
 
-    documents = session.execute(
-        select(Document).where(Document.library_item_id == item.id)
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        documents = session.execute(
+            select(Document).where(Document.library_item_id == item.id)
+        ).scalars().all()
     if not documents:
         raise LibraryItemRagError("Library item has not been indexed yet.")
 
     provider = embedding_provider or get_embedding_provider()
-    query_embedding = provider.embed_text(question)
+    query_embedding = get_request_query_embedding(provider, question)
     document_ids = [document.id for document in documents]
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
-    similar_chunks = search_similar_chunks_for_documents(
-        session,
-        query_embedding,
-        document_ids=document_ids,
-        limit=top_k,
-        exclude_section_types=exclude_section_types,
-    )
+    with measure_latency_sync("document_vector_search"):
+        similar_chunks = search_similar_chunks_for_documents(
+            session,
+            query_embedding,
+            document_ids=document_ids,
+            limit=top_k,
+            exclude_section_types=exclude_section_types,
+        )
     if not similar_chunks:
         raise LibraryItemRagError("Library item has no indexed chunks to search.")
 
@@ -315,18 +329,20 @@ def retrieve_relevant_chunks_for_library_items(
     if not deduped_item_ids:
         raise LibraryItemRagError("library_item_ids must not be empty")
 
-    items = session.execute(
-        select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        items = session.execute(
+            select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+        ).scalars().all()
     items_by_id = {item.id: item for item in items}
 
     for item_id in deduped_item_ids:
         if item_id not in items_by_id:
             raise LibraryItemRagError("Library item not found")
 
-    documents = session.execute(
-        select(Document).where(Document.library_item_id.in_(deduped_item_ids))
-    ).scalars().all()
+    with measure_latency_sync("document_chunk_load"):
+        documents = session.execute(
+            select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+        ).scalars().all()
     documents_by_item_id: dict[uuid.UUID, list[Document]] = {
         item_id: [] for item_id in deduped_item_ids
     }
@@ -363,15 +379,16 @@ def retrieve_relevant_chunks_for_library_items(
             )
 
     provider = embedding_provider or get_embedding_provider()
-    query_embedding = provider.embed_text(question)
+    query_embedding = get_request_query_embedding(provider, question)
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
-    similar_chunks = search_similar_chunks_for_documents(
-        session,
-        query_embedding,
-        document_ids=document_ids,
-        limit=top_k,
-        exclude_section_types=exclude_section_types,
-    )
+    with measure_latency_sync("document_vector_search"):
+        similar_chunks = search_similar_chunks_for_documents(
+            session,
+            query_embedding,
+            document_ids=document_ids,
+            limit=top_k,
+            exclude_section_types=exclude_section_types,
+        )
     if not similar_chunks:
         raise LibraryItemRagError("Selected library items have no indexed chunks to search.")
 
@@ -417,4 +434,7 @@ def retrieve_relevant_chunks_for_library_items(
             )
         )
 
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("retrieved_chunk_count", len(results))
     return contexts, results

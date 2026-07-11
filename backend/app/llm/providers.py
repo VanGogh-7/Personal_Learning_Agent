@@ -1,9 +1,25 @@
+import json
+from dataclasses import dataclass
+from time import perf_counter
 from typing import Any, Protocol
 
 import httpx
 
 from app.core.config import Settings, get_settings
 from app.llm.deepseek_client import DeepSeekClient
+from app.observability.latency import current_latency_trace
+from app.providers.http_clients import provider_http_clients
+
+
+@dataclass(frozen=True)
+class LLMGenerationMetrics:
+    text: str
+    ttft_ms: float | None
+    generation_ms: float | None
+    total_ms: float
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    streaming: bool = False
 
 
 class LLMProvider(Protocol):
@@ -30,12 +46,27 @@ class DeterministicLLMProvider:
     """Deterministic provider used by tests and local development by default."""
 
     def generate(self, prompt: str) -> str:
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("llm_call_count")
         marker_index = prompt.find(DETERMINISTIC_ANSWER_MARKER)
         if marker_index == -1:
             return prompt.strip()
 
         answer_start = marker_index + len(DETERMINISTIC_ANSWER_MARKER)
         return prompt[answer_start:].strip()
+
+    def generate_with_metrics(self, prompt: str) -> LLMGenerationMetrics:
+        started_at = perf_counter()
+        text = self.generate(prompt)
+        total_ms = (perf_counter() - started_at) * 1000
+        return LLMGenerationMetrics(
+            text=text,
+            ttft_ms=0.0,
+            generation_ms=0.0,
+            total_ms=total_ms,
+            streaming=False,
+        )
 
 
 class OpenAICompatibleLLMProvider:
@@ -59,6 +90,9 @@ class OpenAICompatibleLLMProvider:
         self._client = client
 
     def generate(self, prompt: str) -> str:
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("llm_call_count")
         request_payload = {
             "model": self._model,
             "messages": [
@@ -83,15 +117,13 @@ class OpenAICompatibleLLMProvider:
                     f"{self._base_url}/chat/completions",
                     json=request_payload,
                     headers=headers,
-                    timeout=30.0,
                 )
             else:
-                with httpx.Client(timeout=30.0) as client:
-                    response = client.post(
-                        f"{self._base_url}/chat/completions",
-                        json=request_payload,
-                        headers=headers,
-                    )
+                response = provider_http_clients.get("llm").post(
+                    f"{self._base_url}/chat/completions",
+                    json=request_payload,
+                    headers=headers,
+                )
             response.raise_for_status()
             data = response.json()
             return _extract_openai_compatible_content(data)
@@ -101,6 +133,83 @@ class OpenAICompatibleLLMProvider:
             raise LLMProviderError("Real LLM provider request failed.") from exc
         except (KeyError, TypeError, ValueError) as exc:
             raise LLMProviderError("Real LLM provider returned an invalid response.") from exc
+
+    def generate_with_metrics(self, prompt: str) -> LLMGenerationMetrics:
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("llm_call_count")
+            trace.set_counter("streaming_enabled", True)
+        payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Answer using only the provided retrieval context. "
+                        "If the context is insufficient, say so clearly."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        client = self._client or provider_http_clients.get("llm")
+        started_at = perf_counter()
+        first_token_at: float | None = None
+        last_token_at: float | None = None
+        chunks: list[str] = []
+        prompt_tokens: int | None = None
+        completion_tokens: int | None = None
+        try:
+            with client.stream(
+                "POST",
+                f"{self._base_url}/chat/completions",
+                json=payload,
+                headers=headers,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if not data or data == "[DONE]":
+                        continue
+                    event = json.loads(data)
+                    usage = event.get("usage") or {}
+                    if isinstance(usage.get("prompt_tokens"), int):
+                        prompt_tokens = usage["prompt_tokens"]
+                    if isinstance(usage.get("completion_tokens"), int):
+                        completion_tokens = usage["completion_tokens"]
+                    choices = event.get("choices") or []
+                    if not choices:
+                        continue
+                    content = (choices[0].get("delta") or {}).get("content")
+                    if not isinstance(content, str) or not content:
+                        continue
+                    now = perf_counter()
+                    if first_token_at is None:
+                        first_token_at = now
+                    last_token_at = now
+                    chunks.append(content)
+        except (httpx.HTTPError, json.JSONDecodeError) as exc:
+            raise LLMProviderError("Real LLM provider streaming request failed.") from exc
+        text = "".join(chunks).strip()
+        if not text or first_token_at is None or last_token_at is None:
+            raise LLMProviderError("Real LLM provider returned an empty stream.")
+        return LLMGenerationMetrics(
+            text=text,
+            ttft_ms=(first_token_at - started_at) * 1000,
+            generation_ms=(last_token_at - first_token_at) * 1000,
+            total_ms=(last_token_at - started_at) * 1000,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            streaming=True,
+        )
 
 
 class DeepSeekLLMProvider(OpenAICompatibleLLMProvider):
@@ -138,7 +247,16 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
             raise LLMConfigurationError(
                 "LLM_PROVIDER=deepseek requires " + ", ".join(missing) + "."
             )
-        return DeepSeekLLMProvider(api_key=api_key, base_url=base_url, model=model)
+        return DeepSeekLLMProvider(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            client=(
+                provider_http_clients.get("llm", resolved_settings)
+                if settings is None
+                else None
+            ),
+        )
 
     raise LLMConfigurationError(
         "Unsupported LLM_PROVIDER "

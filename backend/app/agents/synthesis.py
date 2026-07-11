@@ -6,6 +6,7 @@ from app.agents.web_research import WebResearchResult, WebSourceResult
 from app.llm.providers import DETERMINISTIC_ANSWER_MARKER, LLMProvider
 from app.llm.output_protocol import MARKDOWN_MATH_OUTPUT_INSTRUCTIONS
 from app.rag.citations import ChunkCitationResult, format_citation_source
+from app.observability.latency import current_latency_trace, measure_latency_sync
 
 
 @dataclass(frozen=True)
@@ -59,8 +60,8 @@ def synthesize_agent_answer(
         )
 
     if llm_provider is not None:
-        answer = llm_provider.generate(
-            build_synthesis_prompt(
+        with measure_latency_sync("prompt_build"):
+            prompt = build_synthesis_prompt(
                 question=question,
                 route=route,
                 deterministic_answer=answer,
@@ -78,7 +79,47 @@ def synthesize_agent_answer(
                 ),
                 memory_context=memory_context,
             )
-        )
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.set_counter("prompt_characters", len(prompt))
+            trace.set_counter("memory_context_characters", len(memory_context))
+            trace.set_counter(
+                "local_context_characters",
+                len(local_summary or "")
+                + sum(
+                    len(item.content)
+                    for item in (
+                        local_result.citations if local_result is not None else []
+                    )
+                ),
+            )
+            trace.set_counter(
+                "web_context_characters",
+                len(web_summary or "")
+                + sum(
+                    len(item.excerpt)
+                    for item in (web_result.sources if web_result is not None else [])
+                ),
+            )
+            trace.set_counter("output_character_count", len(answer))
+        generate_with_metrics = getattr(llm_provider, "generate_with_metrics", None)
+        if callable(generate_with_metrics):
+            metrics = generate_with_metrics(prompt)
+            answer = metrics.text
+            if trace is not None:
+                if metrics.ttft_ms is not None:
+                    trace.record("synthesis_ttft", metrics.ttft_ms)
+                if metrics.generation_ms is not None:
+                    trace.record("synthesis_generation", metrics.generation_ms)
+                trace.record("synthesis_total", metrics.total_ms)
+                trace.set_counter("prompt_input_tokens", metrics.prompt_tokens)
+                trace.set_counter("completion_tokens", metrics.completion_tokens)
+                trace.set_counter("streaming_enabled", metrics.streaming)
+        else:
+            with measure_latency_sync("synthesis_total"):
+                answer = llm_provider.generate(prompt)
+        if trace is not None:
+            trace.set_counter("output_character_count", len(answer))
 
     return AgentSynthesisResult(
         answer=answer,

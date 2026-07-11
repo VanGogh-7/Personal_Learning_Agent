@@ -24,6 +24,11 @@ class WebSource(BaseModel):
     published_date: str | None = None
 
 
+class AgentDebugTimings(BaseModel):
+    request_id: str
+    timings_ms: dict[str, float]
+
+
 class AgentChatRequest(BaseModel):
     message: str | None = None
     question: str | None = None
@@ -172,6 +177,7 @@ class AgentChatResponse(BaseModel):
     conversation_id: str
     memory_updates: list[dict[str, Any]] = Field(default_factory=list)
     memory: MemoryMetadata
+    debug: AgentDebugTimings | None = None
 
 
 def _normalize_item_ids(value: list[str]) -> list[str]:

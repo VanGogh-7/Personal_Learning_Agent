@@ -14,6 +14,7 @@ from app.api.rag_routes import router as rag_router
 from app.api.routes import router
 from app.core.config import get_settings
 from app.memory.checkpointer import checkpointer_manager
+from app.providers.http_clients import provider_http_clients
 
 settings = get_settings()
 
@@ -32,6 +33,7 @@ async def lifespan(_: FastAPI):
         yield
     finally:
         await run_in_threadpool(checkpointer_manager.shutdown)
+        await run_in_threadpool(provider_http_clients.close)
 
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)

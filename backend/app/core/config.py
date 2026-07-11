@@ -30,11 +30,18 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+    llm_connect_timeout_seconds: float = 10.0
+    llm_read_timeout_seconds: float = 60.0
 
     zhipu_api_key: str = ""
     zhipu_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
     zhipu_embedding_model: str = "embedding-3"
     zhipu_embedding_dimension: int = 2048
+    embedding_connect_timeout_seconds: float = 10.0
+    embedding_read_timeout_seconds: float = 60.0
+
+    agent_latency_logging_enabled: bool = True
+    agent_debug_timings_in_response: bool = False
 
     database_url: str = ""
     library_storage_dir: str = str(BACKEND_DIR / "storage" / "library")

@@ -1,4 +1,5 @@
 import socket
+import time
 import uuid
 
 import pytest
@@ -11,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.api.agent_routes as agent_routes_module
 import app.graphs.chat_rag_graph as chat_rag_graph_module
+import app.memory.service as memory_service_module
 from app.api.agent_routes import agent_chat_endpoint
 from app.main import app
 from app.embeddings.mock import MockEmbeddingProvider
@@ -30,6 +32,7 @@ from app.models.library_item import LibraryItem
 from app.models.note import Note
 from app.agents.web_research import DeterministicWebResearchProvider
 from app.rag.retrieval import RetrievedChunkResult
+from app.observability.latency import AgentLatencyTrace, latency_trace_context
 
 
 client = TestClient(app)
@@ -878,3 +881,94 @@ def test_agent_chat_rejects_unindexed_library_item(agent_chat_session) -> None:
     assert exc_info.value.status_code == 400
     assert "not been indexed" in exc_info.value.detail
     assert agent_chat_session.execute(select(LearningEvent)).scalars().all() == []
+
+
+def test_both_route_runs_local_and_web_in_parallel(
+    monkeypatch, agent_chat_session
+) -> None:
+    def slow_local(*args, **kwargs):
+        time.sleep(0.30)
+        return []
+
+    def slow_web(question):
+        time.sleep(0.50)
+        return DeterministicWebResearchProvider().research(question)
+
+    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", slow_local)
+    monkeypatch.setattr(
+        chat_rag_graph_module, "run_web_research_agent_service", slow_web
+    )
+    started_at = time.perf_counter()
+    response = agent_chat_endpoint(AgentChatRequest(message="Explain derivatives"))
+    elapsed = time.perf_counter() - started_at
+    assert response.route == "both"
+    assert 0.48 <= elapsed < 0.72
+
+
+@pytest.mark.parametrize(
+    ("message", "expected_route"),
+    [
+        ("What does this book say?", "local_only"),
+        ("What are the latest API updates?", "web_only"),
+        ("Explain derivatives", "both"),
+    ],
+)
+def test_route_counters_record_one_synthesis_llm_call(
+    monkeypatch, agent_chat_session, message, expected_route
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    trace = AgentLatencyTrace()
+    with latency_trace_context(trace):
+        response = chat_rag_graph_module.run_chat_rag_graph(
+            AgentChatRequest(message=message), agent_chat_session
+        )
+    agent_chat_session.rollback()
+    assert response.route == expected_route
+    assert trace.counters["llm_call_count"] == 1
+    assert trace.counters["embedding_call_count"] == 1
+
+
+def test_http_background_memory_uses_independent_session(
+    monkeypatch, agent_chat_session
+) -> None:
+    captured: dict[str, object] = {}
+
+    def capture_background(**kwargs):
+        session = kwargs["session_factory"]()
+        captured["session"] = session
+        session.close()
+
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "run_post_response_memory_processing",
+        capture_background,
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    response = client.post("/api/agent/chat", json={"message": "Explain limits"})
+    assert response.status_code == 200
+    assert captured["session"] is not agent_chat_session
+
+
+def test_background_memory_failure_does_not_fail_http_response(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    monkeypatch.setattr(
+        memory_service_module,
+        "maintain_conversation_summary",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("summary")),
+    )
+    monkeypatch.setattr(
+        memory_service_module,
+        "extract_and_consolidate_turn",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("extract")),
+    )
+    response = client.post("/api/agent/chat", json={"message": "Explain limits"})
+    assert response.status_code == 200
+    assert response.json()["answer"]

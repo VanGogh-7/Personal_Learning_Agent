@@ -22,6 +22,9 @@ source management and Agent Chat as the main interaction surface.
   opens only the managed PDF path through the Tauri opener plugin.
 - Preserve local citations as `[S1]`, `[S2]`, etc.
 - Preserve web sources as `[W1]`, `[W2]`, etc.
+- Emit request-scoped structured latency summaries without sensitive content.
+- Run Local and Web branches concurrently for `both` and defer non-critical
+  Memory post-processing until after the HTTP response.
 - Render Assistant messages as safe Markdown with GFM and locally bundled
   KaTeX for `$...$` inline math and `$$...$$` display math.
 
@@ -56,17 +59,18 @@ new stage for them:
 
 ```text
 Router Node
-  -> Local Library Agent Node
-  -> Web Research Agent Node
-  -> Synthesis Node
+  -> Local Library Agent Node --\
+                                -> Synthesis Node
+  -> Web Research Agent Node --/
 ```
 
 Before routing, the graph resolves `conversation_id`, loads the rolling
 summary plus at most `MEMORY_RECENT_TURN_LIMIT` effective turns, and retrieves
 a bounded namespace-isolated long-term memory context. After synthesis it
-persists the turn, updates summaries when needed, and conservatively extracts
-stable memory candidates. Summary/extraction/retrieval failures are logged and
-must not fail an otherwise successful chat response.
+persists the turn before returning the HTTP response. Summary, extraction, and
+consolidation then run as managed background work with an independent database
+session. Summary/extraction/retrieval failures are logged and must not fail an
+otherwise successful chat response.
 
 The product may expose `conversation_id`; it must not expose LangGraph
 `thread_id`, checkpoint namespaces, retrieval scores, or memory thresholds.
@@ -130,6 +134,8 @@ Add PDF
 - `backend/scripts/search_book.py`: retrieval inspection script.
 - `backend/scripts/eval_retrieval.py`: retrieval eval script.
 - `backend/scripts/ask_book.py`: single-book ask script.
+- `backend/scripts/benchmark_agent_latency.py`: mock-by-default latency benchmark.
+- `backend/scripts/explain_vector_search.sql`: executable L2 query-plan template.
 
 ## Commands
 
@@ -141,6 +147,7 @@ cd backend
 pytest
 alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
+python scripts/benchmark_agent_latency.py --runs 10
 ```
 
 Frontend:
@@ -169,6 +176,12 @@ bun run tauri dev
 Tests should use deterministic/mock providers and must not require real
 Zhipu, DeepSeek, Tavily, Brave, Serper, or other network API access.
 
+Latency logging is controlled by `AGENT_LATENCY_LOGGING_ENABLED`. Internal
+response timings require both non-production `APP_ENV` and
+`AGENT_DEBUG_TIMINGS_IN_RESPONSE=true`. Never add prompts, messages, answers,
+chunk bodies, keys, or vectors to latency logs. Real Provider benchmarks must
+be explicitly enabled with `--real-providers` because they consume quota.
+
 ## Repository Hygiene
 
 Do not commit:
@@ -193,6 +206,8 @@ not be deleted or untracked without an explicit cleanup request.
   requested.
 - Do not change embedding providers, chunking, retrieval ranking, graph
   topology, or storage behavior as incidental cleanup.
+- Measure before optimizing. Keep TTFT, generation, embedding API, vector SQL,
+  Memory, checkpoint, persistence, and frontend render timings distinct.
 - Keep conversation memory, long-term user memory, learning events, and
   document knowledge in separate typed stores.
 - Prefer existing services and schemas over new abstractions.

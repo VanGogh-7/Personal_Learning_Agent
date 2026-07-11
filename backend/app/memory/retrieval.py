@@ -12,6 +12,7 @@ from app.embeddings.base import EmbeddingProvider
 from app.embeddings.providers import get_embedding_provider
 from app.memory.models import MemoryStatus, MemorySubtype, MemoryType
 from app.models.long_term_memory import LongTermMemory
+from app.observability.latency import get_request_query_embedding
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def retrieve_memories(
     settings = get_settings()
     bounded_limit = limit or settings.memory_retrieval_limit
     provider = embedding_provider or get_embedding_provider(settings)
-    query_embedding = provider.embed_text(query)
+    query_embedding = get_request_query_embedding(provider, query)
 
     stmt = (
         select(LongTermMemory)

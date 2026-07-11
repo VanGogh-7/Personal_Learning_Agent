@@ -20,6 +20,7 @@ import {
   createEmptyConversationState,
 } from "../chat/conversationState";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { FrontendLatencyTracker } from "../chat/latency";
 
 export default function RagQueryPanel({
   conversation,
@@ -61,6 +62,7 @@ export default function RagQueryPanel({
     }
 
     setLoading(true);
+    const latency = new FrontendLatencyTracker();
     try {
       shouldAutoScrollRef.current = true;
       const payload = buildAgentChatRequest(
@@ -69,6 +71,7 @@ export default function RagQueryPanel({
         submittedQuestion,
       );
       const response = await queryAgentChat(payload);
+      latency.recordCompleteResponse();
       setResult(response);
       onConversationChange((current) => ({
         ...current,
@@ -83,6 +86,12 @@ export default function RagQueryPanel({
         ],
       }));
       setQuestion("");
+      window.requestAnimationFrame(() => {
+        const summary = latency.recordRenderComplete();
+        if (import.meta.env.DEV) {
+          console.debug("Agent frontend latency", summary);
+        }
+      });
     } catch (err) {
       setResult(null);
       setError(formatAgentChatError(err));
