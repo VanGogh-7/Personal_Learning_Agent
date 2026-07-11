@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, Index, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,8 +25,13 @@ class ConversationTurn(Base):
     __tablename__ = "conversation_turns"
     __table_args__ = (
         Index("ix_conversation_turns_session_id", "session_id"),
-        CheckConstraint("session_id <> ''", name="ck_conversation_turns_session_id_non_empty"),
-        CheckConstraint("question <> ''", name="ck_conversation_turns_question_non_empty"),
+        Index("ix_conversation_turns_conversation_id", "conversation_id"),
+        CheckConstraint(
+            "session_id <> ''", name="ck_conversation_turns_session_id_non_empty"
+        ),
+        CheckConstraint(
+            "question <> ''", name="ck_conversation_turns_question_non_empty"
+        ),
         CheckConstraint("answer <> ''", name="ck_conversation_turns_answer_non_empty"),
     )
 
@@ -24,6 +39,11 @@ class ConversationTurn(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     session_id: Mapped[str] = mapped_column(String, nullable=False)
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     # Stable ordering within a session, independent of timestamp resolution.

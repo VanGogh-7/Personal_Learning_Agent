@@ -394,6 +394,10 @@ def test_synthesis_prompt_includes_local_citation_ids_for_real_provider() -> Non
     )
 
     assert result.answer == "Provider answer [S1]."
+    assert "Use Markdown for the response." in prompts[0]
+    assert "Use $...$ for inline mathematics" in prompts[0]
+    assert "Do not use raw HTML." in prompts[0]
+    assert r"Do not use \(...\) or \[...\]" in prompts[0]
     assert "cite claims with the provided [S#] IDs" in prompts[0]
     assert "[S1]; Analysis; pp. 10-11; chunk 7" in prompts[0]
     assert "Text:\nBanach spaces are complete normed vector spaces." in prompts[0]

@@ -1,6 +1,13 @@
 {
   "identifier": "default",
-  "description": "Default desktop window capability for selecting PDFs to import.",
+  "description": "Default desktop capability for importing and opening managed PDFs.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open"]
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [{ "path": "**/*.pdf" }]
+    }
+  ]
 }

@@ -1,5 +1,7 @@
 from app.models.agent_run import AgentRun
 from app.models.conversation_turn import ConversationTurn
+from app.models.conversation import Conversation
+from app.models.conversation_summary import ConversationSummary
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
@@ -11,6 +13,8 @@ from app.models.note import Note
 __all__ = [
     "AgentRun",
     "ConversationTurn",
+    "Conversation",
+    "ConversationSummary",
     "Document",
     "DocumentChunk",
     "LearningSource",

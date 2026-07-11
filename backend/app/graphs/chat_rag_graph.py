@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime
 from typing import Any, TypedDict
 
@@ -21,15 +22,20 @@ from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED, SOURC
 from app.learning_events.service import create_learning_event
 from app.llm.providers import get_llm_provider
 from app.memory.long_term import (
-    DEFAULT_CONTEXT_MEMORY_COUNT,
     LongTermMemoryResult,
-    search_memories,
+)
+from app.memory.checkpointer import checkpointer_manager
+from app.memory.context_builder import (
+    build_memory_context,
+    render_untrusted_memory_context,
+)
+from app.memory.conversations import resolve_conversation
+from app.memory.service import (
+    extract_and_consolidate_turn,
+    maintain_conversation_summary,
 )
 from app.memory.short_term import (
-    DEFAULT_RECENT_TURNS_LIMIT,
     ConversationTurnResult,
-    create_session_id,
-    get_recent_turns,
     save_turn,
 )
 from app.rag.citations import ChunkCitationResult
@@ -42,7 +48,14 @@ from app.rag.retrieval import (
     retrieve_relevant_chunks_for_library_item,
     retrieve_relevant_chunks_for_library_items,
 )
-from app.rag.schemas import MemoryMetadata, RagCitation, RetrievedChunk, SelectedLibraryItemRead
+from app.rag.schemas import (
+    MemoryMetadata,
+    RagCitation,
+    RetrievedChunk,
+    SelectedLibraryItemRead,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ChatRAGGraphError(ValueError):
@@ -68,6 +81,9 @@ class AgentGraphState(TypedDict, total=False):
     errors: list[str]
     question: str
     session_id: str | None
+    conversation_id: str
+    thread_id: str
+    memory_namespace: str
     scope_type: AgentChatScope
     library_item_id: str | None
     library_item_ids: list[str]
@@ -77,6 +93,10 @@ class AgentGraphState(TypedDict, total=False):
     selected_library_items: list[dict[str, Any]]
     short_term_context: list[dict[str, Any]]
     long_term_context: list[dict[str, Any]]
+    conversation_summary: str
+    memory_prompt_context: str
+    memory_updates: list[dict[str, Any]]
+    summary_updated: bool
     retrieved_chunks: list[dict[str, Any]]
     citations: list[dict[str, Any]]
     local_summary: str | None
@@ -91,7 +111,7 @@ class AgentGraphState(TypedDict, total=False):
 ChatRAGState = AgentGraphState
 
 
-def build_chat_rag_graph(session: Session):
+def build_chat_rag_graph(session: Session, checkpointer=None):
     """Build the explicit dual-agent LangGraph boundary."""
     graph = StateGraph(AgentGraphState)
 
@@ -106,7 +126,9 @@ def build_chat_rag_graph(session: Session):
     graph.add_node("web_research_agent_node", web_research_agent_node)
     graph.add_node("synthesis_node", synthesis_node)
     graph.add_node("save_memory", lambda state: save_memory(state, session))
-    graph.add_node("record_learning_event", lambda state: record_learning_event(state, session))
+    graph.add_node(
+        "record_learning_event", lambda state: record_learning_event(state, session)
+    )
     graph.add_node("format_response", format_response)
 
     graph.set_entry_point("validate_input")
@@ -121,12 +143,25 @@ def build_chat_rag_graph(session: Session):
     graph.add_edge("record_learning_event", "format_response")
     graph.add_edge("format_response", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
 
 
-def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChatResponse:
+def run_chat_rag_graph(
+    request: AgentChatRequest, session: Session
+) -> AgentChatResponse:
     """Run the Chat RAG graph for one request using an external transaction boundary."""
-    graph = build_chat_rag_graph(session)
+    try:
+        requested_conversation_id = (
+            uuid.UUID(request.conversation_id) if request.conversation_id else None
+        )
+        conversation = resolve_conversation(
+            session,
+            conversation_id=requested_conversation_id,
+            legacy_session_id=request.session_id,
+        )
+    except ValueError as exc:
+        raise ChatRAGValidationError(str(exc)) from exc
+    graph = build_chat_rag_graph(session, checkpointer_manager.get())
     selected_library_item_ids = request.library_item_ids or (
         [request.library_item_id] if request.library_item_id else []
     )
@@ -134,7 +169,10 @@ def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChat
         "user_message": request.question or request.message or "",
         "selected_library_item_ids": selected_library_item_ids,
         "question": request.question or request.message or "",
-        "session_id": request.session_id or create_session_id(),
+        "session_id": conversation.session_id,
+        "conversation_id": str(conversation.conversation_id),
+        "thread_id": conversation.thread_id,
+        "memory_namespace": conversation.namespace,
         "scope_type": request.scope_type,
         "library_item_id": request.library_item_id,
         "library_item_ids": request.library_item_ids,
@@ -143,6 +181,10 @@ def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChat
         "selected_library_items": [],
         "short_term_context": [],
         "long_term_context": [],
+        "conversation_summary": "",
+        "memory_prompt_context": "",
+        "memory_updates": [],
+        "summary_updated": False,
         "retrieved_chunks": [],
         "citations": [],
         "web_sources": [],
@@ -153,7 +195,10 @@ def run_chat_rag_graph(request: AgentChatRequest, session: Session) -> AgentChat
         "errors": [],
         "learning_event_created": False,
     }
-    final_state = graph.invoke(initial_state)
+    final_state = graph.invoke(
+        initial_state,
+        {"configurable": {"thread_id": conversation.thread_id}},
+    )
     response = final_state.get("response")
     if response is None:
         raise ChatRAGGraphError("Chat RAG graph did not produce a response")
@@ -167,7 +212,9 @@ def validate_input(state: ChatRAGState) -> ChatRAGState:
 
     scope_type = state.get("scope_type")
     if scope_type not in {"global", "single_book", "multi_book"}:
-        raise ChatRAGValidationError("scope_type must be global, single_book, or multi_book")
+        raise ChatRAGValidationError(
+            "scope_type must be global, single_book, or multi_book"
+        )
 
     top_k = state.get("top_k", 5)
     if not isinstance(top_k, int) or not (1 <= top_k <= 20):
@@ -176,14 +223,20 @@ def validate_input(state: ChatRAGState) -> ChatRAGState:
     if scope_type == "single_book":
         library_item_id = (state.get("library_item_id") or "").strip()
         if not library_item_id:
-            raise ChatRAGValidationError("library_item_id is required for single_book scope")
+            raise ChatRAGValidationError(
+                "library_item_id is required for single_book scope"
+            )
         _parse_uuid(library_item_id, "library_item_id")
         return {"library_item_id": library_item_id}
 
     if scope_type == "multi_book":
-        library_item_ids = _normalize_library_item_ids(state.get("library_item_ids", []))
+        library_item_ids = _normalize_library_item_ids(
+            state.get("library_item_ids", [])
+        )
         if not library_item_ids:
-            raise ChatRAGValidationError("library_item_ids must not be empty for multi_book scope")
+            raise ChatRAGValidationError(
+                "library_item_ids must not be empty for multi_book scope"
+            )
         for item_id in library_item_ids:
             _parse_uuid(item_id, "library_item_ids")
         return {"library_item_ids": library_item_ids}
@@ -213,24 +266,37 @@ def resolve_scope(state: ChatRAGState, session: Session) -> ChatRAGState:
                 _library_item_context_to_state(item) for item in selected_items
             ],
         }
-    return {"selected_library_items": [], "library_item_id": None, "library_item_ids": []}
+    return {
+        "selected_library_items": [],
+        "library_item_id": None,
+        "library_item_ids": [],
+    }
 
 
 def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
-    session_id = state["session_id"]
-    recent_turns = get_recent_turns(session, session_id, limit=DEFAULT_RECENT_TURNS_LIMIT)
-    long_term_memories = (
-        search_memories(
-            session,
-            keyword=state["question"],
-            limit=DEFAULT_CONTEXT_MEMORY_COUNT,
-        )
-        if state.get("include_long_term_memory", False)
-        else []
+    context = build_memory_context(
+        session,
+        conversation_id=uuid.UUID(state["conversation_id"]),
+        namespace=state["memory_namespace"],
+        query=state["question"],
     )
     return {
-        "short_term_context": [_conversation_turn_to_state(turn) for turn in recent_turns],
-        "long_term_context": [_long_term_memory_to_state(memory) for memory in long_term_memories],
+        "short_term_context": [
+            _conversation_turn_to_state(turn) for turn in context.recent_turns
+        ],
+        "long_term_context": [
+            {
+                "memory_id": str(memory.id),
+                "memory_type": memory.memory_type,
+                "memory_subtype": memory.memory_subtype,
+                "content": memory.content,
+                "importance": max(1, round(memory.importance * 5)),
+                "confidence": memory.confidence,
+            }
+            for memory in context.long_term_memories
+        ],
+        "conversation_summary": context.rolling_summary,
+        "memory_prompt_context": render_untrusted_memory_context(context),
     }
 
 
@@ -259,7 +325,9 @@ def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGSt
             },
         }
 
-    recent_turns = [_state_to_conversation_turn(turn) for turn in state["short_term_context"]]
+    recent_turns = [
+        _state_to_conversation_turn(turn) for turn in state["short_term_context"]
+    ]
     long_term_memories = [
         _state_to_long_term_memory(memory) for memory in state["long_term_context"]
     ]
@@ -309,6 +377,7 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         local_result=local_result,
         web_result=web_result,
         llm_provider=get_llm_provider(),
+        memory_context=state.get("memory_prompt_context", ""),
     )
     return {
         "answer": synthesis.answer,
@@ -320,6 +389,7 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         ),
         "errors": _merge_unique_strings(state.get("errors", []), synthesis.errors),
     }
+
 
 def save_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
     metadata: dict[str, Any] = {
@@ -335,20 +405,65 @@ def save_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
     elif state["scope_type"] == "multi_book":
         metadata["library_item_ids"] = state["library_item_ids"]
 
-    save_turn(session, state["session_id"], state["question"], state["answer"], metadata=metadata)
+    turn = save_turn(
+        session,
+        state["session_id"],
+        state["question"],
+        state["answer"],
+        metadata=metadata,
+        conversation_id=uuid.UUID(state["conversation_id"]),
+    )
+    memory_updates: list[dict[str, Any]] = []
+    summary_updated = False
+    try:
+        with session.begin_nested():
+            summary_updated = maintain_conversation_summary(
+                session, conversation_id=uuid.UUID(state["conversation_id"])
+            )
+    except Exception as exc:
+        logger.warning(
+            "memory_summary_failed conversation_id=%s thread_id=%s error_type=%s",
+            state["conversation_id"],
+            state["thread_id"],
+            type(exc).__name__,
+        )
+    try:
+        with session.begin_nested():
+            results = extract_and_consolidate_turn(
+                session,
+                conversation_id=uuid.UUID(state["conversation_id"]),
+                namespace=state["memory_namespace"],
+                source_turn_id=turn.turn_id,
+                user_message=state["question"],
+            )
+            memory_updates = [
+                {"stored": result.memory_id is not None, "action": result.action.value}
+                for result in results
+            ]
+    except Exception as exc:
+        logger.warning(
+            "memory_extraction_failed conversation_id=%s thread_id=%s error_type=%s",
+            state["conversation_id"],
+            state["thread_id"],
+            type(exc).__name__,
+        )
     return {
         "memory_metadata": {
             "used_recent_turns": len(state.get("short_term_context", [])),
             "saved_current_turn": True,
             "used_long_term_memories": len(state.get("long_term_context", [])),
-        }
+        },
+        "memory_updates": memory_updates,
+        "summary_updated": summary_updated,
     }
 
 
 def record_learning_event(state: ChatRAGState, session: Session) -> ChatRAGState:
     selected_items = state.get("selected_library_items", [])
     library_item_id = (
-        uuid.UUID(state["library_item_id"]) if state["scope_type"] == "single_book" else None
+        uuid.UUID(state["library_item_id"])
+        if state["scope_type"] == "single_book"
+        else None
     )
     create_learning_event(
         session,
@@ -371,7 +486,9 @@ def record_learning_event(state: ChatRAGState, session: Session) -> ChatRAGState
 
 
 def format_response(state: ChatRAGState) -> ChatRAGState:
-    citations = [RagCitation.model_validate(citation) for citation in state["citations"]]
+    citations = [
+        RagCitation.model_validate(citation) for citation in state["citations"]
+    ]
     local_citations = [
         RagCitation.model_validate(citation)
         for citation in state.get("local_citations", state["citations"])
@@ -393,9 +510,7 @@ def format_response(state: ChatRAGState) -> ChatRAGState:
             "selected_library_items": selected_items,
             "retrieved_chunks": retrieved_chunks,
             "citations": [citation.model_dump() for citation in citations],
-            "local_citations": [
-                citation.model_dump() for citation in local_citations
-            ],
+            "local_citations": [citation.model_dump() for citation in local_citations],
             "web_sources": state.get("web_sources", []),
             "warnings": state.get("warnings", []),
             "errors": state.get("errors", []),
@@ -403,6 +518,8 @@ def format_response(state: ChatRAGState) -> ChatRAGState:
             "web_summary": state.get("web_summary"),
             "total_retrieved": len(retrieved_chunks),
             "session_id": state["session_id"],
+            "conversation_id": state["conversation_id"],
+            "memory_updates": state.get("memory_updates", []),
             "memory": memory,
         }
     }
@@ -421,7 +538,9 @@ def _normalize_library_item_ids(item_ids: list[str]) -> list[str]:
     for item_id in item_ids:
         stripped = item_id.strip()
         if not stripped:
-            raise ChatRAGValidationError("library_item_ids must not contain empty values")
+            raise ChatRAGValidationError(
+                "library_item_ids must not contain empty values"
+            )
         if stripped not in seen:
             normalized.append(stripped)
             seen.add(stripped)
@@ -482,15 +601,20 @@ def _long_term_memory_to_state(memory: LongTermMemoryResult) -> dict[str, Any]:
 
 
 def _state_to_long_term_memory(data: dict[str, Any]) -> LongTermMemoryResult:
+    now = datetime.now().astimezone()
     return LongTermMemoryResult(
         memory_id=uuid.UUID(data["memory_id"]),
         memory_type=data["memory_type"],
         content=data["content"],
         importance=data["importance"],
-        source=data.get("source"),
+        source=data.get("source", "memory_retrieval"),
         tags=data.get("tags"),
-        created_at=datetime.fromisoformat(data["created_at"]),
-        updated_at=datetime.fromisoformat(data["updated_at"]),
+        created_at=datetime.fromisoformat(data["created_at"])
+        if data.get("created_at")
+        else now,
+        updated_at=datetime.fromisoformat(data["updated_at"])
+        if data.get("updated_at")
+        else now,
     )
 
 
@@ -500,7 +624,9 @@ def _retrieved_chunk_to_state(chunk: RetrievedChunkResult) -> dict[str, Any]:
         "document_id": str(chunk.document_id),
         "document_title": chunk.document_title,
         "document_source_path": chunk.document_source_path,
-        "library_item_id": str(chunk.library_item_id) if chunk.library_item_id else None,
+        "library_item_id": str(chunk.library_item_id)
+        if chunk.library_item_id
+        else None,
         "library_title": chunk.library_title,
         "library_author": chunk.library_author,
         "chunk_index": chunk.chunk_index,
@@ -634,9 +760,9 @@ def _state_to_local_library_agent_result(
             _state_to_citation_result(citation)
             for citation in state.get("citations", [])
         ],
-        evidence_quality=(
-            state.get("local_results", {}) or {}
-        ).get("evidence_quality", "none"),
+        evidence_quality=(state.get("local_results", {}) or {}).get(
+            "evidence_quality", "none"
+        ),
     )
 
 
@@ -691,8 +817,7 @@ def _state_to_web_research_result(state: ChatRAGState) -> WebResearchResult | No
     return WebResearchResult(
         summary=state.get("web_summary"),
         sources=[
-            _state_to_web_source(source)
-            for source in state.get("web_sources", [])
+            _state_to_web_source(source) for source in state.get("web_sources", [])
         ],
         status=(state.get("web_results", {}) or {}).get("status", "available"),
         warnings=(state.get("web_results", {}) or {}).get("warnings", []),

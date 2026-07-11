@@ -6,8 +6,9 @@ python-dotenv
 pytest
 httpx
 sqlalchemy
-psycopg[binary]
+psycopg[binary,pool]
 alembic
 pgvector
 langgraph
+langgraph-checkpoint-postgres
 pypdf

@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     database_url: str = ""
     library_storage_dir: str = str(BACKEND_DIR / "storage" / "library")
 
+    memory_checkpointer_backend: str = "postgres"
+    memory_recent_turn_limit: int = 16
+    memory_summary_trigger_turns: int = 24
+    memory_retrieval_limit: int = 5
+    memory_auto_write_enabled: bool = True
+    memory_auto_write_min_importance: float = 0.75
+    memory_auto_write_min_confidence: float = 0.80
+    memory_auto_write_min_durability: float = 0.75
+    memory_default_namespace: str = "default_user"
+    memory_project_namespace: str = "project:personal-learning-agent"
+    memory_postgres_pool_min_size: int = 1
+    memory_postgres_pool_max_size: int = 10
+
     model_config = SettingsConfigDict(
         env_file=BACKEND_ENV_FILE,
         env_file_encoding="utf-8",

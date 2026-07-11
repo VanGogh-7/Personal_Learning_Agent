@@ -10,7 +10,7 @@ The product is a learning agent, not a PDF reader. The MVP UI is:
 PDF Repository | Agent Chat
 ```
 
-Current stage: Stage 50, Code Cleanup and Documentation Consolidation.
+Current stage: production-oriented native Agent memory architecture.
 
 ## What It Does
 
@@ -23,11 +23,18 @@ Current stage: Stage 50, Code Cleanup and Documentation Consolidation.
 - Answers through a LangGraph dual-agent backend.
 - Shows local Library citations as `[S1]`, `[S2]`, etc.
 - Shows web research sources as `[W1]`, `[W2]`, etc. when configured.
+- Renders Assistant Markdown, including GFM tables and locally bundled KaTeX
+  for inline and display mathematics.
 
 ## MVP Features
 
 - PDF Repository for adding and selecting PDFs.
 - Agent Chat as the main interaction surface.
+- Safe Markdown and LaTeX rendering for Assistant messages without raw HTML.
+- Conversation-scoped multi-book selection: Repository clicks toggle context
+  without replacing the active conversation or clearing messages.
+- Double-click a Repository PDF to open its managed copy in the system PDF
+  reader through the Tauri opener plugin.
 - Managed PDF import/storage.
 - PDF extraction and optimized chunking.
 - PostgreSQL/pgvector retrieval.
@@ -37,6 +44,9 @@ Current stage: Stage 50, Code Cleanup and Documentation Consolidation.
 - Web Research Agent provider boundary with unavailable, mock, and
   optional Tavily modes.
 - Synthesis that separates local evidence from external context.
+- Conversation-scoped recent turns and rolling summaries.
+- PostgreSQL LangGraph checkpoints with an in-memory test backend.
+- Auditable semantic, episodic, and procedural long-term memory.
 
 ## Tech Stack
 
@@ -63,14 +73,53 @@ Add PDF
   -> answer with local citations and web sources
 ```
 
-`POST /api/agent/chat` runs:
+`POST /api/agent/chat` runs this bounded memory and evidence flow:
 
-```text
-Router Node
-  -> Local Library Agent Node
-  -> Web Research Agent Node
-  -> Synthesis Node
+```mermaid
+flowchart TD
+    A[User Message] --> B[Conversation Context]
+    B --> C[Long-term Memory Retrieval]
+    C --> D[Router]
+    D --> E[Local Library Agent]
+    D --> F[Web Research Agent]
+    E --> G[Synthesis]
+    F --> G
+    G --> H[Persist Turn]
+    H --> I[Memory Extraction]
+    I --> J[Consolidation]
 ```
+
+### Memory boundaries
+
+- Short-term conversation memory is isolated by `conversation_id`. The
+  backend maps it to an internal LangGraph `thread_id`; the frontend never
+  sends or receives that internal identifier.
+- Only the configured recent-turn window is injected verbatim. When a
+  conversation exceeds the summary threshold, older uncovered turns are
+  incrementally compressed into one rolling summary.
+- Long-term memory is namespace-isolated and typed as `semantic`, `episodic`,
+  or `procedural`, with controlled subtypes. It supports active, superseded,
+  deleted, and expired lifecycle states.
+- Learning events remain an append-only progress/audit stream. They are not
+  conversation messages or user preferences.
+- Document chunks remain the authoritative local knowledge store. Book facts
+  and mathematical source evidence are retrieved through document RAG and
+  cited as `[S#]`; they are never promoted into user memory.
+
+Long-term writes are explicit or conservatively extracted from stable,
+high-confidence user instructions. Temporary state, sensitive information,
+ordinary chat, web results, and retrievable PDF content are rejected by
+default. Consolidation combines namespace/type metadata, structured
+predicate and scope matching, and semantic similarity to choose CREATE,
+UPDATE, SUPERSEDE, or IGNORE. Retrieval combines metadata filters, pgvector
+similarity, bounded keyword matching, importance, and recency, returning only
+a few active records. Memory is injected as untrusted personalization context,
+never as a citation or factual authority.
+
+The production checkpointer uses the official
+`langgraph-checkpoint-postgres` saver. Its pool is created once in the FastAPI
+lifespan, and official checkpoint schema setup is idempotently applied at
+startup. Tests use `MEMORY_CHECKPOINTER_BACKEND=memory`.
 
 Routes:
 
@@ -119,6 +168,14 @@ ZHIPU_API_KEY=your_zhipu_api_key_here
 WEB_RESEARCH_PROVIDER=none
 TAVILY_API_KEY=your_tavily_api_key_here
 LIBRARY_STORAGE_DIR=storage/library
+MEMORY_CHECKPOINTER_BACKEND=postgres
+MEMORY_RECENT_TURN_LIMIT=16
+MEMORY_SUMMARY_TRIGGER_TURNS=24
+MEMORY_RETRIEVAL_LIMIT=5
+MEMORY_AUTO_WRITE_ENABLED=true
+MEMORY_AUTO_WRITE_MIN_IMPORTANCE=0.75
+MEMORY_AUTO_WRITE_MIN_CONFIDENCE=0.80
+MEMORY_AUTO_WRITE_MIN_DURABILITY=0.75
 ```
 
 Use deterministic/mock providers for tests. Real Zhipu, DeepSeek, and
@@ -170,6 +227,27 @@ conda activate pla
 cd backend
 pytest
 ```
+
+The backend suite includes deterministic unit and SQLite integration tests.
+With the configured local PostgreSQL database, validate migrations with:
+
+```bash
+alembic upgrade head
+alembic downgrade e8b7c6d5a4f3
+alembic upgrade head
+```
+
+`GET/POST/PATCH/DELETE /api/memory/long-term` provide the minimal auditable
+management API. DELETE is a soft delete. The chat request accepts an optional
+product-level `conversation_id`; a new conversation is created when omitted,
+and the response returns the identifier for the next turn.
+
+The current conversation state (`conversation_id`, visible messages, and
+selected Repository item IDs) is stored locally for refresh recovery. Book
+selection is cumulative and deduplicated; selecting or deselecting books never
+changes the conversation. Only **New Chat** clears current messages and the
+selected-book working context. The Chat composer stays at the bottom while
+messages and source details scroll independently.
 
 ## Demo Workflow
 
@@ -243,7 +321,7 @@ scripts.
 - Local embedding model deployment is postponed.
 - The MVP UI has no embedded PDF preview/reader.
 - Citation click-to-page behavior is not included.
-- Rerankers, hybrid search, BM25, and query expansion are not included.
+- Document-RAG rerankers, hybrid/BM25 search, and query expansion are not included.
 - Settings UI is not included.
 - Calendar and Notes UI are not part of the MVP.
 - Web research depends on provider configuration.

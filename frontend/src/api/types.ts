@@ -66,11 +66,16 @@ export type AgentChatRoute = "local_only" | "web_only" | "both";
 
 export interface AgentChatRequest {
   message: string;
+  conversation_id?: string;
   selected_library_item_id?: string | null;
   selected_library_item_ids?: string[];
 }
 
-export interface AgentChatResponse extends RagQueryResponse {
+export interface AgentChatResponse extends Omit<
+  RagQueryResponse,
+  "session_id"
+> {
+  conversation_id: string;
   scope_type: AgentChatScopeType;
   route: AgentChatRoute;
   selected_library_items: SelectedLibraryItem[];

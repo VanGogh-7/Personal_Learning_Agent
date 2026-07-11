@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.conversation_turn import ConversationTurn
+from app.models.conversation import Conversation
 
 DEFAULT_RECENT_TURNS_LIMIT = 5
 MAX_RECENT_TURNS_LIMIT = 50
@@ -18,6 +19,7 @@ class ConversationTurnResult:
     question: str
     answer: str
     created_at: datetime
+    conversation_id: uuid.UUID | None = None
 
 
 def create_session_id() -> str:
@@ -32,7 +34,9 @@ def _validate_session_id(session_id: str) -> None:
 
 def _validate_limit(limit: int) -> None:
     if not (1 <= limit <= MAX_RECENT_TURNS_LIMIT):
-        raise ValueError(f"limit must be between 1 and {MAX_RECENT_TURNS_LIMIT}, got {limit}")
+        raise ValueError(
+            f"limit must be between 1 and {MAX_RECENT_TURNS_LIMIT}, got {limit}"
+        )
 
 
 def get_recent_turns(
@@ -66,12 +70,41 @@ def get_recent_turns(
     return list(reversed(turns))
 
 
+def get_recent_effective_turns(
+    session: Session,
+    conversation_id: uuid.UUID,
+    *,
+    limit: int,
+) -> list[ConversationTurnResult]:
+    """Return bounded user/final-assistant pairs for one conversation."""
+    _validate_limit(limit)
+    stmt = (
+        select(ConversationTurn)
+        .where(ConversationTurn.conversation_id == conversation_id)
+        .order_by(ConversationTurn.turn_index.desc())
+        .limit(limit)
+    )
+    rows = list(reversed(session.execute(stmt).scalars().all()))
+    return [
+        ConversationTurnResult(
+            turn_id=row.id,
+            session_id=row.session_id,
+            question=row.question,
+            answer=row.answer,
+            created_at=row.created_at,
+            conversation_id=row.conversation_id,
+        )
+        for row in rows
+    ]
+
+
 def save_turn(
     session: Session,
     session_id: str,
     question: str,
     answer: str,
     metadata: dict | None = None,
+    conversation_id: uuid.UUID | None = None,
 ) -> ConversationTurnResult:
     """Persist the current question/answer turn for a session.
 
@@ -82,6 +115,13 @@ def save_turn(
         raise ValueError("question must not be empty")
     if not answer or not answer.strip():
         raise ValueError("answer must not be empty")
+
+    if conversation_id is not None:
+        session.execute(
+            select(Conversation.id)
+            .where(Conversation.id == conversation_id)
+            .with_for_update()
+        ).scalar_one()
 
     next_turn_index = session.execute(
         select(func.count())
@@ -95,6 +135,7 @@ def save_turn(
         answer=answer,
         turn_index=next_turn_index,
         metadata_json=metadata,
+        conversation_id=conversation_id,
     )
     session.add(turn)
     session.flush()
@@ -105,6 +146,7 @@ def save_turn(
         question=turn.question,
         answer=turn.answer,
         created_at=turn.created_at,
+        conversation_id=turn.conversation_id,
     )
 
 

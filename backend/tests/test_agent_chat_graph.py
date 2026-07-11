@@ -20,6 +20,9 @@ from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED
 from app.library.service import create_library_item
 from app.llm.providers import LLMConfigurationError
 from app.models.conversation_turn import ConversationTurn
+from app.models.conversation import Conversation
+from app.models.conversation_summary import ConversationSummary
+from app.models.long_term_memory import LongTermMemory
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
@@ -46,8 +49,11 @@ def agent_chat_session(monkeypatch):
             Note.__table__,
             Document.__table__,
             DocumentChunk.__table__,
+            Conversation.__table__,
             ConversationTurn.__table__,
             LearningEvent.__table__,
+            ConversationSummary.__table__,
+            LongTermMemory.__table__,
         ],
     )
     session = Session(engine, expire_on_commit=False)
@@ -225,9 +231,13 @@ def test_agent_chat_product_request_message_only_uses_defaults(
         captured["top_k"] = top_k
         return [chunk]
 
-    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fake_retrieve)
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", fake_retrieve
+    )
 
-    response = agent_chat_endpoint(AgentChatRequest(message="Explain this library topic."))
+    response = agent_chat_endpoint(
+        AgentChatRequest(message="Explain this library topic.")
+    )
 
     assert response.scope_type == "global"
     assert response.session_id
@@ -236,6 +246,61 @@ def test_agent_chat_product_request_message_only_uses_defaults(
     assert response.citations[0].citation_id == "S1"
     assert response.citations[0].page_number == 2
     assert response.memory.used_long_term_memories == 0
+
+
+def test_agent_chat_reuses_conversation_and_hides_thread_id(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    first = agent_chat_endpoint(AgentChatRequest(message="First question"))
+    second = agent_chat_endpoint(
+        AgentChatRequest(
+            message="Second question", conversation_id=first.conversation_id
+        )
+    )
+    assert second.conversation_id == first.conversation_id
+    assert second.memory.used_recent_turns == 1
+    assert not hasattr(second, "thread_id")
+
+
+def test_memory_extraction_failure_does_not_fail_agent_chat(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module,
+        "extract_and_consolidate_turn",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            RuntimeError("extraction failed")
+        ),
+    )
+    response = agent_chat_endpoint(
+        AgentChatRequest(message="以后给我讲数学定理时，先从定义开始。")
+    )
+    assert response.answer
+    assert response.memory.saved_current_turn is True
+    assert response.memory_updates == []
+
+
+def test_stable_preference_is_retrieved_across_conversations(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    first = agent_chat_endpoint(
+        AgentChatRequest(message="以后给我讲数学定理时，先从定义开始。")
+    )
+    assert first.memory_updates[0]["action"] == "create"
+
+    second = agent_chat_endpoint(AgentChatRequest(message="请解释闭图定理。"))
+    assert second.conversation_id != first.conversation_id
+    assert second.memory.used_recent_turns == 0
+    assert second.memory.used_long_term_memories == 1
 
 
 def test_agent_chat_product_selected_library_item_prefers_local_rag(
@@ -303,7 +368,11 @@ def test_agent_chat_product_selected_library_items_infers_multi_book_scope(
 
     request = AgentChatRequest(
         message="What do these PDFs say about spaces?",
-        selected_library_item_ids=[str(selected_a.id), str(selected_a.id), str(selected_b.id)],
+        selected_library_item_ids=[
+            str(selected_a.id),
+            str(selected_a.id),
+            str(selected_b.id),
+        ],
     )
     response = agent_chat_endpoint(request)
 
@@ -324,7 +393,9 @@ def test_agent_chat_web_only_route_skips_local_retrieval(
     def fail_if_called(*args, **kwargs):
         raise AssertionError("web_only route should not retrieve local chunks")
 
-    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called)
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called
+    )
 
     response = agent_chat_endpoint(
         AgentChatRequest(
@@ -354,7 +425,9 @@ def test_agent_chat_web_only_route_with_mock_web_results(
     def fail_if_called(*args, **kwargs):
         raise AssertionError("web_only route should not retrieve local chunks")
 
-    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called)
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", fail_if_called
+    )
     monkeypatch.setattr(
         chat_rag_graph_module,
         "run_web_research_agent_service",
@@ -658,9 +731,7 @@ def test_agent_chat_multi_book_scope_returns_only_selected_chunks(
         )
     )
 
-    returned_library_ids = {
-        citation.library_item_id for citation in response.citations
-    }
+    returned_library_ids = {citation.library_item_id for citation in response.citations}
     assert response.scope_type == "multi_book"
     assert returned_library_ids == {str(selected_a_id), str(selected_b_id)}
     assert str(unselected_id) not in returned_library_ids
@@ -668,7 +739,10 @@ def test_agent_chat_multi_book_scope_returns_only_selected_chunks(
         str(selected_a_id),
         str(selected_b_id),
     ]
-    assert all(chunk.citation.library_item_id in returned_library_ids for chunk in response.retrieved_chunks)
+    assert all(
+        chunk.citation.library_item_id in returned_library_ids
+        for chunk in response.retrieved_chunks
+    )
 
     events = agent_chat_session.execute(select(LearningEvent)).scalars().all()
     assert len(events) == 1
@@ -680,9 +754,15 @@ def test_agent_chat_multi_book_scope_returns_only_selected_chunks(
     ]
 
 
-def test_agent_chat_multi_book_deduplicates_library_item_ids(agent_chat_session) -> None:
-    selected_a = _create_indexed_item(agent_chat_session, "Algebra", "Groups have operations.")
-    selected_b = _create_indexed_item(agent_chat_session, "Geometry", "Triangles have angles.")
+def test_agent_chat_multi_book_deduplicates_library_item_ids(
+    agent_chat_session,
+) -> None:
+    selected_a = _create_indexed_item(
+        agent_chat_session, "Algebra", "Groups have operations."
+    )
+    selected_b = _create_indexed_item(
+        agent_chat_session, "Geometry", "Triangles have angles."
+    )
     selected_a_id = selected_a.id
     selected_b_id = selected_b.id
 
@@ -690,7 +770,11 @@ def test_agent_chat_multi_book_deduplicates_library_item_ids(agent_chat_session)
         AgentChatRequest(
             question="What is covered?",
             scope_type="multi_book",
-            library_item_ids=[str(selected_a_id), str(selected_a_id), str(selected_b_id)],
+            library_item_ids=[
+                str(selected_a_id),
+                str(selected_a_id),
+                str(selected_b_id),
+            ],
         )
     )
 
@@ -706,7 +790,9 @@ def test_agent_chat_uses_deterministic_provider_without_network(
     selected = _create_indexed_item(agent_chat_session, "Analysis", "Limits converge.")
 
     def fail_if_called(*args, **kwargs):
-        raise AssertionError("agent chat deterministic flow must not open network sockets")
+        raise AssertionError(
+            "agent chat deterministic flow must not open network sockets"
+        )
 
     monkeypatch.setattr(socket, "socket", fail_if_called)
 

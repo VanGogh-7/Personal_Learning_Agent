@@ -34,6 +34,7 @@ class AgentChatRequest(BaseModel):
     library_item_ids: list[str] = Field(default_factory=list)
     top_k: int = 5
     session_id: str | None = None
+    conversation_id: str | None = None
     include_long_term_memory: bool = False
 
     @model_validator(mode="before")
@@ -50,9 +51,8 @@ class AgentChatRequest(BaseModel):
             and normalized.get("selected_library_item_id") is not None
         ):
             normalized["library_item_id"] = normalized["selected_library_item_id"]
-        if (
-            not normalized.get("library_item_ids")
-            and normalized.get("selected_library_item_ids")
+        if not normalized.get("library_item_ids") and normalized.get(
+            "selected_library_item_ids"
         ):
             normalized["library_item_ids"] = normalized["selected_library_item_ids"]
 
@@ -72,12 +72,16 @@ class AgentChatRequest(BaseModel):
             raise ValueError("message must not be empty")
         question = question.strip()
         self.question = question
-        self.message = self.message.strip() if self.message and self.message.strip() else question
+        self.message = (
+            self.message.strip() if self.message and self.message.strip() else question
+        )
 
         if self.library_item_id is not None:
             self.library_item_id = self.library_item_id.strip() or None
         if self.selected_library_item_id is not None:
-            self.selected_library_item_id = self.selected_library_item_id.strip() or None
+            self.selected_library_item_id = (
+                self.selected_library_item_id.strip() or None
+            )
         if self.library_item_id is None and self.selected_library_item_id is not None:
             self.library_item_id = self.selected_library_item_id
         if self.selected_library_item_id is None and self.library_item_id is not None:
@@ -102,6 +106,22 @@ class AgentChatRequest(BaseModel):
         if value is not None and not value.strip():
             raise ValueError("session_id must not be empty")
         return value.strip() if value is not None else value
+
+    @field_validator("conversation_id")
+    @classmethod
+    def conversation_id_must_be_uuid_if_provided(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("conversation_id must not be empty")
+        import uuid
+
+        try:
+            uuid.UUID(stripped)
+        except ValueError as exc:
+            raise ValueError("conversation_id must be a valid UUID") from exc
+        return stripped
 
     @field_validator("library_item_id")
     @classmethod
@@ -149,6 +169,8 @@ class AgentChatResponse(BaseModel):
     web_summary: str | None = None
     total_retrieved: int
     session_id: str
+    conversation_id: str
+    memory_updates: list[dict[str, Any]] = Field(default_factory=list)
     memory: MemoryMetadata
 
 

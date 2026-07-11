@@ -7,7 +7,13 @@ body {
   background: #f3f5f8;
   color: #1f2937;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 button,
@@ -184,6 +190,7 @@ small {
 
 .ide-workspace {
   display: grid;
+  height: calc(100vh - 176px);
   min-height: calc(100vh - 176px);
   overflow: hidden;
   border: 1px solid #d8dee8;
@@ -197,6 +204,7 @@ small {
 
 .workspace-panel {
   min-width: 0;
+  min-height: 0;
   overflow: auto;
   background: #ffffff;
 }
@@ -204,6 +212,11 @@ small {
 .library-explorer,
 .agent-chat-dock {
   padding: 14px;
+}
+
+.agent-chat-dock {
+  display: flex;
+  overflow: hidden;
 }
 
 .workspace-panel-header {
@@ -288,6 +301,26 @@ small {
   overflow-wrap: anywhere;
 }
 
+.selected-book-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selected-book-chip {
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.28rem 0.55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .field-label {
   color: #64748b;
   font-size: 0.9rem;
@@ -347,14 +380,18 @@ small {
 }
 
 .agent-chat-dock .panel {
+  width: 100%;
   border: 0;
   background: transparent;
   padding: 0;
 }
 
 .agent-chat-panel {
-  display: grid;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 14px;
+  min-height: 0;
 }
 
 .panel-heading {
@@ -362,7 +399,8 @@ small {
   align-items: start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  flex-shrink: 0;
+  margin-bottom: 0;
 }
 
 .panel-heading h2,
@@ -376,11 +414,26 @@ small {
   margin: 0;
 }
 
+.chat-scroll-region {
+  display: grid;
+  align-content: start;
+  flex: 1;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 4px 12px 0;
+}
+
 .chat-thread {
   display: grid;
   align-content: start;
   gap: 10px;
-  min-height: 180px;
+}
+
+.empty-chat-thread {
+  min-height: 100%;
+  place-items: center;
 }
 
 .chat-turn {
@@ -413,6 +466,90 @@ small {
 
 .answer-text {
   overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.markdown-message > :first-child {
+  margin-top: 0;
+}
+
+.markdown-message > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message p,
+.markdown-message ul,
+.markdown-message ol,
+.markdown-message blockquote,
+.markdown-message pre,
+.markdown-message table {
+  margin: 0.65rem 0;
+}
+
+.markdown-message ul,
+.markdown-message ol {
+  padding-left: 1.4rem;
+}
+
+.markdown-message blockquote {
+  border-left: 3px solid #cbd5e1;
+  color: #475569;
+  padding-left: 0.8rem;
+}
+
+.markdown-message pre,
+.markdown-message code {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+}
+
+.markdown-message pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: #f1f5f9;
+  padding: 0.75rem;
+}
+
+.markdown-message :not(pre) > code {
+  border-radius: 4px;
+  background: #f1f5f9;
+  padding: 0.1rem 0.25rem;
+}
+
+.markdown-message table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.markdown-message th,
+.markdown-message td {
+  border: 1px solid #cbd5e1;
+  padding: 0.35rem 0.55rem;
+}
+
+.markdown-message .katex {
+  max-width: 100%;
+}
+
+.markdown-message .katex-display {
+  max-width: 100%;
+  margin: 1rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.15rem;
+}
+
+.markdown-message .katex-display > .katex {
+  min-width: max-content;
+  text-align: center;
+}
+
+.markdown-fallback {
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -421,6 +558,10 @@ small {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
+  flex-shrink: 0;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding-top: 12px;
 }
 
 .chat-compose label {
@@ -428,7 +569,10 @@ small {
 }
 
 .chat-compose textarea {
-  min-height: 110px;
+  min-height: 82px;
+  max-height: 180px;
+  overflow-y: auto;
+  resize: vertical;
 }
 
 .sr-only {
@@ -444,7 +588,7 @@ small {
   display: grid;
   gap: 12px;
   border-top: 1px solid #e2e8f0;
-  margin-top: 18px;
+  margin-top: 4px;
   padding-top: 18px;
 }
 
@@ -531,11 +675,16 @@ small {
   }
 
   .ide-workspace {
+    height: auto;
     min-height: auto;
   }
 
   .workspace-panel {
     max-height: none;
     overflow: visible;
+  }
+
+  .agent-chat-dock {
+    min-height: 620px;
   }
 }

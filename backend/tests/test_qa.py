@@ -244,6 +244,10 @@ def test_rag_prompt_includes_question_chunks_and_book_context() -> None:
     assert "reference answer" in prompt
     assert "Answer\n<answer with [S#] citations>" in prompt
     assert "Do not write a Sources section" in prompt
+    assert "Use Markdown for the response." in prompt
+    assert "Use $...$ for inline mathematics" in prompt
+    assert "Do not use raw HTML." in prompt
+    assert r"Do not use \(...\) or \[...\]" in prompt
     assert "[S1]" in prompt
     assert "Topology" in prompt
     assert "pp. 12-13" in prompt

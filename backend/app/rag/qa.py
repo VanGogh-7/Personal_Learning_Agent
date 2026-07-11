@@ -1,5 +1,6 @@
 from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
+from app.llm.output_protocol import MARKDOWN_MATH_OUTPUT_INSTRUCTIONS
 from app.llm.providers import (
     DETERMINISTIC_ANSWER_MARKER,
     DeterministicLLMProvider,
@@ -116,6 +117,7 @@ def build_rag_prompt(
         "Use only the shown [S#] IDs; do not use alternate numeric labels or invent IDs.",
         "If the retrieved context is weak, indirect, or insufficient, say so clearly.",
         "You may add explanatory rephrasing, but distinguish it from what the book explicitly supports.",
+        *MARKDOWN_MATH_OUTPUT_INSTRUCTIONS,
         "",
         "Return this structure:",
         "Answer",

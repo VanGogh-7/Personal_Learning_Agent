@@ -4,6 +4,8 @@ from app.db.base import Base
 from app.embeddings.base import EMBEDDING_DIMENSION
 from app.models import (
     AgentRun,
+    Conversation,
+    ConversationSummary,
     ConversationTurn,
     Document,
     DocumentChunk,
@@ -22,6 +24,8 @@ def test_all_models_registered_on_metadata() -> None:
         "document_chunks",
         "agent_runs",
         "conversation_turns",
+        "conversations",
+        "conversation_summaries",
         "long_term_memories",
         "library_items",
         "notes",
@@ -33,8 +37,14 @@ def test_learning_source_columns() -> None:
     table = LearningSource.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "title", "source_type", "description", "author", "url",
-        "created_at", "updated_at",
+        "id",
+        "title",
+        "source_type",
+        "description",
+        "author",
+        "url",
+        "created_at",
+        "updated_at",
     }
     assert not table.c.title.nullable
     assert not table.c.source_type.nullable
@@ -47,8 +57,15 @@ def test_document_columns_and_foreign_key() -> None:
     table = Document.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "source_id", "library_item_id", "title", "file_path", "file_type",
-        "content_hash", "created_at", "updated_at",
+        "id",
+        "source_id",
+        "library_item_id",
+        "title",
+        "file_path",
+        "file_type",
+        "content_hash",
+        "created_at",
+        "updated_at",
     }
     assert not table.c.title.nullable
     assert not table.c.file_type.nullable
@@ -58,7 +75,9 @@ def test_document_columns_and_foreign_key() -> None:
     fk_targets = {fk.target_fullname for fk in table.c.source_id.foreign_keys}
     assert fk_targets == {"learning_sources.id"}
 
-    library_fk_targets = {fk.target_fullname for fk in table.c.library_item_id.foreign_keys}
+    library_fk_targets = {
+        fk.target_fullname for fk in table.c.library_item_id.foreign_keys
+    }
     assert library_fk_targets == {"library_items.id"}
 
     index_names = {index.name for index in table.indexes}
@@ -69,9 +88,19 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
     table = DocumentChunk.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "document_id", "chunk_index", "content", "char_start",
-        "char_end", "page_start", "page_end", "section_type", "chapter_title",
-        "section_title", "created_at", "embedding",
+        "id",
+        "document_id",
+        "chunk_index",
+        "content",
+        "char_start",
+        "char_end",
+        "page_start",
+        "page_end",
+        "section_type",
+        "chapter_title",
+        "section_title",
+        "created_at",
+        "embedding",
     }
     assert not table.c.document_id.nullable
     assert not table.c.content.nullable
@@ -105,8 +134,14 @@ def test_conversation_turn_columns_and_constraints() -> None:
     table = ConversationTurn.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "session_id", "question", "answer", "turn_index",
-        "metadata_json", "created_at",
+        "id",
+        "session_id",
+        "question",
+        "answer",
+        "turn_index",
+        "metadata_json",
+        "created_at",
+        "conversation_id",
     }
     assert not table.c.session_id.nullable
     assert not table.c.question.nullable
@@ -121,14 +156,37 @@ def test_conversation_turn_columns_and_constraints() -> None:
 
     index_names = {index.name for index in table.indexes}
     assert "ix_conversation_turns_session_id" in index_names
+    assert "ix_conversation_turns_conversation_id" in index_names
 
 
 def test_long_term_memory_columns_and_constraints() -> None:
     table = LongTermMemory.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "memory_type", "content", "importance", "source", "tags",
-        "metadata_json", "last_accessed_at", "created_at", "updated_at",
+        "id",
+        "memory_type",
+        "content",
+        "importance",
+        "source",
+        "tags",
+        "metadata_json",
+        "last_accessed_at",
+        "created_at",
+        "updated_at",
+        "namespace",
+        "subject_id",
+        "memory_subtype",
+        "structured_data",
+        "embedding",
+        "confidence",
+        "status",
+        "source_type",
+        "source_turn_id",
+        "source_event_id",
+        "supersedes_id",
+        "valid_from",
+        "valid_until",
+        "access_count",
     }
     assert not table.c.memory_type.nullable
     assert not table.c.content.nullable
@@ -147,14 +205,54 @@ def test_long_term_memory_columns_and_constraints() -> None:
     assert "ix_long_term_memories_memory_type" in index_names
     assert "ix_long_term_memories_importance" in index_names
     assert "ix_long_term_memories_created_at" in index_names
+    assert "ix_long_term_memories_namespace_status" in index_names
+    assert "ix_long_term_memories_type_subtype" in index_names
+
+
+def test_conversation_and_summary_models() -> None:
+    conversation = Conversation.__table__
+    assert set(conversation.columns.keys()) == {
+        "id",
+        "thread_id",
+        "namespace",
+        "subject_id",
+        "legacy_session_id",
+        "created_at",
+        "updated_at",
+    }
+    assert not conversation.c.thread_id.nullable
+    assert not conversation.c.namespace.nullable
+
+    summary = ConversationSummary.__table__
+    assert set(summary.columns.keys()) == {
+        "id",
+        "conversation_id",
+        "summary",
+        "covered_until_turn_id",
+        "source_turn_count",
+        "version",
+        "created_at",
+        "updated_at",
+    }
+    assert {fk.target_fullname for fk in summary.c.conversation_id.foreign_keys} == {
+        "conversations.id"
+    }
 
 
 def test_library_item_columns_and_constraints() -> None:
     table = LibraryItem.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "title", "author", "description", "file_path", "file_type",
-        "topic_tags", "status", "created_at", "updated_at",
+        "id",
+        "title",
+        "author",
+        "description",
+        "file_path",
+        "file_type",
+        "topic_tags",
+        "status",
+        "created_at",
+        "updated_at",
     }
     assert not table.c.title.nullable
     assert table.c.author.nullable
@@ -178,8 +276,16 @@ def test_note_columns_constraints_indexes_and_foreign_key() -> None:
     table = Note.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "title", "content_latex", "description", "library_item_id",
-        "source_session_id", "topic_tags", "status", "created_at", "updated_at",
+        "id",
+        "title",
+        "content_latex",
+        "description",
+        "library_item_id",
+        "source_session_id",
+        "topic_tags",
+        "status",
+        "created_at",
+        "updated_at",
     }
     assert not table.c.title.nullable
     assert not table.c.content_latex.nullable
@@ -255,8 +361,14 @@ def test_agent_run_columns() -> None:
     table = AgentRun.__table__
 
     assert set(table.columns.keys()) == {
-        "id", "run_type", "status", "input_text", "output_text",
-        "error_message", "created_at", "updated_at",
+        "id",
+        "run_type",
+        "status",
+        "input_text",
+        "output_text",
+        "error_message",
+        "created_at",
+        "updated_at",
     }
     assert not table.c.run_type.nullable
     assert not table.c.status.nullable

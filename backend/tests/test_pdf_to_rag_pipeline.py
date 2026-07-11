@@ -1,5 +1,3 @@
-import uuid
-
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -12,6 +10,9 @@ from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED
 from app.library.indexing import index_library_item
 from app.library.service import create_library_item
 from app.models.conversation_turn import ConversationTurn
+from app.models.conversation import Conversation
+from app.models.conversation_summary import ConversationSummary
+from app.models.long_term_memory import LongTermMemory
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
@@ -35,8 +36,11 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
             Note.__table__,
             Document.__table__,
             DocumentChunk.__table__,
+            Conversation.__table__,
             ConversationTurn.__table__,
             LearningEvent.__table__,
+            ConversationSummary.__table__,
+            LongTermMemory.__table__,
         ],
     )
     session = Session(engine, expire_on_commit=False)
@@ -75,11 +79,15 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
         assert document.file_type == "pdf"
         assert document.content_hash
 
-        chunks = session.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document.id)
-            .order_by(DocumentChunk.chunk_index)
-        ).scalars().all()
+        chunks = (
+            session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.document_id == document.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            .scalars()
+            .all()
+        )
         assert len(chunks) == 1
         assert chunks[0].page_start == 1
         assert chunks[0].page_end == 2

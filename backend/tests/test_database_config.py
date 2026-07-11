@@ -46,7 +46,9 @@ def test_backend_env_file_points_to_backend_dir() -> None:
 
 
 def test_settings_reads_database_url_from_env_var(monkeypatch) -> None:
-    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb")
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb"
+    )
     settings = Settings(_env_file=None)
     assert settings.database_url == "postgresql+psycopg://user:pass@localhost/testdb"
 
@@ -56,7 +58,9 @@ def test_get_settings_is_cached() -> None:
 
 
 def test_get_engine_does_not_require_a_live_connection(monkeypatch) -> None:
-    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb")
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb"
+    )
     _clear_db_caches()
     try:
         # Engine creation is lazy: SQLAlchemy only connects when a query is run.
@@ -78,7 +82,9 @@ def test_get_database_url_raises_when_missing(monkeypatch) -> None:
 
 
 def test_get_database_url_returns_value_when_set(monkeypatch) -> None:
-    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb")
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql+psycopg://user:pass@localhost/testdb"
+    )
     get_settings.cache_clear()
     try:
         assert get_database_url() == "postgresql+psycopg://user:pass@localhost/testdb"
@@ -94,8 +100,11 @@ def test_alembic_script_directory_has_expected_revision_chain() -> None:
     assert len(heads) == 1
 
     head_revision = script.get_revision(heads[0])
-    assert head_revision.revision == "e8b7c6d5a4f3"
-    assert head_revision.down_revision == "c2f4b8a19d37"
+    assert head_revision.revision == "a1c4e7f9b2d6"
+    assert head_revision.down_revision == "e8b7c6d5a4f3"
+
+    stage39_heading_revision = script.get_revision("e8b7c6d5a4f3")
+    assert stage39_heading_revision.down_revision == "c2f4b8a19d37"
 
     stage39_revision = script.get_revision("c2f4b8a19d37")
     assert stage39_revision.down_revision == "9d4a6f1b2c30"

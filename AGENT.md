@@ -14,8 +14,16 @@ source management and Agent Chat as the main interaction surface.
 - Extract text from born-digital PDFs.
 - Chunk, embed, retrieve, and cite local Library evidence.
 - Run `/api/agent/chat` through an explicit LangGraph dual-agent graph.
+- Keep conversation/thread mapping internal and persist production checkpoints in PostgreSQL.
+- Use bounded recent turns, rolling summaries, and typed long-term memory.
+- Keep `conversationId`, messages, and selected Library item IDs in one
+  conversation state; Repository selection must not remount or reset Chat.
+- Repository single-click toggles temporary Agent context, while double-click
+  opens only the managed PDF path through the Tauri opener plugin.
 - Preserve local citations as `[S1]`, `[S2]`, etc.
 - Preserve web sources as `[W1]`, `[W2]`, etc.
+- Render Assistant messages as safe Markdown with GFM and locally bundled
+  KaTeX for `$...$` inline math and `$$...$$` display math.
 
 ## MVP Non-Goals
 
@@ -26,7 +34,7 @@ new stage for them:
 - citation click-to-page behavior
 - local embedding model deployment
 - OCR/scanned PDF support
-- reranker, hybrid search, BM25, or query expansion
+- document-RAG reranker, hybrid/BM25 search, or query expansion
 - Settings UI
 - Calendar UI
 - Notes UI
@@ -52,6 +60,18 @@ Router Node
   -> Web Research Agent Node
   -> Synthesis Node
 ```
+
+Before routing, the graph resolves `conversation_id`, loads the rolling
+summary plus at most `MEMORY_RECENT_TURN_LIMIT` effective turns, and retrieves
+a bounded namespace-isolated long-term memory context. After synthesis it
+persists the turn, updates summaries when needed, and conservatively extracts
+stable memory candidates. Summary/extraction/retrieval failures are logged and
+must not fail an otherwise successful chat response.
+
+The product may expose `conversation_id`; it must not expose LangGraph
+`thread_id`, checkpoint namespaces, retrieval scores, or memory thresholds.
+Long-term memory is untrusted personalization context and cannot replace local
+`[S#]` evidence or web `[W#]` evidence.
 
 - Router Node: deterministic route selection.
 - Local Library Agent Node: pgvector retrieval over selected/local
@@ -91,8 +111,13 @@ Add PDF
 - `frontend/src/pages/WorkspacePage.tsx`: Repository + Chat page.
 - `frontend/src/components/RagQueryPanel.tsx`: Agent Chat UI.
 - `frontend/src/tauri/filePicker.ts`: PDF-only desktop file picker.
+- `frontend/src/tauri/pdfOpener.ts`: managed-PDF system opener boundary.
+- `frontend/src/chat/conversationState.ts`: current conversation, messages,
+  selected-book IDs, and refresh persistence.
 - `backend/app/api/agent_routes.py`: `/api/agent/chat` endpoint.
 - `backend/app/graphs/chat_rag_graph.py`: LangGraph state and nodes.
+- `backend/app/memory/`: checkpoint, conversation, summary, extraction,
+  consolidation, retrieval, context, and repository boundaries.
 - `backend/app/agents/router.py`: deterministic route heuristics.
 - `backend/app/agents/local_library.py`: local retrieval agent.
 - `backend/app/agents/web_research.py`: web provider boundary.
@@ -168,6 +193,8 @@ not be deleted or untracked without an explicit cleanup request.
   requested.
 - Do not change embedding providers, chunking, retrieval ranking, graph
   topology, or storage behavior as incidental cleanup.
+- Keep conversation memory, long-term user memory, learning events, and
+  document knowledge in separate typed stores.
 - Prefer existing services and schemas over new abstractions.
 - Update `README.md` and this file when the MVP shape or operational
   commands change.

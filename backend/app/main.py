@@ -1,4 +1,7 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.agent_routes import router as agent_router
@@ -10,6 +13,7 @@ from app.api.notes_routes import router as notes_router
 from app.api.rag_routes import router as rag_router
 from app.api.routes import router
 from app.core.config import get_settings
+from app.memory.checkpointer import checkpointer_manager
 
 settings = get_settings()
 
@@ -20,7 +24,17 @@ LOCAL_FRONTEND_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await run_in_threadpool(checkpointer_manager.startup)
+    try:
+        yield
+    finally:
+        await run_in_threadpool(checkpointer_manager.shutdown)
+
+
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=LOCAL_FRONTEND_ORIGINS,
