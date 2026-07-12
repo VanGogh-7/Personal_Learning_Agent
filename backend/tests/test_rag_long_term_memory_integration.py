@@ -38,13 +38,19 @@ def memory_session():
 def _patch_db_and_retrieval(monkeypatch, memory_session) -> None:
     monkeypatch.setattr(rag_routes_module, "get_db_session", lambda: memory_session)
     monkeypatch.setattr(
-        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+        rag_routes_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
     )
 
 
-def test_include_long_term_memory_defaults_to_false(monkeypatch, memory_session) -> None:
+def test_include_long_term_memory_defaults_to_false(
+    monkeypatch, memory_session
+) -> None:
     _patch_db_and_retrieval(monkeypatch, memory_session)
-    create_memory(memory_session, memory_type="fact", content="gradient descent details")
+    create_memory(
+        memory_session, memory_type="fact", content="gradient descent details"
+    )
     memory_session.commit()
 
     response = client.post(
@@ -57,14 +63,21 @@ def test_include_long_term_memory_defaults_to_false(monkeypatch, memory_session)
     assert "long-term memory" not in data["answer"]
 
 
-def test_existing_behavior_unchanged_when_flag_false(monkeypatch, memory_session) -> None:
+def test_existing_behavior_unchanged_when_flag_false(
+    monkeypatch, memory_session
+) -> None:
     _patch_db_and_retrieval(monkeypatch, memory_session)
-    create_memory(memory_session, memory_type="fact", content="gradient descent details")
+    create_memory(
+        memory_session, memory_type="fact", content="gradient descent details"
+    )
     memory_session.commit()
 
     response = client.post(
         "/api/rag/query",
-        json={"question": "tell me about gradient descent", "include_long_term_memory": False},
+        json={
+            "question": "tell me about gradient descent",
+            "include_long_term_memory": False,
+        },
     )
 
     assert response.status_code == 200

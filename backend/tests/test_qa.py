@@ -21,7 +21,9 @@ def _make_chunk(content: str, score: float = 0.1) -> RetrievedChunkResult:
     )
 
 
-def _make_turn(question: str, answer: str = "some prior answer") -> ConversationTurnResult:
+def _make_turn(
+    question: str, answer: str = "some prior answer"
+) -> ConversationTurnResult:
     return ConversationTurnResult(
         turn_id=uuid.uuid4(),
         session_id="session-a",
@@ -88,7 +90,9 @@ def test_answer_only_mentions_the_single_most_recent_turn() -> None:
     older_turn = _make_turn("An older question")
     latest_turn = _make_turn("The latest question")
 
-    answer = generate_answer("question", [chunk], recent_turns=[older_turn, latest_turn])
+    answer = generate_answer(
+        "question", [chunk], recent_turns=[older_turn, latest_turn]
+    )
 
     assert "The latest question" in answer
     assert "An older question" not in answer
@@ -261,7 +265,9 @@ def test_rag_prompt_includes_question_chunks_and_book_context() -> None:
 
 
 def test_rag_prompt_warns_when_context_is_weak_or_indirect() -> None:
-    prompt = build_rag_prompt("What does the book say?", [_make_chunk("Indirect content.")])
+    prompt = build_rag_prompt(
+        "What does the book say?", [_make_chunk("Indirect content.")]
+    )
 
     assert "weak, indirect, or insufficient" in prompt
     assert "distinguish it from what the book explicitly supports" in prompt

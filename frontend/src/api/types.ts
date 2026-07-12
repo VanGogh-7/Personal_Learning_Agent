@@ -121,7 +121,6 @@ export interface LibraryItem {
   title: string;
   author: string | null;
   description: string | null;
-  file_path: string | null;
   file_type: string | null;
   topic_tags: string[] | null;
   status: string;
@@ -159,8 +158,6 @@ export interface LibraryPdfImportItemResponse {
   library_item: LibraryItem;
   index_result: LibraryItemIndexResponse;
   original_filename: string;
-  original_source_path: string;
-  managed_file_path: string;
   file_size_bytes: number;
 }
 

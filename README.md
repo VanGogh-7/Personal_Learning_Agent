@@ -10,8 +10,8 @@ The product is a learning agent, not a PDF reader. The MVP UI is:
 PDF Repository | Agent Chat
 ```
 
-Current stage: unified Local/Web/Academic source and citation UX over the
-existing adaptive research paths.
+Current stage: Stage 64B production stabilization and packaging-blocker
+remediation over the unified Local/Web/Academic citation experience.
 
 ## What It Does
 
@@ -36,8 +36,9 @@ existing adaptive research paths.
 - Safe Markdown and LaTeX rendering for Assistant messages without raw HTML.
 - Conversation-scoped multi-book selection: Repository clicks toggle context
   without replacing the active conversation or clearing messages.
-- Double-click a Repository PDF to open its managed copy in the system PDF
-  reader through the Tauri opener plugin.
+- Double-click a Repository PDF to send only its Library item ID to the Backend.
+  The Backend resolves and canonicalizes the managed copy before opening it in
+  the system PDF reader; local absolute paths are not returned to the UI.
 - Opens local citation cards through the same managed-PDF boundary and opens
   validated HTTP(S), DOI, and arXiv sources in the system browser.
 - Managed PDF import/storage.
@@ -646,8 +647,14 @@ index. Install the system tools separately when OCR is required:
 
 ```bash
 # Distribution-specific examples; PLA does not auto-install system OCR tools.
+# Debian/Ubuntu:
+sudo apt update
+sudo apt install tesseract-ocr tesseract-ocr-eng ocrmypdf ghostscript
+
+# Verify the installed executables:
 tesseract --version
 ocrmypdf --version
+gs --version
 ```
 
 Local PDF retrieval now uses dense vectors plus PostgreSQL `simple` full-text
@@ -807,6 +814,19 @@ partial unique index for legacy chunks whose `processing_version_id` is null.
 The migration refuses to guess which row to delete if an existing database
 already contains duplicate legacy `(document_id, chunk_index)` values.
 
+Stage 64B moves managed-PDF opening behind
+`POST /api/library/items/{library_item_id}/open-pdf`. The UI sends only the
+Library item ID. The Backend looks up the stored path, rejects traversal,
+missing/non-PDF files and symlink/root escapes, then opens only a canonical file
+below `LIBRARY_STORAGE_DIR`. Local filesystem paths are excluded from Library
+and import responses. The Tauri opener capability retains only validated
+HTTP(S) URL access for external sources.
+
+Production PostgreSQL uses the synchronous LangGraph saver. The measured
+checkpoint wrapper bridges its async streaming calls onto worker threads, so
+streaming and non-streaming paths share the same pool without leaving the event
+loop blocked or calling unsupported async methods.
+
 Apply and roll back the Stage 64 migration with:
 
 ```bash
@@ -824,22 +844,49 @@ missing.
 ```bash
 cd backend
 pytest
-ruff check app tests scripts
+ruff check .
+ruff format --check .
+python -m compileall -q app scripts tests
+alembic current
+alembic check
+pip-audit -r requirements.txt
 
 cd ../frontend
 bun run test
 bun run typecheck
 bun run format:check
 bun run build
+bun audit
 
 cd src-tauri
 cargo check
 cargo fmt --check
 cargo clippy -- -D warnings
+cargo audit
 
 cd ../..
 git diff --check
 ```
+
+`cargo audit` warnings must be classified separately from vulnerabilities.
+Tauri's Linux WebView dependency tree currently includes unmaintained GTK3
+bindings and other transitive warnings; do not replace that stack or force an
+incompatible crate version solely to silence an informational advisory.
+
+When a graphical Tauri WebView cannot be exercised in the validation
+environment, use this final desktop checklist instead of claiming an automated
+pass:
+
+1. Launch the application.
+2. Confirm the Backend connects successfully.
+3. Confirm General Topology is searchable.
+4. Confirm Activity updates normally.
+5. Confirm answer tokens appear before `done`.
+6. Confirm Markdown and LaTeX render normally.
+7. Confirm `[S]` citations point to the expected book and page.
+8. Double-click the PDF and confirm the managed copy opens.
+9. Stop generation and confirm cancellation works.
+10. Restart and confirm books and Settings persist.
 
 ## Agent latency diagnostics
 

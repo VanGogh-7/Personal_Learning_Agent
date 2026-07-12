@@ -106,8 +106,12 @@ def test_list_memories_filters_by_memory_type(memory_session) -> None:
 
 
 def test_list_memories_filters_by_min_importance(memory_session) -> None:
-    create_memory(memory_session, memory_type="fact", content="Low importance.", importance=2)
-    create_memory(memory_session, memory_type="fact", content="High importance.", importance=5)
+    create_memory(
+        memory_session, memory_type="fact", content="Low importance.", importance=2
+    )
+    create_memory(
+        memory_session, memory_type="fact", content="High importance.", importance=5
+    )
 
     important = list_memories(memory_session, min_importance=4)
 
@@ -133,7 +137,9 @@ def test_list_memories_rejects_invalid_limit(memory_session) -> None:
 
 
 def test_search_memories_performs_keyword_matching(memory_session) -> None:
-    create_memory(memory_session, memory_type="fact", content="Gradient descent is an algorithm.")
+    create_memory(
+        memory_session, memory_type="fact", content="Gradient descent is an algorithm."
+    )
     create_memory(memory_session, memory_type="fact", content="Cats are great pets.")
 
     results = search_memories(memory_session, keyword="gradient")
@@ -152,10 +158,15 @@ def test_search_memories_is_case_insensitive(memory_session) -> None:
 
 def test_search_memories_respects_filters(memory_session) -> None:
     create_memory(
-        memory_session, memory_type="fact", content="Gradient descent fact.", importance=2
+        memory_session,
+        memory_type="fact",
+        content="Gradient descent fact.",
+        importance=2,
     )
     create_memory(
-        memory_session, memory_type="preference", content="Gradient descent preference.",
+        memory_session,
+        memory_type="preference",
+        content="Gradient descent preference.",
         importance=5,
     )
 
@@ -174,7 +185,10 @@ def test_search_memories_rejects_empty_keyword(memory_session) -> None:
 
 
 def test_build_long_term_memory_context_is_deterministic() -> None:
-    memories = [_make_result("fact", "Fact A"), _make_result("preference", "Preference B")]
+    memories = [
+        _make_result("fact", "Fact A"),
+        _make_result("preference", "Preference B"),
+    ]
 
     first = build_long_term_memory_context(memories)
     second = build_long_term_memory_context(memories)

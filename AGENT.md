@@ -22,7 +22,7 @@ source management and Agent Chat as the main interaction surface.
 - Keep `conversationId`, messages, and selected Library item IDs in one
   conversation state; Repository selection must not remount or reset Chat.
 - Repository single-click toggles temporary Agent context, while double-click
-  opens only the managed PDF path through the Tauri opener plugin.
+  sends only the Library item ID to the Backend managed-file resolver.
 - Preserve local citations as `[S1]`, `[S2]`, etc.
 - Preserve web sources as `[W1]`, `[W2]`, etc.
 - Emit request-scoped structured latency summaries without sensitive content.
@@ -144,7 +144,9 @@ Add PDF
 - `frontend/src/components/SourcesPanel.tsx`: grouped local/web/academic source cards.
 - `frontend/src/sources/sourceUtils.ts`: source normalization, safe URLs, and display-only deduplication.
 - `frontend/src/tauri/filePicker.ts`: PDF-only desktop file picker.
-- `frontend/src/tauri/pdfOpener.ts`: managed-PDF system opener boundary.
+- `frontend/src/tauri/pdfOpener.ts`: ID-only managed-PDF API boundary.
+- `backend/app/library/managed_files.py`: database lookup, canonical managed-root
+  enforcement, PDF validation, and system opener boundary.
 - `frontend/src/chat/conversationState.ts`: current conversation, messages,
   selected-book IDs, and refresh persistence.
 - `backend/app/api/agent_routes.py`: JSON and SSE Agent endpoints.
@@ -420,8 +422,8 @@ Stage 63 source and citation UX rules:
   Local, Web, and Academic cards while retaining every original citation ID as
   an alias when adjacent pages or duplicate external records share one card.
 - Open local citations only by matching `library_item_id` to a loaded Repository
-  item and reusing the managed-PDF Tauri opener. Never render an absolute local
-  path or add an arbitrary-path backend endpoint.
+  item and reusing the ID-only managed-PDF endpoint. Never render or return an
+  absolute local path and never add an arbitrary-path backend endpoint.
 - External source opening must use the Tauri opener after frontend validation of
   `http` or `https`; reject `javascript`, `file`, and malformed URLs. Prefer a
   canonical DOI URL, then canonical arXiv URL, when those identifiers exist.
@@ -446,9 +448,24 @@ Stage 64 stabilization rules:
   Backend restart and the Backend cannot read Stronghold. Expose the runtime
   activation state and require explicit reconnection after vault unlock; keep
   `.env` fallback behavior unchanged.
-- Do not edit already-applied migrations, globally format unrelated legacy
-  files, start sidecar packaging, enable Visual Retrieval, or claim opt-in real
-  environment checks that were not executed.
+- Do not edit already-applied migrations, start sidecar packaging, enable Visual
+  Retrieval, or claim opt-in real environment checks that were not executed.
+
+Stage 64B packaging rules:
+
+- Library/import API responses must not expose managed or source absolute paths.
+  PDF opening accepts only a `library_item_id`; resolve it from the database,
+  canonicalize the storage root and file, and reject traversal, root/symlink
+  escapes, missing files, and non-PDF content before launching the system app.
+- Applied Alembic revisions remain immutable. They are excluded only from the
+  full-tree formatter; migration-chain checks and Ruff lint still run.
+- Production streaming must support the synchronous PostgreSQL checkpoint saver.
+  Keep the async-to-thread bridge in the timing wrapper unless the whole saver
+  lifecycle is deliberately migrated and both JSON and SSE paths are retested.
+- Release audits are `bun audit`, `pip-audit -r requirements.txt`, and
+  `cargo audit`. Classify vulnerabilities, unsound advisories, unmaintained
+  dependencies, and ordinary warnings separately; do not force incompatible
+  transitive upgrades.
 
 ## Repository Hygiene
 

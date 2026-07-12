@@ -71,7 +71,9 @@ def create_learning_event_endpoint(request: LearningEventCreate) -> LearningEven
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -116,7 +118,9 @@ def list_learning_events_endpoint(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -143,7 +147,9 @@ def get_recent_learning_events_endpoint(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -162,7 +168,9 @@ def get_learning_event_endpoint(event_id: uuid.UUID) -> LearningEventRead:
         try:
             event = get_learning_event(session, event_id)
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -171,7 +179,9 @@ def get_learning_event_endpoint(event_id: uuid.UUID) -> LearningEventRead:
     return _to_response(event)
 
 
-def _parse_optional_uuid(value: str | uuid.UUID | None, field_name: str) -> uuid.UUID | None:
+def _parse_optional_uuid(
+    value: str | uuid.UUID | None, field_name: str
+) -> uuid.UUID | None:
     if value is None or value == "":
         return None
     if isinstance(value, uuid.UUID):

@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -28,7 +30,9 @@ def library_session():
 
 
 def _patch_db(monkeypatch, library_session) -> None:
-    monkeypatch.setattr(library_routes_module, "get_db_session", lambda: library_session)
+    monkeypatch.setattr(
+        library_routes_module, "get_db_session", lambda: library_session
+    )
 
 
 def _create_item(monkeypatch, library_session, **overrides) -> dict:
@@ -52,7 +56,7 @@ def test_create_library_item(monkeypatch, library_session) -> None:
 
     assert data["title"] == "Algebra"
     assert data["author"] == "Emmy Noether"
-    assert data["file_path"] == "/books/algebra.pdf"
+    assert "file_path" not in data
     assert data["file_type"] == "pdf"
     assert data["topic_tags"] == ["algebra", "math"]
     assert data["status"] == "registered"
@@ -61,7 +65,9 @@ def test_create_library_item(monkeypatch, library_session) -> None:
     assert data["updated_at"]
 
 
-def test_create_library_item_rejects_missing_title(monkeypatch, library_session) -> None:
+def test_create_library_item_rejects_missing_title(
+    monkeypatch, library_session
+) -> None:
     _patch_db(monkeypatch, library_session)
 
     response = client.post("/api/library/items", json={"author": "Someone"})
@@ -71,7 +77,9 @@ def test_create_library_item_rejects_missing_title(monkeypatch, library_session)
 
 def test_list_library_items(monkeypatch, library_session) -> None:
     _create_item(monkeypatch, library_session, title="Algebra")
-    _create_item(monkeypatch, library_session, title="Topology", topic_tags=["topology"])
+    _create_item(
+        monkeypatch, library_session, title="Topology", topic_tags=["topology"]
+    )
 
     response = client.get("/api/library/items")
 
@@ -88,6 +96,25 @@ def test_get_library_item_by_id(monkeypatch, library_session) -> None:
 
     assert response.status_code == 200
     assert response.json()["title"] == "Analysis"
+
+
+def test_open_pdf_endpoint_uses_only_library_item_id(
+    monkeypatch, library_session
+) -> None:
+    item = _create_item(monkeypatch, library_session)
+    opened = []
+    monkeypatch.setattr(
+        library_routes_module,
+        "open_managed_pdf",
+        lambda session, item_id: opened.append(item_id),
+    )
+
+    response = client.post(f"/api/library/items/{item['id']}/open-pdf")
+
+    assert response.status_code == 200
+    assert response.json() == {"library_item_id": item["id"], "opened": True}
+    assert opened == [uuid.UUID(item["id"])]
+    assert "file_path" not in response.text
 
 
 def test_get_library_item_missing_id_returns_404(monkeypatch, library_session) -> None:
@@ -113,7 +140,9 @@ def test_update_library_item(monkeypatch, library_session) -> None:
     assert data["topic_tags"] == ["updated"]
 
 
-def test_update_library_item_missing_id_returns_404(monkeypatch, library_session) -> None:
+def test_update_library_item_missing_id_returns_404(
+    monkeypatch, library_session
+) -> None:
     _patch_db(monkeypatch, library_session)
 
     response = client.patch(
@@ -138,7 +167,9 @@ def test_search_library_items_by_keyword(monkeypatch, library_session) -> None:
 
 def test_filter_library_items_by_tag(monkeypatch, library_session) -> None:
     _create_item(monkeypatch, library_session, title="Algebra", topic_tags=["algebra"])
-    _create_item(monkeypatch, library_session, title="Topology", topic_tags=["topology"])
+    _create_item(
+        monkeypatch, library_session, title="Topology", topic_tags=["topology"]
+    )
 
     response = client.get("/api/library/items", params={"tag": "topology"})
 

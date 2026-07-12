@@ -60,9 +60,7 @@ def learning_event_session(monkeypatch):
     session = Session(engine, expire_on_commit=False)
     close_session = session.close
     session.close = lambda: None  # type: ignore[method-assign]
-    monkeypatch.setattr(
-        learning_event_routes_module, "get_db_session", lambda: session
-    )
+    monkeypatch.setattr(learning_event_routes_module, "get_db_session", lambda: session)
     try:
         yield session
     finally:
@@ -101,7 +99,9 @@ def learning_hook_session(monkeypatch):
         engine.dispose()
 
 
-def _create_library_item(session: Session, title: str = "Linear Algebra") -> LibraryItem:
+def _create_library_item(
+    session: Session, title: str = "Linear Algebra"
+) -> LibraryItem:
     item = LibraryItem(title=title, status="indexed")
     session.add(item)
     session.commit()
@@ -451,7 +451,9 @@ def test_library_indexing_success_creates_learning_event(
     }
 
 
-def test_metadata_draft_generation_creates_learning_event(learning_hook_session) -> None:
+def test_metadata_draft_generation_creates_learning_event(
+    learning_hook_session,
+) -> None:
     item = _create_indexed_item_with_chunk(learning_hook_session)
 
     response = generate_library_metadata_draft_endpoint(item.id)

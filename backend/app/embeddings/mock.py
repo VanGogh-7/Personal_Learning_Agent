@@ -21,7 +21,8 @@ class MockEmbeddingProvider(EmbeddingProvider):
         digest = hashlib.sha256(text.encode("utf-8")).digest()
 
         values = [
-            (digest[i % len(digest)] / 255.0) * 2.0 - 1.0 for i in range(EMBEDDING_DIMENSION)
+            (digest[i % len(digest)] / 255.0) * 2.0 - 1.0
+            for i in range(EMBEDDING_DIMENSION)
         ]
 
         norm = sum(value * value for value in values) ** 0.5

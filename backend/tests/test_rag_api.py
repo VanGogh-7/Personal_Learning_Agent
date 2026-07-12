@@ -53,7 +53,9 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
 
     _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
-        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: [chunk]
+        rag_routes_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [chunk],
     )
 
     response = client.post(
@@ -85,7 +87,9 @@ def test_rag_query_returns_answer_and_chunks(monkeypatch) -> None:
 def test_rag_query_with_no_matches_returns_fallback_answer(monkeypatch) -> None:
     _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
-        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+        rag_routes_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
     )
 
     response = client.post("/api/rag/query", json={"question": "unrelated question"})
@@ -101,7 +105,9 @@ def test_rag_query_with_no_matches_returns_fallback_answer(monkeypatch) -> None:
 def test_rag_query_works_without_session_id_and_generates_one(monkeypatch) -> None:
     _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
-        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+        rag_routes_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
     )
 
     response = client.post("/api/rag/query", json={"question": "no session id here"})
@@ -113,11 +119,14 @@ def test_rag_query_works_without_session_id_and_generates_one(monkeypatch) -> No
 def test_rag_query_works_with_session_id_and_reuses_it(monkeypatch) -> None:
     _patch_no_memory(monkeypatch)
     monkeypatch.setattr(
-        rag_routes_module, "retrieve_relevant_chunks", lambda session, question, top_k: []
+        rag_routes_module,
+        "retrieve_relevant_chunks",
+        lambda session, question, top_k: [],
     )
 
     response = client.post(
-        "/api/rag/query", json={"question": "a question", "session_id": "my-existing-session"}
+        "/api/rag/query",
+        json={"question": "a question", "session_id": "my-existing-session"},
     )
 
     assert response.status_code == 200
@@ -130,10 +139,14 @@ def test_rag_query_rejects_empty_question() -> None:
 
 
 def test_rag_query_rejects_invalid_top_k() -> None:
-    response = client.post("/api/rag/query", json={"question": "valid question", "top_k": 0})
+    response = client.post(
+        "/api/rag/query", json={"question": "valid question", "top_k": 0}
+    )
     assert response.status_code == 422
 
-    response = client.post("/api/rag/query", json={"question": "valid question", "top_k": 21})
+    response = client.post(
+        "/api/rag/query", json={"question": "valid question", "top_k": 21}
+    )
     assert response.status_code == 422
 
 

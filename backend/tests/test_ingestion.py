@@ -17,7 +17,9 @@ client = TestClient(app)
 @pytest.fixture
 def sample_txt_file():
     path = DATA_DIR / "sample_test_file.txt"
-    path.write_text("Hello world. This is a sample text file for ingestion tests.", encoding="utf-8")
+    path.write_text(
+        "Hello world. This is a sample text file for ingestion tests.", encoding="utf-8"
+    )
     yield path.name
     path.unlink(missing_ok=True)
 
@@ -25,7 +27,9 @@ def sample_txt_file():
 @pytest.fixture
 def sample_md_file():
     path = DATA_DIR / "sample_test_file.md"
-    path.write_text("# Title\n\nSome **markdown** content for testing.", encoding="utf-8")
+    path.write_text(
+        "# Title\n\nSome **markdown** content for testing.", encoding="utf-8"
+    )
     yield path.name
     path.unlink(missing_ok=True)
 
@@ -142,7 +146,11 @@ def test_api_load_file_rejects_unsupported_extension() -> None:
 def test_api_load_file_missing_file() -> None:
     response = client.post(
         "/api/ingestion/load-file",
-        json={"file_path": "does_not_exist.txt", "chunk_size": 100, "chunk_overlap": 10},
+        json={
+            "file_path": "does_not_exist.txt",
+            "chunk_size": 100,
+            "chunk_overlap": 10,
+        },
     )
 
     assert response.status_code == 404

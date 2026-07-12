@@ -94,12 +94,15 @@ def test_recent_turns_are_loaded_and_reflected_in_memory_metadata(
     assert "first question" in second.json()["answer"]
 
 
-def test_current_turn_is_saved_after_answer_generation(monkeypatch, memory_session) -> None:
+def test_current_turn_is_saved_after_answer_generation(
+    monkeypatch, memory_session
+) -> None:
     _patch_db_and_retrieval(monkeypatch, memory_session)
     session_id = "session-save-check"
 
     response = client.post(
-        "/api/rag/query", json={"question": "please remember this", "session_id": session_id}
+        "/api/rag/query",
+        json={"question": "please remember this", "session_id": session_id},
     )
     answer = response.json()["answer"]
 
@@ -116,7 +119,8 @@ def test_empty_retrieval_still_saves_current_turn_with_fallback_answer(
     session_id = "session-empty-retrieval"
 
     response = client.post(
-        "/api/rag/query", json={"question": "nothing matches this", "session_id": session_id}
+        "/api/rag/query",
+        json={"question": "nothing matches this", "session_id": session_id},
     )
 
     assert response.status_code == 200

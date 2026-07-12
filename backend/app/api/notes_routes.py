@@ -99,7 +99,9 @@ def create_note_endpoint(request: NoteCreate) -> NoteRead:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -110,7 +112,9 @@ def create_note_endpoint(request: NoteCreate) -> NoteRead:
 def list_notes_endpoint(
     status: str | None = "active",
     library_item_id: str | None = None,
-    limit: int = Query(default=DEFAULT_NOTES_LIMIT, ge=MIN_NOTES_LIMIT, le=MAX_NOTES_LIMIT),
+    limit: int = Query(
+        default=DEFAULT_NOTES_LIMIT, ge=MIN_NOTES_LIMIT, le=MAX_NOTES_LIMIT
+    ),
     offset: int = Query(default=0, ge=0),
 ) -> NoteListResponse:
     try:
@@ -130,7 +134,9 @@ def list_notes_endpoint(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -143,7 +149,9 @@ def search_notes_endpoint(
     keyword: str | None = None,
     status: str | None = "active",
     library_item_id: str | None = None,
-    limit: int = Query(default=DEFAULT_NOTES_LIMIT, ge=MIN_NOTES_LIMIT, le=MAX_NOTES_LIMIT),
+    limit: int = Query(
+        default=DEFAULT_NOTES_LIMIT, ge=MIN_NOTES_LIMIT, le=MAX_NOTES_LIMIT
+    ),
     offset: int = Query(default=0, ge=0),
 ) -> NoteListResponse:
     try:
@@ -164,7 +172,9 @@ def search_notes_endpoint(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -173,7 +183,9 @@ def search_notes_endpoint(
 
 
 @router.post("/from-chat/draft", response_model=ChatNoteDraftResponse)
-def create_chat_note_draft_endpoint(request: ChatNoteDraftRequest) -> ChatNoteDraftResponse:
+def create_chat_note_draft_endpoint(
+    request: ChatNoteDraftRequest,
+) -> ChatNoteDraftResponse:
     return generate_chat_note_draft(request)
 
 
@@ -188,7 +200,9 @@ def get_note_endpoint(note_id: uuid.UUID) -> NoteRead:
         try:
             note = get_note(session, note_id)
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -208,7 +222,9 @@ def update_note_endpoint(note_id: uuid.UUID, request: NoteUpdate) -> NoteRead:
         try:
             updates = request.model_dump(exclude_unset=True)
             if "library_item_id" in updates:
-                updates["library_item_id"] = _parse_optional_uuid(updates["library_item_id"])
+                updates["library_item_id"] = _parse_optional_uuid(
+                    updates["library_item_id"]
+                )
             note = update_note(session, note_id, updates)
             if note is None:
                 session.rollback()
@@ -221,7 +237,9 @@ def update_note_endpoint(note_id: uuid.UUID, request: NoteUpdate) -> NoteRead:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -249,7 +267,9 @@ def archive_note_endpoint(note_id: uuid.UUID) -> NoteRead:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 

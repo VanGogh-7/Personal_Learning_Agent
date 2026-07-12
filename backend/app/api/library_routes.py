@@ -21,6 +21,12 @@ from app.library.metadata_generation import (
     LibraryMetadataGenerationError,
     generate_library_metadata_draft,
 )
+from app.library.managed_files import (
+    ManagedPdfNotFoundError,
+    ManagedPdfSecurityError,
+    ManagedPdfUnavailableError,
+    open_managed_pdf,
+)
 from app.library.schemas import (
     LibraryItemCreate,
     LibraryItemIndexResponse,
@@ -28,6 +34,7 @@ from app.library.schemas import (
     LibraryItemRead,
     LibraryItemUpdate,
     LibraryMetadataDraftResponse,
+    ManagedPdfOpenResponse,
     LibraryPdfImportItemResponse,
     LibraryPdfImportRequest,
     LibraryPdfImportResponse,
@@ -54,7 +61,6 @@ def _to_response(item: LibraryItemResult) -> LibraryItemRead:
         title=item.title,
         author=item.author,
         description=item.description,
-        file_path=item.file_path,
         file_type=item.file_type,
         topic_tags=item.topic_tags,
         status=item.status,
@@ -92,8 +98,6 @@ def _to_import_item_response(result) -> LibraryPdfImportItemResponse:
         library_item=_to_response(result.item),
         index_result=_to_index_response(result.index_result),
         original_filename=result.original_filename,
-        original_source_path=result.original_source_path,
-        managed_file_path=result.managed_file_path,
         file_size_bytes=result.file_size_bytes,
     )
 
@@ -123,7 +127,9 @@ def create_library_item_endpoint(request: LibraryItemCreate) -> LibraryItemRead:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -150,7 +156,6 @@ def import_pdfs_endpoint(request: LibraryPdfImportRequest) -> LibraryPdfImportRe
                     library_item_id=result.item.item_id,
                     metadata_json={
                         "original_filename": result.original_filename,
-                        "managed_file_path": result.managed_file_path,
                         "file_size_bytes": result.file_size_bytes,
                         "chunks_created": result.index_result.chunks_created,
                         "embeddings_created": result.index_result.embeddings_created,
@@ -165,7 +170,9 @@ def import_pdfs_endpoint(request: LibraryPdfImportRequest) -> LibraryPdfImportRe
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -211,14 +218,45 @@ def index_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemIndexResponse:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
     return _to_index_response(result)
 
 
-@router.post("/items/{item_id}/metadata-draft", response_model=LibraryMetadataDraftResponse)
+@router.post(
+    "/items/{item_id}/open-pdf",
+    response_model=ManagedPdfOpenResponse,
+)
+def open_managed_pdf_endpoint(item_id: uuid.UUID) -> ManagedPdfOpenResponse:
+    try:
+        session = get_db_session()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=503, detail="Library database is unavailable"
+        ) from exc
+    try:
+        try:
+            open_managed_pdf(session, item_id)
+        except ManagedPdfNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (ManagedPdfUnavailableError, ManagedPdfSecurityError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except SQLAlchemyError as exc:
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
+    finally:
+        session.close()
+    return ManagedPdfOpenResponse(library_item_id=str(item_id))
+
+
+@router.post(
+    "/items/{item_id}/metadata-draft", response_model=LibraryMetadataDraftResponse
+)
 def generate_library_metadata_draft_endpoint(
     item_id: uuid.UUID,
 ) -> LibraryMetadataDraftResponse:
@@ -257,7 +295,9 @@ def generate_library_metadata_draft_endpoint(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -268,7 +308,9 @@ def generate_library_metadata_draft_endpoint(
 def list_library_items_endpoint(
     status: str | None = None,
     tag: str | None = None,
-    limit: int = Query(default=DEFAULT_LIST_LIMIT, ge=MIN_LIST_LIMIT, le=MAX_LIST_LIMIT),
+    limit: int = Query(
+        default=DEFAULT_LIST_LIMIT, ge=MIN_LIST_LIMIT, le=MAX_LIST_LIMIT
+    ),
 ) -> LibraryItemListResponse:
     try:
         session = get_db_session()
@@ -279,7 +321,9 @@ def list_library_items_endpoint(
         try:
             items = list_library_items(session, status=status, tag=tag, limit=limit)
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -292,7 +336,9 @@ def search_library_items_endpoint(
     keyword: str | None = None,
     status: str | None = None,
     tag: str | None = None,
-    limit: int = Query(default=DEFAULT_LIST_LIMIT, ge=MIN_LIST_LIMIT, le=MAX_LIST_LIMIT),
+    limit: int = Query(
+        default=DEFAULT_LIST_LIMIT, ge=MIN_LIST_LIMIT, le=MAX_LIST_LIMIT
+    ),
 ) -> LibraryItemListResponse:
     try:
         session = get_db_session()
@@ -305,7 +351,9 @@ def search_library_items_endpoint(
                 session, keyword=keyword, status=status, tag=tag, limit=limit
             )
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -324,7 +372,9 @@ def get_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemRead:
         try:
             item = get_library_item(session, item_id)
         except SQLAlchemyError as exc:
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -360,7 +410,9 @@ def update_library_item_endpoint(
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 
@@ -385,7 +437,9 @@ def archive_library_item_endpoint(item_id: uuid.UUID) -> LibraryItemRead:
             raise
         except SQLAlchemyError as exc:
             session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
     finally:
         session.close()
 

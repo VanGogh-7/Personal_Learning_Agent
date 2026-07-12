@@ -111,7 +111,9 @@ def generate_library_metadata_draft(
             "Index this item before generating summary and tags."
         )
 
-    chunks = _load_representative_chunks(session, library_item_id, max_chunks=max_chunks)
+    chunks = _load_representative_chunks(
+        session, library_item_id, max_chunks=max_chunks
+    )
     if not chunks:
         raise LibraryMetadataGenerationError(
             "Indexed library item has no chunks for metadata generation."
@@ -200,7 +202,9 @@ def generate_library_topic_tags_draft_from_chunks(
                 first_seen[token] = position
             position += 1
 
-    ranked = sorted(counter, key=lambda token: (-counter[token], first_seen[token], token))
+    ranked = sorted(
+        counter, key=lambda token: (-counter[token], first_seen[token], token)
+    )
     return ranked[:max_tags]
 
 
@@ -213,7 +217,11 @@ def _load_representative_chunks(
         select(DocumentChunk)
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(Document.library_item_id == library_item_id)
-        .order_by(Document.created_at.asc(), Document.id.asc(), DocumentChunk.chunk_index.asc())
+        .order_by(
+            Document.created_at.asc(),
+            Document.id.asc(),
+            DocumentChunk.chunk_index.asc(),
+        )
         .limit(max_chunks)
     )
     return list(session.execute(stmt).scalars().all())

@@ -173,11 +173,15 @@ def test_import_pdfs_endpoint_copies_to_managed_storage_and_indexes(
     assert imported.library_item.title == "Analysis"
     assert imported.library_item.status == "indexed"
     assert imported.library_item.file_type == "pdf"
-    assert imported.library_item.file_path == imported.managed_file_path
-    assert imported.managed_file_path != str(source_path)
-    assert imported.managed_file_path.startswith(str(storage_dir))
-    assert "Analysis.pdf" in imported.managed_file_path
-    assert Path(imported.managed_file_path).exists()
+    stored_item = indexing_api_session.get(
+        LibraryItem, uuid.UUID(imported.library_item.id)
+    )
+    assert stored_item is not None and stored_item.file_path is not None
+    managed_path = Path(stored_item.file_path)
+    assert managed_path != source_path
+    assert managed_path.parent == storage_dir
+    assert "Analysis.pdf" in managed_path.name
+    assert managed_path.exists()
     assert imported.index_result.status == "indexed"
     assert imported.index_result.chunks_created > 0
 
@@ -235,7 +239,13 @@ def test_import_pdfs_endpoint_duplicate_imports_create_separate_managed_copies(
 
     assert response.total == 2
     item_ids = {item.library_item.id for item in response.items}
-    managed_paths = {item.managed_file_path for item in response.items}
+    stored_items = [
+        indexing_api_session.get(LibraryItem, uuid.UUID(item_id))
+        for item_id in item_ids
+    ]
+    managed_paths = {
+        item.file_path for item in stored_items if item is not None and item.file_path
+    }
     assert len(item_ids) == 2
     assert len(managed_paths) == 2
     assert all(Path(path).exists() for path in managed_paths)

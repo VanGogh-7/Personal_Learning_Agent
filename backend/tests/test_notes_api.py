@@ -115,7 +115,9 @@ def test_get_note_by_id(notes_session) -> None:
 
 def test_get_note_missing_id_returns_404(notes_session) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        notes_routes_module.get_note_endpoint(uuid.UUID("00000000-0000-0000-0000-000000000000"))
+        notes_routes_module.get_note_endpoint(
+            uuid.UUID("00000000-0000-0000-0000-000000000000")
+        )
 
     assert exc_info.value.status_code == 404
 
@@ -142,7 +144,9 @@ def test_update_note_invalid_status_returns_422(notes_session) -> None:
     created = _create_note(notes_session)
 
     with pytest.raises(HTTPException) as exc_info:
-        notes_routes_module.update_note_endpoint(uuid.UUID(created.id), NoteUpdate(status="deleted"))
+        notes_routes_module.update_note_endpoint(
+            uuid.UUID(created.id), NoteUpdate(status="deleted")
+        )
 
     assert exc_info.value.status_code == 422
     assert "status" in exc_info.value.detail
@@ -160,7 +164,9 @@ def test_search_notes_by_keyword(notes_session) -> None:
     _create_note(notes_session, title="Algebra")
     _create_note(notes_session, title="Topology", description="Compactness")
 
-    response = notes_routes_module.search_notes_endpoint(keyword="compactness", limit=20, offset=0)
+    response = notes_routes_module.search_notes_endpoint(
+        keyword="compactness", limit=20, offset=0
+    )
 
     assert response.total == 1
     assert response.notes[0].title == "Topology"

@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,7 +29,9 @@ class LearningEvent(Base):
         Index("ix_learning_events_note_id", "note_id"),
         Index("ix_learning_events_session_id", "session_id"),
         Index("ix_learning_events_created_at", "created_at"),
-        CheckConstraint("event_type <> ''", name="ck_learning_events_event_type_non_empty"),
+        CheckConstraint(
+            "event_type <> ''", name="ck_learning_events_event_type_non_empty"
+        ),
         CheckConstraint("title <> ''", name="ck_learning_events_title_non_empty"),
     )
 
@@ -31,7 +42,9 @@ class LearningEvent(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_type: Mapped[str | None] = mapped_column(String, nullable=True)
-    source_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     library_item_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("library_items.id"), nullable=True
     )

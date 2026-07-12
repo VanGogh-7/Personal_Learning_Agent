@@ -84,9 +84,13 @@ def test_list_library_items_filters_by_status_and_tag(library_session) -> None:
     assert topology[0].title == "Archived Topology"
 
 
-def test_search_library_items_matches_title_author_and_description(library_session) -> None:
+def test_search_library_items_matches_title_author_and_description(
+    library_session,
+) -> None:
     create_library_item(library_session, title="Algebra", author="Emmy Noether")
-    create_library_item(library_session, title="Analysis", description="Measure theory notes")
+    create_library_item(
+        library_session, title="Analysis", description="Measure theory notes"
+    )
     create_library_item(library_session, title="Combinatorics")
 
     author_matches = search_library_items(library_session, keyword="noether")
@@ -148,7 +152,9 @@ def test_update_library_item_updates_metadata(library_session) -> None:
 
 
 def test_update_library_item_returns_none_for_unknown_id(library_session) -> None:
-    assert update_library_item(library_session, uuid.uuid4(), {"title": "Missing"}) is None
+    assert (
+        update_library_item(library_session, uuid.uuid4(), {"title": "Missing"}) is None
+    )
 
 
 def test_archive_library_item_sets_status_archived(library_session) -> None:

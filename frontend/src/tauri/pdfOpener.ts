@@ -1,30 +1,24 @@
-import { openPath } from "@tauri-apps/plugin-opener";
 import type { LibraryItem } from "../api/types";
+import { openLibraryPdf } from "../api/client";
 import { isPdfLibraryItem } from "../utils/libraryFiles";
 
-type PathOpener = (path: string) => Promise<void>;
+type ManagedPdfOpener = (libraryItemId: string) => Promise<unknown>;
 
 export async function openManagedLibraryPdf(
   item: LibraryItem,
-  opener: PathOpener = openPath,
+  opener: ManagedPdfOpener = openLibraryPdf,
 ): Promise<void> {
-  const path = item.file_path?.trim();
-  if (!path) {
-    throw new Error(
-      "This PDF has no managed file path. Re-import it to the Repository.",
-    );
-  }
-  if (!isPdfLibraryItem(item) || !path.toLowerCase().endsWith(".pdf")) {
+  if (!item.id || !isPdfLibraryItem(item)) {
     throw new Error(
       "Only managed PDF files can be opened from the Repository.",
     );
   }
 
   try {
-    await opener(path);
+    await opener(item.id);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    if (/not found|no such file|does not exist/i.test(detail)) {
+    if (/not found|no such file|does not exist|unavailable/i.test(detail)) {
       throw new Error(
         "The managed PDF file no longer exists. Re-import it to continue.",
       );

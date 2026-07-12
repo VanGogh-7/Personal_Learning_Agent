@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -17,7 +26,9 @@ class Note(Base):
         Index("ix_notes_status", "status"),
         Index("ix_notes_created_at", "created_at"),
         CheckConstraint("title <> ''", name="ck_notes_title_non_empty"),
-        CheckConstraint("content_latex IS NOT NULL", name="ck_notes_content_latex_required"),
+        CheckConstraint(
+            "content_latex IS NOT NULL", name="ck_notes_content_latex_required"
+        ),
         CheckConstraint("status <> ''", name="ck_notes_status_non_empty"),
     )
 

@@ -172,7 +172,9 @@ def test_book_scoped_rag_unindexed_library_item_returns_400(
     assert "not been indexed" in exc_info.value.detail
 
 
-def test_book_scoped_rag_saves_session_metadata(monkeypatch, scoped_rag_session) -> None:
+def test_book_scoped_rag_saves_session_metadata(
+    monkeypatch, scoped_rag_session
+) -> None:
     selected = _create_indexed_item(
         scoped_rag_session,
         "Analysis",
@@ -226,7 +228,9 @@ def test_global_rag_endpoint_still_uses_global_retrieval(monkeypatch) -> None:
             pass
 
     monkeypatch.setattr(rag_routes_module, "get_db_session", lambda: FakeSession())
-    monkeypatch.setattr(rag_routes_module, "get_recent_turns", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        rag_routes_module, "get_recent_turns", lambda *args, **kwargs: []
+    )
     monkeypatch.setattr(rag_routes_module, "save_turn", lambda *args, **kwargs: None)
 
     def fake_retrieve(session, question, top_k):
@@ -338,7 +342,10 @@ def test_multi_book_rag_citations_include_library_and_chunk_metadata(
         assert citation.library_title in {"Topology", "Analysis"}
         assert citation.library_author == "Author"
         assert citation.document_title in {"Topology", "Analysis"}
-        assert citation.document_source_path in {"/tmp/Topology.txt", "/tmp/Analysis.txt"}
+        assert citation.document_source_path in {
+            "/tmp/Topology.txt",
+            "/tmp/Analysis.txt",
+        }
         assert citation.chunk_id == chunk.chunk_id
         assert citation.document_id == chunk.document_id
         assert citation.chunk_index == chunk.chunk_index
@@ -348,7 +355,9 @@ def test_multi_book_rag_citations_include_library_and_chunk_metadata(
 def test_multi_book_rag_deduplicates_library_item_ids(
     monkeypatch, scoped_rag_session
 ) -> None:
-    selected_a = _create_indexed_item(scoped_rag_session, "Algebra", "Groups have operations.")
+    selected_a = _create_indexed_item(
+        scoped_rag_session, "Algebra", "Groups have operations."
+    )
     selected_b = _create_indexed_item(
         scoped_rag_session, "Geometry", "Triangles have angles."
     )
@@ -358,7 +367,11 @@ def test_multi_book_rag_deduplicates_library_item_ids(
 
     response = rag_query_library_items_endpoint(
         MultiBookRagQueryRequest(
-            library_item_ids=[str(selected_a_id), str(selected_a_id), str(selected_b_id)],
+            library_item_ids=[
+                str(selected_a_id),
+                str(selected_a_id),
+                str(selected_b_id),
+            ],
             question="What is covered?",
             top_k=5,
         )
@@ -414,7 +427,9 @@ def test_multi_book_rag_unindexed_library_item_returns_400(
 def test_multi_book_rag_saves_memory_metadata_and_learning_event(
     monkeypatch, scoped_rag_session
 ) -> None:
-    selected_a = _create_indexed_item(scoped_rag_session, "Algebra", "Groups have operations.")
+    selected_a = _create_indexed_item(
+        scoped_rag_session, "Algebra", "Groups have operations."
+    )
     selected_b = _create_indexed_item(
         scoped_rag_session, "Geometry", "Triangles have angles."
     )

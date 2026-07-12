@@ -154,7 +154,6 @@ function libraryItem(id: string): LibraryItem {
     title: id,
     author: null,
     description: null,
-    file_path: `/managed/library/${id}.pdf`,
     file_type: "pdf",
     topic_tags: null,
     status: "indexed",

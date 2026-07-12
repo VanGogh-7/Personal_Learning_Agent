@@ -111,7 +111,9 @@ def list_library_items(
     limit: int = DEFAULT_LIST_LIMIT,
 ) -> list[LibraryItemResult]:
     _validate_limit(limit)
-    return _query_library_items(session, keyword=None, status=status, tag=tag, limit=limit)
+    return _query_library_items(
+        session, keyword=None, status=status, tag=tag, limit=limit
+    )
 
 
 def search_library_items(
@@ -122,7 +124,9 @@ def search_library_items(
     limit: int = DEFAULT_LIST_LIMIT,
 ) -> list[LibraryItemResult]:
     _validate_limit(limit)
-    return _query_library_items(session, keyword=keyword, status=status, tag=tag, limit=limit)
+    return _query_library_items(
+        session, keyword=keyword, status=status, tag=tag, limit=limit
+    )
 
 
 def update_library_item(
@@ -155,7 +159,9 @@ def update_library_item(
     return _to_result(item)
 
 
-def archive_library_item(session: Session, item_id: uuid.UUID) -> LibraryItemResult | None:
+def archive_library_item(
+    session: Session, item_id: uuid.UUID
+) -> LibraryItemResult | None:
     return update_library_item(session, item_id, {"status": "archived"})
 
 

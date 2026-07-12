@@ -1,0 +1,9 @@
+[tool.ruff.format]
+# Applied Alembic revisions are immutable deployment artifacts. Keep them in
+# lint and migration-chain validation, but do not rewrite them for formatting.
+exclude = ["alembic/versions/*.py"]
+
+[tool.ruff.lint.per-file-ignores]
+# This applied revision retains an import used to document the historical
+# pgvector type transition. Do not rewrite deployed migration artifacts.
+"alembic/versions/7c1a2b3d4e5f_set_document_chunk_embedding_dimension_1024.py" = ["F401"]

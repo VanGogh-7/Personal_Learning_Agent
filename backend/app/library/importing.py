@@ -6,7 +6,11 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.core.config import BACKEND_DIR, Settings, get_settings
-from app.library.indexing import LibraryIndexResult, LibraryIndexingError, index_library_item
+from app.library.indexing import (
+    LibraryIndexResult,
+    LibraryIndexingError,
+    index_library_item,
+)
 from app.library.service import LibraryItemResult, create_library_item, get_library_item
 
 

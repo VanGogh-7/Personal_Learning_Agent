@@ -23,9 +23,13 @@ def make_pdf_bytes(page_texts: list[str]) -> bytes:
         )
 
     for text in page_texts:
-        stream = f"BT /F1 24 Tf 72 720 Td ({_escape_pdf_text(text)}) Tj ET".encode("ascii")
+        stream = f"BT /F1 24 Tf 72 720 Td ({_escape_pdf_text(text)}) Tj ET".encode(
+            "ascii"
+        )
         objects.append(
-            b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n"
+            b"<< /Length "
+            + str(len(stream)).encode("ascii")
+            + b" >>\nstream\n"
             + stream
             + b"\nendstream"
         )

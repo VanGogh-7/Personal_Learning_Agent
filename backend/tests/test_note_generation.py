@@ -80,7 +80,9 @@ def test_generated_draft_includes_retrieved_chunk_excerpts() -> None:
             question="What is a group?",
             answer="A group is a set with an operation.",
             retrieved_chunks=[
-                ChatNoteChunkInput(chunk_index=3, content="Groups have identity elements."),
+                ChatNoteChunkInput(
+                    chunk_index=3, content="Groups have identity elements."
+                ),
                 ChatNoteChunkInput(chunk_index=4, content="Groups have inverses."),
             ],
         )

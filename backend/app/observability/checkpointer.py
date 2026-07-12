@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any
 
@@ -59,11 +60,19 @@ class TimedCheckpointer(BaseCheckpointSaver):
 
     async def aget_tuple(self, config: Any) -> Any:
         async with measure_latency("checkpoint_load"):
-            return await self._delegate.aget_tuple(config)
+            try:
+                return await self._delegate.aget_tuple(config)
+            except NotImplementedError:
+                return await asyncio.to_thread(self._delegate.get_tuple, config)
 
     async def alist(self, config: Any, **kwargs: Any) -> AsyncIterator[Any]:
         async with measure_latency("checkpoint_load"):
-            rows = [row async for row in self._delegate.alist(config, **kwargs)]
+            try:
+                rows = [row async for row in self._delegate.alist(config, **kwargs)]
+            except NotImplementedError:
+                rows = await asyncio.to_thread(
+                    lambda: list(self._delegate.list(config, **kwargs))
+                )
         for row in rows:
             yield row
 
@@ -75,9 +84,18 @@ class TimedCheckpointer(BaseCheckpointSaver):
         new_versions: Any,
     ) -> Any:
         async with measure_latency("checkpoint_persist"):
-            return await self._delegate.aput(
-                config, checkpoint, metadata, new_versions
-            )
+            try:
+                return await self._delegate.aput(
+                    config, checkpoint, metadata, new_versions
+                )
+            except NotImplementedError:
+                return await asyncio.to_thread(
+                    self._delegate.put,
+                    config,
+                    checkpoint,
+                    metadata,
+                    new_versions,
+                )
 
     async def aput_writes(
         self,
@@ -87,7 +105,19 @@ class TimedCheckpointer(BaseCheckpointSaver):
         task_path: str = "",
     ) -> None:
         async with measure_latency("checkpoint_persist"):
-            await self._delegate.aput_writes(config, writes, task_id, task_path)
+            try:
+                await self._delegate.aput_writes(config, writes, task_id, task_path)
+            except NotImplementedError:
+                await asyncio.to_thread(
+                    self._delegate.put_writes,
+                    config,
+                    writes,
+                    task_id,
+                    task_path,
+                )
 
     async def adelete_thread(self, thread_id: str) -> None:
-        await self._delegate.adelete_thread(thread_id)
+        try:
+            await self._delegate.adelete_thread(thread_id)
+        except NotImplementedError:
+            await asyncio.to_thread(self._delegate.delete_thread, thread_id)

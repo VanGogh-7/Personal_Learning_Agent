@@ -80,7 +80,9 @@ def test_save_turn_rejects_empty_answer(memory_session) -> None:
         save_turn(memory_session, "session-a", "question", "")
 
 
-def test_get_recent_turns_returns_only_turns_for_requested_session(memory_session) -> None:
+def test_get_recent_turns_returns_only_turns_for_requested_session(
+    memory_session,
+) -> None:
     save_turn(memory_session, "session-a", "Q1", "A1")
     save_turn(memory_session, "session-b", "Q-other", "A-other")
     save_turn(memory_session, "session-a", "Q2", "A2")
@@ -101,7 +103,9 @@ def test_get_recent_turns_respects_limit(memory_session) -> None:
     assert [turn.question for turn in turns] == ["Q3", "Q4"]
 
 
-def test_get_recent_turns_returns_empty_list_for_unknown_session(memory_session) -> None:
+def test_get_recent_turns_returns_empty_list_for_unknown_session(
+    memory_session,
+) -> None:
     assert get_recent_turns(memory_session, "unknown-session", limit=5) == []
 
 

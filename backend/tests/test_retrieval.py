@@ -23,7 +23,9 @@ class _FakeDocument:
 
 
 class _FakeLibraryItem:
-    def __init__(self, item_id: uuid.UUID, title: str, author: str | None = None) -> None:
+    def __init__(
+        self, item_id: uuid.UUID, title: str, author: str | None = None
+    ) -> None:
         self.id = item_id
         self.title = title
         self.author = author
@@ -76,7 +78,9 @@ def _make_similar_chunk(
     )
 
 
-def test_retrieve_relevant_chunks_returns_empty_list_when_no_matches(monkeypatch) -> None:
+def test_retrieve_relevant_chunks_returns_empty_list_when_no_matches(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         retrieval_module,
         "search_similar_chunks",
@@ -88,7 +92,9 @@ def test_retrieve_relevant_chunks_returns_empty_list_when_no_matches(monkeypatch
     assert result == []
 
 
-def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(monkeypatch) -> None:
+def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(
+    monkeypatch,
+) -> None:
     captured = {}
 
     def fake_search_similar_chunks(
@@ -99,7 +105,9 @@ def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(mo
         captured["exclude_section_types"] = exclude_section_types
         return []
 
-    monkeypatch.setattr(retrieval_module, "search_similar_chunks", fake_search_similar_chunks)
+    monkeypatch.setattr(
+        retrieval_module, "search_similar_chunks", fake_search_similar_chunks
+    )
 
     retrieve_relevant_chunks(_FakeSession({}), "what is gradient descent?", top_k=7)
 
@@ -110,7 +118,9 @@ def test_retrieve_relevant_chunks_uses_mock_embedding_and_calls_vector_search(mo
     assert "contents" in captured["exclude_section_types"]
 
 
-def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(monkeypatch) -> None:
+def test_retrieve_relevant_chunks_returns_typed_results_with_document_title(
+    monkeypatch,
+) -> None:
     document_id = uuid.uuid4()
     chunk = _make_similar_chunk(
         document_id,
@@ -176,7 +186,9 @@ def test_retrieve_relevant_chunks_handles_missing_document_title(monkeypatch) ->
     assert result[0].document_title is None
 
 
-def test_retrieve_relevant_chunks_does_not_open_network_connections(monkeypatch) -> None:
+def test_retrieve_relevant_chunks_does_not_open_network_connections(
+    monkeypatch,
+) -> None:
     monkeypatch.setattr(
         retrieval_module,
         "search_similar_chunks",
@@ -188,4 +200,6 @@ def test_retrieve_relevant_chunks_does_not_open_network_connections(monkeypatch)
 
     monkeypatch.setattr(socket, "socket", fail_if_called)
 
-    retrieve_relevant_chunks(_FakeSession({}), "no network calls should happen here", top_k=5)
+    retrieve_relevant_chunks(
+        _FakeSession({}), "no network calls should happen here", top_k=5
+    )

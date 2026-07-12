@@ -56,13 +56,17 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
     long_term_memories: list = []
     try:
         try:
-            retrieved = retrieve_relevant_chunks(db_session, request.question, top_k=request.top_k)
+            retrieved = retrieve_relevant_chunks(
+                db_session, request.question, top_k=request.top_k
+            )
             recent_turns = get_recent_turns(
                 db_session, session_id, limit=DEFAULT_RECENT_TURNS_LIMIT
             )
             if request.include_long_term_memory:
                 long_term_memories = search_memories(
-                    db_session, keyword=request.question, limit=DEFAULT_CONTEXT_MEMORY_COUNT
+                    db_session,
+                    keyword=request.question,
+                    limit=DEFAULT_CONTEXT_MEMORY_COUNT,
                 )
             answer = generate_answer(
                 request.question,
@@ -74,7 +78,9 @@ def rag_query_endpoint(request: RagQueryRequest) -> RagQueryResponse:
             db_session.commit()
         except SQLAlchemyError as exc:
             db_session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
         except (LLMConfigurationError, LLMProviderError) as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -107,7 +113,9 @@ def rag_query_library_item_endpoint(
     try:
         library_item_id = uuid.UUID(request.library_item_id)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail="library_item_id must be a valid UUID") from exc
+        raise HTTPException(
+            status_code=422, detail="library_item_id must be a valid UUID"
+        ) from exc
 
     try:
         db_session = get_db_session()
@@ -128,7 +136,9 @@ def rag_query_library_item_endpoint(
             )
             if request.include_long_term_memory:
                 long_term_memories = search_memories(
-                    db_session, keyword=request.question, limit=DEFAULT_CONTEXT_MEMORY_COUNT
+                    db_session,
+                    keyword=request.question,
+                    limit=DEFAULT_CONTEXT_MEMORY_COUNT,
                 )
             answer = generate_answer(
                 request.question,
@@ -174,7 +184,9 @@ def rag_query_library_item_endpoint(
             raise HTTPException(status_code=status_code, detail=detail) from exc
         except SQLAlchemyError as exc:
             db_session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
         except (LLMConfigurationError, LLMProviderError) as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -237,7 +249,9 @@ def rag_query_library_items_endpoint(
             )
             if request.include_long_term_memory:
                 long_term_memories = search_memories(
-                    db_session, keyword=request.question, limit=DEFAULT_CONTEXT_MEMORY_COUNT
+                    db_session,
+                    keyword=request.question,
+                    limit=DEFAULT_CONTEXT_MEMORY_COUNT,
                 )
             answer = generate_answer(
                 request.question,
@@ -281,7 +295,9 @@ def rag_query_library_items_endpoint(
             raise HTTPException(status_code=status_code, detail=detail) from exc
         except SQLAlchemyError as exc:
             db_session.rollback()
-            raise HTTPException(status_code=503, detail="Database is unavailable") from exc
+            raise HTTPException(
+                status_code=503, detail="Database is unavailable"
+            ) from exc
         except (LLMConfigurationError, LLMProviderError) as exc:
             db_session.rollback()
             raise HTTPException(status_code=503, detail=str(exc)) from exc

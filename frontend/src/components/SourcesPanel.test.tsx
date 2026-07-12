@@ -16,7 +16,6 @@ const item: LibraryItem = {
   title: "Scanned Analysis",
   author: null,
   description: null,
-  file_path: "/managed/scanned-analysis.pdf",
   file_type: "pdf",
   topic_tags: null,
   status: "indexed",
@@ -96,7 +95,7 @@ describe("Sources panel interaction", () => {
     await waitFor(() =>
       expect(openManagedLibraryPdf).toHaveBeenCalledWith(item),
     );
-    expect(container).not.toHaveTextContent(item.file_path || "");
+    expect(container).not.toHaveTextContent("/managed/");
   });
 
   it("degrades clearly when a marker has no source payload", async () => {

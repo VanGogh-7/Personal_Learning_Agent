@@ -295,11 +295,5 @@ export default function WorkspacePage() {
 
 function workspaceFileLabel(item: LibraryItem): string {
   const title = item.title.trim();
-  if (title) {
-    return title.toLowerCase().endsWith(".pdf") ? title : `${title}.pdf`;
-  }
-  if (!item.file_path) {
-    return "No PDF file path";
-  }
-  return fileNameFromPath(item.file_path) || item.file_path;
+  return title.toLowerCase().endsWith(".pdf") ? title : `${title}.pdf`;
 }

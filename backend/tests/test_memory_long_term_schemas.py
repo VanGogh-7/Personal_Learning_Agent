@@ -58,6 +58,8 @@ def test_importance_too_high_is_rejected() -> None:
 
 def test_importance_within_range_is_accepted() -> None:
     low = LongTermMemoryCreateRequest(memory_type="fact", content="valid", importance=1)
-    high = LongTermMemoryCreateRequest(memory_type="fact", content="valid", importance=5)
+    high = LongTermMemoryCreateRequest(
+        memory_type="fact", content="valid", importance=5
+    )
     assert low.importance == 1
     assert high.importance == 5

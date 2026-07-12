@@ -119,7 +119,9 @@ def list_learning_events(
 
     stmt = stmt.order_by(LearningEvent.created_at.desc()).offset(offset).limit(limit)
     events = session.execute(stmt).scalars().all()
-    library_titles = _library_item_titles(session, [event.library_item_id for event in events])
+    library_titles = _library_item_titles(
+        session, [event.library_item_id for event in events]
+    )
     note_titles = _note_titles(session, [event.note_id for event in events])
     return [
         _to_result(
@@ -175,7 +177,9 @@ def _library_item_titles(
     }
 
 
-def _note_titles(session: Session, note_ids: list[uuid.UUID | None]) -> dict[uuid.UUID, str]:
+def _note_titles(
+    session: Session, note_ids: list[uuid.UUID | None]
+) -> dict[uuid.UUID, str]:
     ids = [note_id for note_id in set(note_ids) if note_id is not None]
     if not ids:
         return {}
@@ -225,7 +229,10 @@ def _validate_library_item(
     session: Session,
     library_item_id: uuid.UUID | None,
 ) -> None:
-    if library_item_id is not None and session.get(LibraryItem, library_item_id) is None:
+    if (
+        library_item_id is not None
+        and session.get(LibraryItem, library_item_id) is None
+    ):
         raise ValueError("library_item_id does not reference an existing library item")
 
 

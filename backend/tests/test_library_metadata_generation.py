@@ -50,7 +50,9 @@ def metadata_session():
 
 
 def _patch_db(monkeypatch, metadata_session) -> None:
-    monkeypatch.setattr(library_routes_module, "get_db_session", lambda: metadata_session)
+    monkeypatch.setattr(
+        library_routes_module, "get_db_session", lambda: metadata_session
+    )
 
 
 def _create_indexed_item(metadata_session, *, with_chunks: bool = True):

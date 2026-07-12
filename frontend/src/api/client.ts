@@ -152,6 +152,14 @@ export function importLibraryPdfs(
   });
 }
 
+export function openLibraryPdf(
+  libraryItemId: string,
+): Promise<{ library_item_id: string; opened: boolean }> {
+  return requestJson(`/api/library/items/${libraryItemId}/open-pdf`, {
+    method: "POST",
+  });
+}
+
 export function listProviderCatalog(): Promise<ProviderCatalogEntry[]> {
   return requestJson<ProviderCatalogEntry[]>("/api/settings/provider-catalog");
 }

@@ -9,7 +9,6 @@ const book = (id: string, status = "indexed"): LibraryItem => ({
   title: id,
   author: null,
   description: null,
-  file_path: `/managed/${id}.pdf`,
   file_type: "pdf",
   topic_tags: null,
   status,

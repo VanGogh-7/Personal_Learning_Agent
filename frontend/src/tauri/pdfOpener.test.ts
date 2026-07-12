@@ -7,7 +7,6 @@ const item: LibraryItem = {
   title: "Analysis",
   author: null,
   description: null,
-  file_path: "/managed/library/analysis.pdf",
   file_type: "pdf",
   topic_tags: null,
   status: "indexed",
@@ -20,7 +19,7 @@ describe("managed PDF opener", () => {
     const opener = vi.fn().mockResolvedValue(undefined);
     await openManagedLibraryPdf(item, opener);
     expect(opener).toHaveBeenCalledOnce();
-    expect(opener).toHaveBeenCalledWith(item.file_path);
+    expect(opener).toHaveBeenCalledWith(item.id);
   });
 
   it("returns a clear missing-file error", async () => {
@@ -30,11 +29,11 @@ describe("managed PDF opener", () => {
     );
   });
 
-  it("rejects an item without a managed path before opening", async () => {
+  it("rejects a non-PDF item before opening", async () => {
     const opener = vi.fn();
     await expect(
-      openManagedLibraryPdf({ ...item, file_path: null }, opener),
-    ).rejects.toThrow("no managed file path");
+      openManagedLibraryPdf({ ...item, file_type: "txt" }, opener),
+    ).rejects.toThrow("Only managed PDF files");
     expect(opener).not.toHaveBeenCalled();
   });
 });

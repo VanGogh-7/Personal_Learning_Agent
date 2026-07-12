@@ -101,7 +101,9 @@ def search_notes(
     stmt = select(Note)
     if keyword and keyword.strip():
         pattern = f"%{keyword.strip()}%"
-        stmt = stmt.where(or_(Note.title.ilike(pattern), Note.description.ilike(pattern)))
+        stmt = stmt.where(
+            or_(Note.title.ilike(pattern), Note.description.ilike(pattern))
+        )
     if status is not None:
         stmt = stmt.where(Note.status == status.strip())
     if library_item_id is not None:
@@ -110,7 +112,9 @@ def search_notes(
     return [_to_result(row) for row in session.execute(stmt).scalars().all()]
 
 
-def update_note(session: Session, note_id: uuid.UUID, updates: dict) -> NoteResult | None:
+def update_note(
+    session: Session, note_id: uuid.UUID, updates: dict
+) -> NoteResult | None:
     note = session.get(Note, note_id)
     if note is None:
         return None
@@ -175,13 +179,18 @@ def _validate_status(status: str) -> None:
 
 
 def _validate_library_item(session: Session, library_item_id: uuid.UUID | None) -> None:
-    if library_item_id is not None and session.get(LibraryItem, library_item_id) is None:
+    if (
+        library_item_id is not None
+        and session.get(LibraryItem, library_item_id) is None
+    ):
         raise ValueError("library_item_id does not reference an existing library item")
 
 
 def _validate_limit(limit: int) -> None:
     if not (MIN_NOTES_LIMIT <= limit <= MAX_NOTES_LIMIT):
-        raise ValueError(f"limit must be between {MIN_NOTES_LIMIT} and {MAX_NOTES_LIMIT}")
+        raise ValueError(
+            f"limit must be between {MIN_NOTES_LIMIT} and {MAX_NOTES_LIMIT}"
+        )
 
 
 def _validate_offset(offset: int) -> None:

@@ -66,7 +66,10 @@ def _build_latex_content(request: ChatNoteDraftRequest, title: str) -> str:
             )
         if request.library_item.file_type:
             sections.extend(
-                [rf"\textbf{{File type:}} {escape_latex(request.library_item.file_type)}", ""]
+                [
+                    rf"\textbf{{File type:}} {escape_latex(request.library_item.file_type)}",
+                    "",
+                ]
             )
 
     sections.extend(

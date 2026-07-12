@@ -10,7 +10,9 @@ from app.llm.providers import (
 from app.rag.citations import build_chunk_citations, format_citation_source
 from app.rag.retrieval import RetrievedChunkResult
 
-NO_RESULTS_ANSWER = "I could not find relevant information in the current knowledge base."
+NO_RESULTS_ANSWER = (
+    "I could not find relevant information in the current knowledge base."
+)
 
 ANSWER_SNIPPET_LENGTH = 300
 
@@ -78,7 +80,9 @@ def build_deterministic_answer(
         )
 
     if recent_turns:
-        previous_question = recent_turns[-1].question.strip()[:RECENT_QUESTION_SNIPPET_LENGTH]
+        previous_question = recent_turns[-1].question.strip()[
+            :RECENT_QUESTION_SNIPPET_LENGTH
+        ]
         answer += (
             " I considered your recent session context, including your "
             f'previous question: "{previous_question}".'
@@ -88,7 +92,7 @@ def build_deterministic_answer(
         top_memory = long_term_memories[0]
         memory_snippet = top_memory.content.strip()[:LONG_TERM_MEMORY_SNIPPET_LENGTH]
         answer += (
-            f' I also found a relevant long-term memory ({top_memory.memory_type}): '
+            f" I also found a relevant long-term memory ({top_memory.memory_type}): "
             f'"{memory_snippet}".'
         )
 
@@ -139,7 +143,9 @@ def build_rag_prompt(
             lines.append("Text:")
             lines.append(citation.content.strip())
     else:
-        lines.extend(["", "Retrieved local sources:", "No relevant sources were retrieved."])
+        lines.extend(
+            ["", "Retrieved local sources:", "No relevant sources were retrieved."]
+        )
 
     if recent_turns:
         lines.extend(["", "Recent session context:"])

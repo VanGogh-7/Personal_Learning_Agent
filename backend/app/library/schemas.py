@@ -90,7 +90,6 @@ class LibraryItemRead(BaseModel):
     title: str
     author: str | None = None
     description: str | None = None
-    file_path: str | None = None
     file_type: str | None = None
     topic_tags: list[str] | None = None
     status: str
@@ -110,7 +109,9 @@ class LibraryItemIndexResponse(BaseModel):
     chunks_created: int
     embeddings_created: int
     message: str
-    supported_file_types: list[str] = Field(default_factory=lambda: ["txt", "md", "pdf"])
+    supported_file_types: list[str] = Field(
+        default_factory=lambda: ["txt", "md", "pdf"]
+    )
 
 
 class LibraryPdfImportRequest(BaseModel):
@@ -129,14 +130,17 @@ class LibraryPdfImportItemResponse(BaseModel):
     library_item: LibraryItemRead
     index_result: LibraryItemIndexResponse
     original_filename: str
-    original_source_path: str
-    managed_file_path: str
     file_size_bytes: int
 
 
 class LibraryPdfImportResponse(BaseModel):
     items: list[LibraryPdfImportItemResponse]
     total: int
+
+
+class ManagedPdfOpenResponse(BaseModel):
+    library_item_id: str
+    opened: bool = True
 
 
 class LibraryMetadataDraftResponse(BaseModel):
