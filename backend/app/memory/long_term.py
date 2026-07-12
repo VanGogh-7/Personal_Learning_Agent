@@ -119,7 +119,9 @@ def create_memory(
     _validate_importance(importance)
 
     embedding = (
-        get_embedding_provider().embed_text(content.strip()) if memory_subtype else None
+        get_embedding_provider(get_settings()).embed_text(content.strip())
+        if memory_subtype
+        else None
     )
     memory = LongTermMemory(
         memory_type=memory_type.strip(),

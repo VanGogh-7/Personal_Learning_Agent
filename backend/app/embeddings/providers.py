@@ -6,6 +6,7 @@ from app.core.config import Settings, get_settings
 from app.embeddings.base import EMBEDDING_DIMENSION, EmbeddingProvider
 from app.embeddings.mock import MockEmbeddingProvider
 from app.providers.http_clients import provider_http_clients
+from app.observability.latency import current_latency_trace
 
 MOCK_EMBEDDING_PROVIDER_NAMES = {"", "mock", "deterministic"}
 ZHIPU_EMBEDDING_PROVIDER_NAME = "zhipu"
@@ -81,10 +82,9 @@ class ZhipuEmbeddingProvider(EmbeddingProvider):
 
     def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         payload = {"model": self._model, "input": texts}
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
 
         try:
             if self._client is not None:
@@ -105,7 +105,9 @@ class ZhipuEmbeddingProvider(EmbeddingProvider):
         except EmbeddingProviderError:
             raise
         except httpx.HTTPError as exc:
-            raise EmbeddingProviderError("Zhipu embedding provider request failed.") from exc
+            raise EmbeddingProviderError(
+                "Zhipu embedding provider request failed."
+            ) from exc
         except (KeyError, TypeError, ValueError) as exc:
             raise EmbeddingProviderError(
                 "Zhipu embedding provider returned an invalid response."
@@ -136,9 +138,49 @@ class ZhipuEmbeddingProvider(EmbeddingProvider):
         return embeddings
 
 
+class OpenAICompatibleEmbeddingProvider(ZhipuEmbeddingProvider):
+    """Generic OpenAI-style embeddings adapter with dimension validation."""
+
+    provider_name = "openai_compatible"
+
+    def __init__(self, **kwargs: Any) -> None:
+        # Runtime profiles may use a versioned vector space of any validated
+        # dimension, unlike the legacy document_chunks embedding column.
+        dimension = int(kwargs["dimension"])
+        api_key = str(kwargs.get("api_key") or "")
+        base_url = str(kwargs.get("base_url") or "")
+        model = str(kwargs.get("model") or "")
+        batch_size = int(kwargs.get("batch_size") or DEFAULT_ZHIPU_BATCH_SIZE)
+        if not base_url.strip() or not model.strip() or dimension < 1:
+            raise EmbeddingConfigurationError(
+                "OpenAI-compatible embedding profiles require base URL, model, and dimension."
+            )
+        self._api_key = api_key.strip()
+        self._base_url = base_url.strip().rstrip("/")
+        self._model = model.strip()
+        self._dimension = dimension
+        self._client = kwargs.get("client")
+        self._batch_size = batch_size
+
+
 def get_embedding_provider(settings: Settings | None = None) -> EmbeddingProvider:
+    if settings is None:
+        from app.settings.runtime import current_embedding_provider
+
+        active = current_embedding_provider()
+        if active is not None:
+            return active
     resolved_settings = settings or get_settings()
     provider_name = resolved_settings.embedding_provider.strip().lower()
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("embedding_provider", provider_name or "mock")
+        trace.set_counter(
+            "embedding_model",
+            resolved_settings.zhipu_embedding_model
+            if provider_name == ZHIPU_EMBEDDING_PROVIDER_NAME
+            else "mock",
+        )
 
     if provider_name in MOCK_EMBEDDING_PROVIDER_NAMES:
         return MockEmbeddingProvider()

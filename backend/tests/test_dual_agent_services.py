@@ -66,7 +66,7 @@ def test_local_library_agent_returns_citations_and_page_metadata() -> None:
         retrieve_global=lambda session, question, top_k: [chunk],
     )
 
-    assert result.summary.startswith("This is a minimal MVP answer")
+    assert result.summary.startswith("Local Library evidence:")
     assert result.retrieved_chunks == [chunk]
     assert result.citations[0].library_title == "Analysis"
     assert result.citations[0].page_number == 12

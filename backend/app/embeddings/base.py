@@ -19,3 +19,11 @@ class EmbeddingProvider(ABC):
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return [self.embed_text(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        """Normalized Provider-facing query embedding operation."""
+        return self.embed_text(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Normalized Provider-facing document embedding operation."""
+        return self.embed_texts(texts)

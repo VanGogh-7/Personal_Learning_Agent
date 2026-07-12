@@ -16,9 +16,11 @@ from app.api.library_routes import router as library_router
 from app.api.memory_routes import router as memory_router
 from app.api.notes_routes import router as notes_router
 from app.api.rag_routes import router as rag_router
+from app.api.settings_routes import router as settings_router
 from app.api.routes import router
 from app.core.config import get_settings
 from app.memory.checkpointer import checkpointer_manager
+from app.mcp.client import mcp_client_manager
 from app.providers.http_clients import provider_http_clients
 
 settings = get_settings()
@@ -35,9 +37,11 @@ LOCAL_FRONTEND_ORIGINS = [
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await run_in_threadpool(checkpointer_manager.startup)
+    await mcp_client_manager.startup()
     try:
         yield
     finally:
+        await mcp_client_manager.shutdown()
         await run_in_threadpool(checkpointer_manager.shutdown)
         await provider_http_clients.aclose()
         await run_in_threadpool(provider_http_clients.close)
@@ -104,3 +108,4 @@ app.include_router(memory_router)
 app.include_router(library_router)
 app.include_router(notes_router)
 app.include_router(learning_event_router)
+app.include_router(settings_router)

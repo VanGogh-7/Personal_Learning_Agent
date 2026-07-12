@@ -25,6 +25,14 @@ class WebSourceResult:
     excerpt: str
     provider: str = "deterministic"
     published_date: str | None = None
+    published_at: str | None = None
+    retrieved_at: str | None = None
+    evidence_id: str | None = None
+    source_type: Literal["web", "news", "academic", "page"] = "web"
+    content: str | None = None
+    authors: tuple[str, ...] = ()
+    doi: str | None = None
+    arxiv_id: str | None = None
 
 
 @dataclass(frozen=True)

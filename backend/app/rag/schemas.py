@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 MIN_TOP_K = 1
 MAX_TOP_K = 20
@@ -77,6 +77,17 @@ class RagCitation(BaseModel):
     score: float
     excerpt: str
     content: str
+    source_type: str = "local"
+    title: str | None = None
+    url: str | None = None
+    section_path: list[str] = Field(default_factory=list)
+    authors: list[str] = Field(default_factory=list)
+    published_at: str | None = None
+    doi: str | None = None
+    arxiv_id: str | None = None
+    extraction_method: str | None = None
+    ocr_confidence: float | None = None
+    bounding_boxes: list[dict] = Field(default_factory=list)
 
 
 class RetrievedChunk(BaseModel):

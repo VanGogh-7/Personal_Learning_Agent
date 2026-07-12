@@ -1,0 +1,50 @@
+{"case_id":"ho_local_01","category":"local_only","question":"Locate the definition of total boundedness in the selected text.","selected_book_count":1}
+{"case_id":"ho_local_02","category":"local_only","question":"What argument does this monograph use for the uniform boundedness principle?","selected_book_count":1}
+{"case_id":"ho_local_03","category":"local_only","question":"Summarise the selected chapter on Sobolev spaces.","selected_book_count":1}
+{"case_id":"ho_local_04","category":"local_only","question":"根据选中的教材说明弱星收敛。","selected_book_count":2}
+{"case_id":"ho_local_05","category":"local_only","question":"Prove the proposition quoted in my PDF.","selected_book_count":1}
+{"case_id":"ho_local_06","category":"local_only","question":"Contrast the two definitions used in my library.","selected_book_count":2}
+{"case_id":"ho_web_01","category":"web_only","question":"Which stable Rust release is current this month?"}
+{"case_id":"ho_web_02","category":"web_only","question":"Find today's official announcement about the new API."}
+{"case_id":"ho_web_03","category":"web_only","question":"What changed in the most recent PostgreSQL minor release?"}
+{"case_id":"ho_web_04","category":"web_only","question":"搜索近期关于欧盟人工智能法案实施的消息。"}
+{"case_id":"ho_web_05","category":"web_only","question":"Compare the current framework release with last year's version."}
+{"case_id":"ho_web_06","category":"web_only","question":"Use independent internet sources to check this breaking news claim."}
+{"case_id":"ho_academic_01","category":"academic_only","question":"Find scholarly articles on non-reflexive Banach lattices."}
+{"case_id":"ho_academic_02","category":"academic_only","question":"Search arXiv for operator-valued neural networks."}
+{"case_id":"ho_academic_03","category":"academic_only","question":"Retrieve metadata for DOI 10.5555/12345678."}
+{"case_id":"ho_academic_04","category":"academic_only","question":"有哪些关于谱序列教学的论文？"}
+{"case_id":"ho_academic_05","category":"academic_only","question":"Compare journal papers about automatic theorem proving."}
+{"case_id":"ho_academic_06","category":"academic_only","question":"Find the authors and abstract of a Crossref paper on weak solutions."}
+{"case_id":"ho_local_web_01","category":"local_web","question":"Compare the selected textbook account with current online documentation.","selected_book_count":1}
+{"case_id":"ho_local_web_02","category":"local_web","question":"Check whether my PDF's API example still matches the latest release.","selected_book_count":1}
+{"case_id":"ho_local_web_03","category":"local_web","question":"Use my notes and recent web sources to explain the policy change.","selected_book_count":1}
+{"case_id":"ho_local_web_04","category":"local_web","question":"对比我的教材和当前网页对紧性的解释。","selected_book_count":1}
+{"case_id":"ho_local_web_05","category":"local_web","question":"Verify this book's historical claim using external sources.","selected_book_count":1}
+{"case_id":"ho_local_academic_01","category":"local_academic","question":"Compare this chapter with peer-reviewed papers on monotone operators.","selected_book_count":1}
+{"case_id":"ho_local_academic_02","category":"local_academic","question":"Use my textbook and arXiv papers to explain spectral theory.","selected_book_count":1}
+{"case_id":"ho_local_academic_03","category":"local_academic","question":"查找与选中教材定理相关的学术文献。","selected_book_count":1}
+{"case_id":"ho_local_academic_04","category":"local_academic","question":"Does the proof in my PDF agree with the journal literature?","selected_book_count":1}
+{"case_id":"ho_all_01","category":"all_sources","question":"Compare my book, current web reporting, and research papers on formal verification.","selected_book_count":1}
+{"case_id":"ho_all_02","category":"all_sources","question":"Use the selected PDF, latest online sources, and arXiv to review neural operators.","selected_book_count":1}
+{"case_id":"ho_all_03","category":"all_sources","question":"综合我的教材、近期网页和学术论文评述自动证明。","selected_book_count":1}
+{"case_id":"ho_clarify_01","category":"clarification","question":"Which one?"}
+{"case_id":"ho_clarify_02","category":"clarification","question":"什么意思？"}
+{"case_id":"ho_clarify_03","category":"clarification","question":"Could you do it?"}
+{"case_id":"ho_clarify_04","category":"clarification","question":"Why is that true?","has_conversation_context":true}
+{"case_id":"ho_noise_01","category":"duplicate_url","question":"What is the current project release?","evidence":[{"evidence_id":"n1","source":"web","title":"Release page","excerpt":"Version 4.2 is current.","citation_id":"W1","url":"https://example.org/release"},{"evidence_id":"n2","source":"web","title":"Release mirror","excerpt":"Version 4.2 is current.","citation_id":"W2","url":"https://example.org/release"}]}
+{"case_id":"ho_noise_02","category":"low_quality_web","question":"What is the current vaccine guidance?","evidence":[{"evidence_id":"n1","source":"web","title":"Random personal blog","excerpt":"I heard the rules changed.","citation_id":"W1","url":"https://blog.example/guidance"}]}
+{"case_id":"ho_noise_03","category":"stale_source","question":"What is the latest package release?","evidence":[{"evidence_id":"n1","source":"web","title":"Release notes from 2019","excerpt":"Version 1.0 is now available.","citation_id":"W1","url":"https://example.org/2019","published_at":"2019-01-01"}]}
+{"case_id":"ho_noise_04","category":"snippet_body_mismatch","question":"Does the policy allow commercial reuse?","evidence":[{"evidence_id":"n1","source":"web","title":"Policy summary","excerpt":"Snippet says commercial reuse is allowed; fetched body says it is prohibited.","citation_id":"W1","url":"https://example.org/policy"}]}
+{"case_id":"ho_noise_05","category":"similar_title_irrelevant","question":"Explain the closed range theorem.","evidence":[{"evidence_id":"n1","source":"academic","title":"A closed-range imaging sensor","excerpt":"This paper studies camera hardware, not functional analysis.","citation_id":"W1","url":"https://doi.org/10.1/camera","doi":"10.1/camera"}]}
+{"case_id":"ho_noise_06","category":"academic_metadata_missing","question":"Find a paper about compact operators.","evidence":[{"evidence_id":"n1","source":"academic","title":"Compact operators","excerpt":"A study of compact linear operators.","citation_id":"W1","url":"https://example.org/paper"}]}
+{"case_id":"ho_noise_07","category":"conflicting_sources","question":"Is the theorem valid without separability?","evidence":[{"evidence_id":"n1","source":"local","title":"Textbook","excerpt":"Separability is required.","citation_id":"S1","claim_key":"separability","stance":"supports"},{"evidence_id":"n2","source":"academic","title":"Counterexample paper","excerpt":"The theorem holds without separability under the stated assumptions.","citation_id":"W1","url":"https://doi.org/10.1/theorem","doi":"10.1/theorem","claim_key":"separability","stance":"opposes"}]}
+{"case_id":"ho_noise_08","category":"insufficient_evidence","question":"Compare local, web, and academic accounts of the conjecture.","selected_book_count":1,"evidence":[{"evidence_id":"n1","source":"local","title":"Notes","excerpt":"The conjecture is introduced but not resolved.","citation_id":"S1"}]}
+{"case_id":"ho_failure_01","category":"provider_partial_failure","question":"Find the latest academic discussion of proof assistants.","provider_failure":"brave_timeout","evidence":[{"evidence_id":"n1","source":"academic","title":"Proof assistants","excerpt":"A survey of interactive theorem provers.","citation_id":"W1","url":"https://arxiv.org/abs/1111","arxiv_id":"1111"}]}
+{"case_id":"ho_failure_02","category":"provider_partial_failure","question":"Compare current web and academic sources about neural PDE solvers.","provider_failure":"academic_openalex_429","evidence":[{"evidence_id":"n1","source":"web","title":"Project update","excerpt":"The current solver release adds a neural PDE module.","citation_id":"W1","url":"https://example.org/solver"}]}
+{"case_id":"ho_failure_03","category":"provider_partial_failure","question":"What is the latest official compiler release?","provider_failure":"tavily_500","evidence":[{"evidence_id":"n1","source":"web","title":"Official compiler release","excerpt":"The current release is 8.1.","citation_id":"W1","url":"https://compiler.example/releases"}]}
+{"case_id":"ho_citation_01","category":"citation_mismatch","question":"Explain the theorem using the selected book.","selected_book_count":1}
+{"case_id":"ho_citation_02","category":"citation_mismatch","question":"Summarize the latest official release information."}
+{"case_id":"ho_citation_03","category":"citation_mismatch","question":"Compare two academic claims about operator theory."}
+{"case_id":"ho_citation_04","category":"citation_mismatch","question":"Explain a standard mathematical inference from the cited premises."}
+{"case_id":"ho_noise_09","category":"snippet_body_mismatch","question":"Which stability guarantee does the current release documentation make?","evidence":[{"evidence_id":"m1","source":"web","title":"Current release stability notes","excerpt":"The search snippet promises long-term support, but the fetched page only describes an experimental preview.","citation_id":"W1","url":"https://release.example/stability"}]}

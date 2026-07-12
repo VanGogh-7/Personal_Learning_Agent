@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# These scripts support direct execution before the backend package is installed.
+# ruff: noqa: E402
+
 import argparse
 import sys
 import uuid
@@ -90,7 +93,9 @@ def _resolve_library_item_id(
         return _parse_uuid(library_item_id, "library_item_id")
 
     if document_id is None:
-        raise LibraryItemRagError("Either --library-item-id or --document-id is required.")
+        raise LibraryItemRagError(
+            "Either --library-item-id or --document-id is required."
+        )
 
     parsed_document_id = _parse_uuid(document_id, "document_id")
     document = session.get(Document, parsed_document_id)
@@ -131,7 +136,9 @@ def _build_parser() -> argparse.ArgumentParser:
     scope = parser.add_mutually_exclusive_group(required=True)
     scope.add_argument("--library-item-id", help="Library item UUID to query.")
     scope.add_argument("--document-id", help="Document UUID to query.")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of chunks to retrieve.")
+    parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of chunks to retrieve."
+    )
     parser.add_argument("question", nargs="+", help="Question to ask.")
     return parser
 

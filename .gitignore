@@ -5,6 +5,7 @@ backend/data/*
 backend/storage/
 *.pdf
 *baseline*.txt
+backend/evals/reports/
 /datasets/*
 !/datasets/.gitignore
 !/datasets/README.md

@@ -17,6 +17,17 @@ export interface RagCitation {
   score: number;
   excerpt: string;
   content: string;
+  source_type?: "local";
+  title?: string | null;
+  url?: string | null;
+  section_path?: string[];
+  authors?: string[];
+  published_at?: string | null;
+  doi?: string | null;
+  arxiv_id?: string | null;
+  extraction_method?: string | null;
+  ocr_confidence?: number | null;
+  bounding_boxes?: Array<Record<string, unknown>>;
 }
 
 export interface RetrievedChunk {
@@ -89,11 +100,20 @@ export interface AgentChatResponse extends Omit<
 
 export interface WebSource {
   source_id: string;
+  citation_id?: string | null;
   title: string;
   url: string;
   excerpt: string;
   provider: string;
   published_date?: string | null;
+  published_at?: string | null;
+  retrieved_at?: string | null;
+  evidence_id?: string | null;
+  source_type?: "web" | "news" | "academic" | "page";
+  content?: string | null;
+  authors?: string[];
+  doi?: string | null;
+  arxiv_id?: string | null;
 }
 
 export interface LibraryItem {
@@ -147,4 +167,75 @@ export interface LibraryPdfImportItemResponse {
 export interface LibraryPdfImportResponse {
   items: LibraryPdfImportItemResponse[];
   total: number;
+}
+
+export type ProviderKind = "chat" | "embedding";
+export type ProviderId =
+  | "deepseek"
+  | "openai"
+  | "openai_compatible"
+  | "anthropic"
+  | "gemini"
+  | "zhipu"
+  | "ollama"
+  | "custom_openai_compatible";
+
+export interface ProviderCapabilities {
+  chat: boolean;
+  streaming: boolean;
+  tool_calling: boolean;
+  structured_output: boolean;
+  embeddings: boolean;
+  multimodal_input: boolean;
+  native_adapter: boolean;
+}
+
+export interface ProviderCatalogEntry {
+  provider: ProviderId;
+  label: string;
+  capabilities: ProviderCapabilities;
+  default_chat_base_url?: string | null;
+  default_embedding_base_url?: string | null;
+  requires_api_key: boolean;
+  runtime_status: "available" | "extension_ready";
+}
+
+export interface ProviderProfileInput {
+  kind: ProviderKind;
+  name: string;
+  provider: ProviderId;
+  api_key?: string | null;
+  secret_ref?: string | null;
+  base_url: string;
+  model: string;
+  temperature?: number | null;
+  max_output_tokens?: number | null;
+  embedding_dimension?: number | null;
+  batch_size?: number | null;
+  extra_headers?: Record<string, string>;
+}
+
+export interface ProviderProfile extends Omit<ProviderProfileInput, "api_key"> {
+  id: string;
+  api_key_configured: boolean;
+  api_key_mask?: string | null;
+  config_version: number;
+  is_active: boolean;
+  runtime_active: boolean;
+}
+
+export interface ProviderProfileList {
+  profiles: ProviderProfile[];
+  active_chat_profile?: string | null;
+  active_embedding_profile?: string | null;
+}
+
+export interface ProviderConnectionTest {
+  success: boolean;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  capabilities: ProviderCapabilities;
+  actual_embedding_dimension?: number | null;
+  message: string;
 }

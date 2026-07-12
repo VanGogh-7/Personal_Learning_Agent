@@ -25,6 +25,7 @@ from app.observability.latency import (
     measure_latency_sync,
 )
 from app.rag.retrieval import LibraryItemRagError
+from app.settings.runtime import provider_request_snapshot
 from app.streaming.service import (
     DeferredTaskCollector,
     active_agent_runs,
@@ -173,12 +174,13 @@ def _execute_agent_request(
         return Session(bind=session_bind, expire_on_commit=False)
 
     try:
-        response = run_chat_rag_graph(
-            request,
-            db_session,
-            background_tasks=background_tasks,
-            background_session_factory=create_background_session,
-        )
+        with provider_request_snapshot():
+            response = run_chat_rag_graph(
+                request,
+                db_session,
+                background_tasks=background_tasks,
+                background_session_factory=create_background_session,
+            )
         with measure_latency_sync("conversation_persist"):
             db_session.commit()
         return response

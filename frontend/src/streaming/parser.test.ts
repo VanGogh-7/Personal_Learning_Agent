@@ -37,6 +37,66 @@ describe("AgentSSEParser", () => {
     expect(seen.map((event) => event.type)).toEqual(["status", "token"]);
   });
 
+  it("accepts public MCP research activity without exposing tool details", () => {
+    const seen: AgentStreamEvent[] = [];
+    const parser = new AgentSSEParser((event) => seen.push(event));
+    parser.feed(
+      record("status", {
+        ...base,
+        type: "status",
+        sequence: 1,
+        stage: "searching_academic",
+        message: "正在搜索学术资料",
+      }),
+    );
+    expect(seen[0]).toMatchObject({
+      type: "status",
+      stage: "searching_academic",
+    });
+  });
+
+  it("accepts every adaptive activity stage and academic retrieval", () => {
+    const seen: AgentStreamEvent[] = [];
+    const parser = new AgentSSEParser((event) => seen.push(event));
+    const stages = [
+      "understanding_query",
+      "planning_research",
+      "evaluating_sources",
+      "correcting_retrieval",
+      "organizing_answer",
+      "verifying_citations",
+    ];
+    stages.forEach((stage, index) =>
+      parser.feed(
+        record("status", {
+          ...base,
+          type: "status",
+          sequence: index + 1,
+          stage,
+          message: stage,
+        }),
+      ),
+    );
+    parser.feed(
+      record("retrieval_completed", {
+        ...base,
+        type: "retrieval_completed",
+        sequence: stages.length + 1,
+        source: "academic",
+        result_count: 2,
+      }),
+    );
+
+    expect(seen.map((event) => event.type)).toEqual([
+      ...stages.map(() => "status"),
+      "retrieval_completed",
+    ]);
+    expect(seen[seen.length - 1]).toMatchObject({
+      source: "academic",
+      result_count: 2,
+    });
+  });
+
   it("preserves Unicode split across byte chunks and ignores heartbeats", () => {
     const seen: AgentStreamEvent[] = [];
     const parser = new AgentSSEParser((event) => seen.push(event));

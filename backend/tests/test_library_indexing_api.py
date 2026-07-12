@@ -17,6 +17,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
 from app.models.note import Note
+from app.models.pdf_processing import DocumentPage, PdfProcessingVersion
 from tests.pdf_fixtures import make_pdf_bytes
 
 
@@ -33,6 +34,8 @@ def indexing_api_session():
             LibraryItem.__table__,
             Note.__table__,
             Document.__table__,
+            PdfProcessingVersion.__table__,
+            DocumentPage.__table__,
             DocumentChunk.__table__,
             LearningEvent.__table__,
         ],
@@ -134,11 +137,15 @@ def test_index_library_item_endpoint_creates_chunks_with_embeddings(
     response = index_library_item_endpoint(item.item_id)
 
     assert response.document_id
-    chunks = indexing_api_session.execute(
-        select(DocumentChunk).where(
-            DocumentChunk.document_id == uuid.UUID(response.document_id)
+    chunks = (
+        indexing_api_session.execute(
+            select(DocumentChunk).where(
+                DocumentChunk.document_id == uuid.UUID(response.document_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert chunks
     assert all(chunk.embedding is not None for chunk in chunks)
 
@@ -151,7 +158,9 @@ def test_import_pdfs_endpoint_copies_to_managed_storage_and_indexes(
     monkeypatch.setenv("LIBRARY_STORAGE_DIR", str(storage_dir))
     get_settings.cache_clear()
     source_path = tmp_path / "Analysis.pdf"
-    source_path.write_bytes(make_pdf_bytes(["Complete metric spaces.", "Banach spaces."]))
+    source_path.write_bytes(
+        make_pdf_bytes(["Complete metric spaces.", "Banach spaces."])
+    )
 
     response = import_pdfs_endpoint(
         LibraryPdfImportRequest(source_paths=[str(source_path)])
@@ -173,9 +182,7 @@ def test_import_pdfs_endpoint_copies_to_managed_storage_and_indexes(
     assert imported.index_result.chunks_created > 0
 
     source_path.unlink()
-    reindex_response = index_library_item_endpoint(
-        uuid.UUID(imported.library_item.id)
-    )
+    reindex_response = index_library_item_endpoint(uuid.UUID(imported.library_item.id))
     assert reindex_response.status == "indexed"
 
 
@@ -198,9 +205,7 @@ def test_import_pdfs_endpoint_rejects_non_pdf_source(
     fake_pdf_path = tmp_path / "fake.pdf"
     fake_pdf_path.write_text("not a pdf", encoding="utf-8")
     with pytest.raises(HTTPException) as invalid_pdf_exc:
-        import_pdfs_endpoint(
-            LibraryPdfImportRequest(source_paths=[str(fake_pdf_path)])
-        )
+        import_pdfs_endpoint(LibraryPdfImportRequest(source_paths=[str(fake_pdf_path)]))
 
     assert invalid_pdf_exc.value.status_code == 400
     assert "Selected file is not a valid PDF" in str(invalid_pdf_exc.value.detail)

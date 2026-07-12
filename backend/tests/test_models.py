@@ -30,6 +30,13 @@ def test_all_models_registered_on_metadata() -> None:
         "library_items",
         "notes",
         "learning_events",
+        "provider_profiles",
+        "embedding_index_versions",
+        "chunk_embeddings",
+        "pdf_processing_versions",
+        "document_pages",
+        "visual_index_versions",
+        "visual_page_embeddings",
     }
 
 
@@ -66,6 +73,7 @@ def test_document_columns_and_foreign_key() -> None:
         "content_hash",
         "created_at",
         "updated_at",
+        "active_processing_version_id",
     }
     assert not table.c.title.nullable
     assert not table.c.file_type.nullable
@@ -101,6 +109,13 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
         "section_title",
         "created_at",
         "embedding",
+        "processing_version_id",
+        "parent_chunk_id",
+        "element_type",
+        "section_path",
+        "bounding_boxes",
+        "extraction_method",
+        "ocr_confidence",
     }
     assert not table.c.document_id.nullable
     assert not table.c.content.nullable
@@ -116,10 +131,13 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
     assert fk_targets == {"documents.id"}
 
     constraint_names = {c.name for c in table.constraints if c.name}
-    assert "uq_document_chunks_document_id_chunk_index" in constraint_names
+    assert "uq_document_chunks_document_version_chunk_index" in constraint_names
     assert "ck_document_chunks_char_start_non_negative" in constraint_names
     assert "ck_document_chunks_char_end_non_negative" in constraint_names
     assert "ck_document_chunks_char_end_gte_char_start" in constraint_names
+
+    index_names = {index.name for index in table.indexes}
+    assert "uq_document_chunks_legacy_document_chunk_index" in index_names
 
 
 def test_document_chunk_embedding_column_is_nullable_vector() -> None:

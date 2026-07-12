@@ -14,11 +14,18 @@ from app.models import (  # noqa: F401
     ConversationTurn,
     Document,
     DocumentChunk,
+    ChunkEmbedding,
+    EmbeddingIndexVersion,
     LearningEvent,
     LearningSource,
     LibraryItem,
     LongTermMemory,
     Note,
+    DocumentPage,
+    PdfProcessingVersion,
+    ProviderProfile,
+    VisualIndexVersion,
+    VisualPageEmbedding,
 )
 
 # this is the Alembic Config object, which provides
@@ -40,6 +47,28 @@ config.set_main_option("sqlalchemy.url", escaped_url)
 
 # Model MetaData object, used for 'autogenerate' support.
 target_metadata = Base.metadata
+
+LANGGRAPH_CHECKPOINT_TABLES = {
+    "checkpoint_blobs",
+    "checkpoint_migrations",
+    "checkpoint_writes",
+    "checkpoints",
+}
+MIGRATION_MANAGED_INDEXES = {"ix_document_chunks_fts_simple"}
+
+
+def include_object(object_, name, type_, reflected, compare_to) -> bool:
+    """Keep external and expression-based schema out of autogenerate drift."""
+    if type_ == "table" and name in LANGGRAPH_CHECKPOINT_TABLES:
+        return False
+    if type_ == "index" and (
+        name in MIGRATION_MANAGED_INDEXES
+        or getattr(getattr(object_, "table", None), "name", None)
+        in LANGGRAPH_CHECKPOINT_TABLES
+    ):
+        return False
+    return True
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -63,6 +92,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -85,7 +115,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

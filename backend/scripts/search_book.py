@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# This script supports direct execution before the backend package is installed.
+# ruff: noqa: E402
+
 import argparse
 import sys
 import uuid
@@ -99,8 +102,12 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Search one indexed Library PDF/book without LLM generation."
     )
-    parser.add_argument("--library-item-id", required=True, help="Library item UUID to query.")
-    parser.add_argument("--top-k", type=int, default=5, help="Number of chunks to retrieve.")
+    parser.add_argument(
+        "--library-item-id", required=True, help="Library item UUID to query."
+    )
+    parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of chunks to retrieve."
+    )
     parser.add_argument(
         "--include-non-body",
         action="store_true",

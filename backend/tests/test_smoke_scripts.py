@@ -7,6 +7,7 @@ from app.embeddings.base import EMBEDDING_DIMENSION
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
+from app.models.pdf_processing import DocumentPage, PdfProcessingVersion
 from scripts.ask_book import _format_answer_for_display, ask_book
 from scripts.ask_book import main as ask_book_main
 from scripts.eval_retrieval import evaluate_retrieval
@@ -23,7 +24,13 @@ def _create_script_session() -> Session:
     engine = create_engine("sqlite:///:memory:")
     LibraryItem.metadata.create_all(
         engine,
-        tables=[LibraryItem.__table__, Document.__table__, DocumentChunk.__table__],
+        tables=[
+            LibraryItem.__table__,
+            Document.__table__,
+            PdfProcessingVersion.__table__,
+            DocumentPage.__table__,
+            DocumentChunk.__table__,
+        ],
     )
     session = Session(engine)
     session._test_engine = engine  # type: ignore[attr-defined]
@@ -70,11 +77,15 @@ def test_index_pdf_script_indexes_pdf_and_preserves_page_metadata(tmp_path) -> N
         assert document.library_item_id == summary.library_item_id
         assert document.file_path == str(pdf_path.resolve())
 
-        chunks = session.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == summary.document_id)
-            .order_by(DocumentChunk.chunk_index)
-        ).scalars().all()
+        chunks = (
+            session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.document_id == summary.document_id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            .scalars()
+            .all()
+        )
         assert [chunk.page_start for chunk in chunks] == [1]
         assert [chunk.page_end for chunk in chunks] == [3]
         assert all(chunk.embedding is not None for chunk in chunks)
@@ -105,11 +116,21 @@ def test_index_pdf_script_reuses_library_item_for_same_path(tmp_path) -> None:
         assert second.chunk_count == 1
         items = session.execute(select(LibraryItem)).scalars().all()
         assert len(items) == 1
-        chunks = session.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == second.document_id)
-            .order_by(DocumentChunk.chunk_index)
-        ).scalars().all()
+        chunks = (
+            session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.document_id == second.document_id)
+                .where(
+                    DocumentChunk.processing_version_id
+                    == session.get(
+                        Document, second.document_id
+                    ).active_processing_version_id
+                )
+                .order_by(DocumentChunk.chunk_index)
+            )
+            .scalars()
+            .all()
+        )
         assert len(chunks) == 1
         assert "Compactness has many equivalent forms." in chunks[0].content
         assert "Continuity preserves limits in metric spaces." in chunks[0].content
@@ -117,7 +138,9 @@ def test_index_pdf_script_reuses_library_item_for_same_path(tmp_path) -> None:
         _close_script_session(session)
 
 
-def test_index_pdf_cli_prints_section_type_counts(tmp_path, capsys, monkeypatch) -> None:
+def test_index_pdf_cli_prints_section_type_counts(
+    tmp_path, capsys, monkeypatch
+) -> None:
     session = _create_script_session()
     try:
         pdf_path = tmp_path / "analysis.pdf"
@@ -182,9 +205,9 @@ def test_ask_book_script_runs_single_book_rag_with_citations(tmp_path) -> None:
         assert {citation.document_id for citation in summary.citations} == {
             str(indexed.document_id)
         }
-        assert {(citation.page_start, citation.page_end) for citation in summary.citations} == {
-            (1, 2)
-        }
+        assert {
+            (citation.page_start, citation.page_end) for citation in summary.citations
+        } == {(1, 2)}
         assert all(citation.excerpt for citation in summary.citations)
     finally:
         _close_script_session(session)
@@ -389,7 +412,9 @@ def test_eval_retrieval_runs_queries_and_keyword_summary(tmp_path) -> None:
         _close_script_session(session)
 
 
-def test_eval_retrieval_cli_prints_baseline_summary(tmp_path, capsys, monkeypatch) -> None:
+def test_eval_retrieval_cli_prints_baseline_summary(
+    tmp_path, capsys, monkeypatch
+) -> None:
     session = _create_script_session()
     try:
         pdf_path = tmp_path / "analysis.pdf"

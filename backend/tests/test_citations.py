@@ -1,6 +1,10 @@
 import uuid
 
-from app.rag.citations import build_chunk_citations, format_citation_source, make_excerpt
+from app.rag.citations import (
+    build_chunk_citations,
+    format_citation_source,
+    make_excerpt,
+)
 from app.rag.retrieval import RetrievedChunkResult
 
 
@@ -35,7 +39,9 @@ def _chunk(
 
 
 def test_make_excerpt_normalizes_whitespace_and_truncates() -> None:
-    excerpt = make_excerpt("  A vector\n\nspace\t over   a field has addition.  ", max_length=24)
+    excerpt = make_excerpt(
+        "  A vector\n\nspace\t over   a field has addition.  ", max_length=24
+    )
 
     assert excerpt == "A vector space over a..."
 
@@ -85,6 +91,23 @@ def test_build_chunk_citations_includes_page_metadata_when_available() -> None:
     assert citation.page_end == 12
     assert citation.chapter_title == "Chapter IV Metric Spaces"
     assert citation.section_title == "IV.3 Compactness"
+
+
+def test_build_chunk_citations_includes_ocr_and_region_metadata() -> None:
+    chunk = _chunk("Scanned theorem", page_start=9, page_end=9)
+    chunk.extraction_method = "ocr"
+    chunk.ocr_confidence = 0.68
+    chunk.section_path = ("Chapter II", "Theorem 4")
+    chunk.bounding_boxes = ({"x0": 1, "y0": 2, "x1": 3, "y1": 4},)
+
+    citation = build_chunk_citations([chunk])[0]
+
+    assert citation.source_type == "local"
+    assert citation.title == "Linear Algebra"
+    assert citation.extraction_method == "ocr"
+    assert citation.ocr_confidence == 0.68
+    assert citation.section_path == ("Chapter II", "Theorem 4")
+    assert citation.bounding_boxes[0]["x0"] == 1
 
 
 def test_format_citation_source_uses_normalized_id_and_metadata() -> None:

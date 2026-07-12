@@ -1,11 +1,5 @@
 import { queryAgentChat, queryAgentChatStream } from "../api/client";
-import type {
-  AgentChatRequest,
-  AgentChatResponse,
-  LibraryItem,
-  RagCitation,
-  WebSource,
-} from "../api/types";
+import type { AgentChatRequest, LibraryItem } from "../api/types";
 import type {
   AgentRunState,
   AgentStreamEvent,
@@ -31,13 +25,14 @@ export default function RagQueryPanel({
   conversation,
   onConversationChange,
   workspaceSelectedItems,
+  libraryItems = workspaceSelectedItems,
 }: {
   conversation: ConversationState;
   onConversationChange: Dispatch<SetStateAction<ConversationState>>;
   workspaceSelectedItems: LibraryItem[];
+  libraryItems?: LibraryItem[];
 }) {
   const [question, setQuestion] = useState("");
-  const [result, setResult] = useState<AgentChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeRun, setActiveRun] = useState<AgentRunState | null>(null);
   const scrollRegionRef = useRef<HTMLDivElement | null>(null);
@@ -153,7 +148,6 @@ export default function RagQueryPanel({
     const next = reduceAgentRun(activeRunRef.current, event);
     commitRunState(next);
     if (event.type === "final") {
-      setResult(event.response);
       onConversationChange((current) => ({
         ...current,
         conversationId: event.response.conversation_id,
@@ -186,7 +180,6 @@ export default function RagQueryPanel({
     activeRunRef.current = initialRun;
     setActiveRun(initialRun);
     pendingTokensRef.current = "";
-    setResult(null);
     setQuestion("");
     shouldAutoScrollRef.current = true;
     onConversationChange((current) => ({
@@ -268,7 +261,6 @@ export default function RagQueryPanel({
       activity: { steps: [], compact: true },
     };
     commitRunState(next);
-    setResult(response);
     onConversationChange((current) => ({
       ...current,
       conversationId: response.conversation_id,
@@ -277,7 +269,6 @@ export default function RagQueryPanel({
 
   function failActiveRun(reason: unknown) {
     const message = formatAgentChatError(reason);
-    setResult(null);
     setError(message);
     if (activeRunRef.current) {
       commitRunState(
@@ -296,7 +287,6 @@ export default function RagQueryPanel({
     activeRunRef.current = null;
     setActiveRun(null);
     setQuestion("");
-    setResult(null);
     setError(null);
     shouldAutoScrollRef.current = true;
   }
@@ -352,15 +342,17 @@ export default function RagQueryPanel({
           ) : (
             <>
               {conversation.messages.map((turn) => (
-                <ChatTurnMessage turn={turn} key={turn.id} />
+                <ChatTurnMessage
+                  turn={turn}
+                  libraryItems={libraryItems}
+                  key={turn.id}
+                />
               ))}
             </>
           )}
         </div>
 
         {error && <p className="error">{error}</p>}
-
-        {result && <AgentResultDetails result={result} />}
       </div>
 
       <form className="chat-compose" onSubmit={submitQuery}>
@@ -410,85 +402,6 @@ export function buildAgentChatRequest(
   };
 }
 
-function AgentResultDetails({ result }: { result: AgentChatResponse }) {
-  return (
-    <div className="response-block">
-      <div className="scope-summary">
-        <strong>{responseContextLabel(result)}</strong>
-        <span>{routeLabel(result.route)}</span>
-      </div>
-
-      <div className="result-block">
-        <h3>Local Citations</h3>
-        {result.citations.length === 0 ? (
-          <p className="empty-state">
-            No relevant indexed chunks were retrieved for this question.
-          </p>
-        ) : (
-          <ul className="citation-list">
-            {result.citations.map((citation) => (
-              <li key={citation.citation_id}>
-                <div className="item-title">
-                  <span>
-                    [{citation.citation_id}] {sourceTitle(citation)}
-                  </span>
-                </div>
-                <small className="citation-meta">
-                  {citationMetadata(citation)}
-                </small>
-                <p>{citation.excerpt || "No excerpt available."}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="result-block">
-        <h3>Web Sources</h3>
-        {!result.web_sources || result.web_sources.length === 0 ? (
-          <p className="empty-state">
-            No web sources were returned for this answer.
-          </p>
-        ) : (
-          <ul className="citation-list">
-            {result.web_sources.map((source) => (
-              <li key={source.source_id}>
-                <div className="item-title">
-                  <span>
-                    [{source.source_id}] {source.title}
-                  </span>
-                </div>
-                <small className="citation-meta">
-                  {webSourceMetadata(source)}
-                </small>
-                <p>{source.excerpt || "No summary available."}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function webSourceMetadata(source: WebSource): string {
-  const parts = [
-    source.provider ? `Provider: ${source.provider}` : null,
-    source.published_date ? `Published: ${source.published_date}` : null,
-    source.url,
-  ];
-  return parts.filter(Boolean).join(" · ");
-}
-
-function sourceTitle(citation: RagCitation): string {
-  return (
-    citation.library_title ||
-    citation.document_title ||
-    citation.document_source_path ||
-    "Unknown source"
-  );
-}
-
 function activeContextLabel(items: LibraryItem[]): string {
   if (items.length === 0) {
     return "Ask a question. Selecting PDFs adds book context to this conversation.";
@@ -498,46 +411,6 @@ function activeContextLabel(items: LibraryItem[]): string {
     return `${items.length} PDFs selected; ${indexedCount} indexed and ready.`;
   }
   return `Using ${items.length} selected PDF${items.length === 1 ? "" : "s"}`;
-}
-
-function responseContextLabel(result: AgentChatResponse): string {
-  if (result.selected_library_items.length === 0) {
-    return "General chat";
-  }
-  return result.selected_library_items.map((item) => item.title).join(", ");
-}
-
-function routeLabel(route: AgentChatResponse["route"]): string {
-  if (route === "local_only") {
-    return "Local library";
-  }
-  if (route === "web_only") {
-    return "Web route";
-  }
-  return "Local library and web route";
-}
-
-function citationMetadata(citation: RagCitation): string {
-  const parts = [
-    citationPageLabel(citation),
-    `Chunk: ${citation.chunk_index}`,
-    citation.chapter_title ? `Chapter: ${citation.chapter_title}` : null,
-    citation.section_title ? `Section: ${citation.section_title}` : null,
-    citation.document_title ? `Document: ${citation.document_title}` : null,
-  ];
-  return parts.filter(Boolean).join(" · ");
-}
-
-function citationPageLabel(citation: RagCitation): string | null {
-  if (citation.page_number) {
-    return `Page: ${citation.page_number}`;
-  }
-  if (citation.page_start && citation.page_end) {
-    return citation.page_start === citation.page_end
-      ? `Page: ${citation.page_start}`
-      : `Pages: ${citation.page_start}-${citation.page_end}`;
-  }
-  return null;
 }
 
 function formatAgentChatError(error: unknown): string {

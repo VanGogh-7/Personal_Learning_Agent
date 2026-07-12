@@ -1,9 +1,12 @@
 import uuid
+import asyncio
+import json
 import logging
+from functools import partial
 from collections.abc import Callable
 from datetime import datetime
 from time import perf_counter
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from langgraph.config import get_stream_writer
 from langgraph.graph import END, StateGraph
@@ -23,10 +26,21 @@ from app.agents.web_research import (
 from app.graphs.schemas import AgentChatRequest, AgentChatResponse, AgentChatScope
 from app.learning_events.constants import EVENT_AGENT_CHAT_QUESTION_ASKED, SOURCE_RAG
 from app.learning_events.service import create_learning_event
-from app.llm.providers import LLMProviderError, TokenUsage, get_llm_provider
+from app.llm.providers import (
+    DETERMINISTIC_ANSWER_MARKER,
+    LLMProviderError,
+    TokenUsage,
+    get_llm_provider,
+)
 from app.memory.long_term import (
     LongTermMemoryResult,
 )
+from app.mcp.gateway import MCPToolGateway
+from app.mcp.research import (
+    run_mcp_academic_research,
+    run_mcp_web_research,
+)
+from app.mcp.client import mcp_client_manager
 from app.memory.checkpointer import checkpointer_manager
 from app.memory.context_builder import (
     build_memory_context,
@@ -65,6 +79,19 @@ from app.rag.schemas import (
 )
 from app.observability.checkpointer import TimedCheckpointer
 from app.observability.latency import current_latency_trace, measure_latency_sync
+from app.graphs.adaptive import (
+    EvidenceGrade,
+    EvidenceItem,
+    ExecutionPlan,
+    QueryAnalysis,
+    analyze_query,
+    build_answer_plan,
+    build_execution_plan,
+    grade_evidence,
+    merge_evidence,
+    repair_answer_citations,
+    verify_answer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,19 +104,38 @@ class ChatRAGValidationError(ChatRAGGraphError):
     """Raised when the graph input is invalid."""
 
 
+def _reduce_unique_values(left: list[str], right: list[str]) -> list[str]:
+    return list(dict.fromkeys([*left, *right]))
+
+
 class AgentGraphState(TypedDict, total=False):
     # Stable graph contract for the dual-agent MVP. Values are kept JSON-like
     # because LangGraph passes state between independent node functions.
     user_message: str
     selected_library_item_ids: list[str]
+    settings: dict[str, Any]
     route_decision: AgentRoute
+    query_analysis: dict[str, Any]
+    execution_plan: dict[str, Any]
+    subqueries: list[str]
     local_results: dict[str, Any] | None
     web_results: dict[str, Any] | None
+    academic_results: dict[str, Any] | None
+    local_evidence: list[dict[str, Any]]
+    web_evidence: list[dict[str, Any]]
+    academic_evidence: list[dict[str, Any]]
+    merged_evidence: list[dict[str, Any]]
+    evidence_grade: dict[str, Any]
+    retrieval_retry_count: int
+    answer_plan: dict[str, Any]
+    verification_result: dict[str, Any]
+    answer_repair_count: int
     final_answer: str
     local_citations: list[dict[str, Any]]
     web_sources: list[dict[str, Any]]
-    warnings: list[str]
-    errors: list[str]
+    academic_sources: list[dict[str, Any]]
+    warnings: Annotated[list[str], _reduce_unique_values]
+    errors: Annotated[list[str], _reduce_unique_values]
     question: str
     session_id: str | None
     conversation_id: str
@@ -112,7 +158,6 @@ class AgentGraphState(TypedDict, total=False):
     citations: list[dict[str, Any]]
     local_summary: str | None
     web_summary: str | None
-    prompt: str
     answer: str
     memory_metadata: dict[str, Any]
     learning_event_created: bool
@@ -131,19 +176,37 @@ def build_chat_rag_graph(
     background_tasks=None,
     background_session_factory=None,
 ):
-    """Build the explicit dual-agent LangGraph boundary."""
+    """Build the controlled adaptive research graph."""
     graph = StateGraph(AgentGraphState)
+    gateway = MCPToolGateway()
 
     graph.add_node("validate_input", validate_input)
     graph.add_node("resolve_scope", lambda state: resolve_scope(state, session))
     graph.add_node("load_memory", lambda state: load_memory(state, session))
-    graph.add_node("router_node", router_node)
+    graph.add_node("analyze_query", analyze_query_node)
+    graph.add_node("build_execution_plan", build_execution_plan_node)
     graph.add_node(
-        "local_library_agent_node",
+        "local_research",
         lambda state: run_local_node_with_independent_session(state, session),
     )
-    graph.add_node("web_research_agent_node", web_research_agent_node)
-    graph.add_node("synthesis_node", synthesis_node)
+    graph.add_node(
+        "web_research", lambda state: web_research_agent_node(state, gateway=gateway)
+    )
+    graph.add_node(
+        "academic_research",
+        lambda state: academic_research_agent_node(state, gateway=gateway),
+    )
+    graph.add_node("merge_evidence", merge_evidence_node)
+    graph.add_node("grade_evidence", grade_evidence_node)
+    graph.add_node(
+        "corrective_retrieval",
+        lambda state: corrective_retrieval_node(
+            state, session=session, gateway=gateway
+        ),
+    )
+    graph.add_node("build_answer_plan", build_answer_plan_node)
+    graph.add_node("stream_synthesis", synthesis_node)
+    graph.add_node("verify_answer", verify_answer_node)
     graph.add_node(
         "save_memory",
         lambda state: save_memory(
@@ -161,12 +224,24 @@ def build_chat_rag_graph(
     graph.set_entry_point("validate_input")
     graph.add_edge("validate_input", "resolve_scope")
     graph.add_edge("resolve_scope", "load_memory")
-    graph.add_edge("load_memory", "router_node")
-    graph.add_edge("router_node", "local_library_agent_node")
-    graph.add_edge("router_node", "web_research_agent_node")
-    graph.add_edge("local_library_agent_node", "synthesis_node")
-    graph.add_edge("web_research_agent_node", "synthesis_node")
-    graph.add_edge("synthesis_node", "save_memory")
+    graph.add_edge("load_memory", "analyze_query")
+    graph.add_edge("analyze_query", "build_execution_plan")
+    graph.add_edge("build_execution_plan", "local_research")
+    graph.add_edge("build_execution_plan", "web_research")
+    graph.add_edge("build_execution_plan", "academic_research")
+    graph.add_edge(
+        ["local_research", "web_research", "academic_research"], "merge_evidence"
+    )
+    graph.add_edge("merge_evidence", "grade_evidence")
+    graph.add_conditional_edges(
+        "grade_evidence",
+        corrective_route,
+        {"correct": "corrective_retrieval", "answer": "build_answer_plan"},
+    )
+    graph.add_edge("corrective_retrieval", "merge_evidence")
+    graph.add_edge("build_answer_plan", "stream_synthesis")
+    graph.add_edge("stream_synthesis", "verify_answer")
+    graph.add_edge("verify_answer", "save_memory")
     graph.add_edge("save_memory", "record_learning_event")
     graph.add_edge("record_learning_event", "format_response")
     graph.add_edge("format_response", END)
@@ -181,8 +256,9 @@ def build_streaming_chat_rag_graph(
     persistence_receipt: dict[str, Any],
     checkpointer: Any,
 ):
-    """Build the async SSE graph while reusing the stable Agent node services."""
+    """Build the async SSE form of the controlled adaptive research graph."""
     graph = StateGraph(AgentGraphState)
+    gateway = MCPToolGateway()
     graph.add_node("validate_input", validate_input)
     graph.add_node(
         "resolve_scope",
@@ -192,13 +268,30 @@ def build_streaming_chat_rag_graph(
         "load_memory",
         lambda state: streaming_load_memory_node(state, session_factory),
     )
-    graph.add_node("router_node", streaming_router_node)
+    graph.add_node("analyze_query", streaming_analyze_query_node)
+    graph.add_node("build_execution_plan", streaming_execution_plan_node)
     graph.add_node(
-        "local_library_agent_node",
+        "local_research",
         lambda state: streaming_local_node(state, session_factory),
     )
-    graph.add_node("web_research_agent_node", streaming_web_node)
-    graph.add_node("synthesis_node", streaming_synthesis_node)
+    graph.add_node("web_research", partial(streaming_web_node, gateway=gateway))
+    graph.add_node(
+        "academic_research",
+        partial(streaming_academic_node, gateway=gateway),
+    )
+    graph.add_node("merge_evidence", streaming_merge_evidence_node)
+    graph.add_node("grade_evidence", streaming_grade_evidence_node)
+    graph.add_node(
+        "corrective_retrieval",
+        partial(
+            streaming_corrective_retrieval_node,
+            session_factory=session_factory,
+            gateway=gateway,
+        ),
+    )
+    graph.add_node("build_answer_plan", streaming_answer_plan_node)
+    graph.add_node("stream_synthesis", streaming_synthesis_node)
+    graph.add_node("verify_answer", streaming_verify_answer_node)
     graph.add_node(
         "persist_final",
         lambda state: streaming_persist_node(
@@ -213,12 +306,24 @@ def build_streaming_chat_rag_graph(
     graph.set_entry_point("validate_input")
     graph.add_edge("validate_input", "resolve_scope")
     graph.add_edge("resolve_scope", "load_memory")
-    graph.add_edge("load_memory", "router_node")
-    graph.add_edge("router_node", "local_library_agent_node")
-    graph.add_edge("router_node", "web_research_agent_node")
-    graph.add_edge("local_library_agent_node", "synthesis_node")
-    graph.add_edge("web_research_agent_node", "synthesis_node")
-    graph.add_edge("synthesis_node", "persist_final")
+    graph.add_edge("load_memory", "analyze_query")
+    graph.add_edge("analyze_query", "build_execution_plan")
+    graph.add_edge("build_execution_plan", "local_research")
+    graph.add_edge("build_execution_plan", "web_research")
+    graph.add_edge("build_execution_plan", "academic_research")
+    graph.add_edge(
+        ["local_research", "web_research", "academic_research"], "merge_evidence"
+    )
+    graph.add_edge("merge_evidence", "grade_evidence")
+    graph.add_conditional_edges(
+        "grade_evidence",
+        corrective_route,
+        {"correct": "corrective_retrieval", "answer": "build_answer_plan"},
+    )
+    graph.add_edge("corrective_retrieval", "merge_evidence")
+    graph.add_edge("build_answer_plan", "stream_synthesis")
+    graph.add_edge("stream_synthesis", "verify_answer")
+    graph.add_edge("verify_answer", "persist_final")
     graph.add_edge("persist_final", "format_response")
     graph.add_edge("format_response", END)
     return graph.compile(checkpointer=checkpointer)
@@ -248,6 +353,53 @@ def streaming_load_memory_node(
         session.close()
 
 
+def analyze_query_node(state: ChatRAGState) -> ChatRAGState:
+    settings = get_settings()
+    with measure_latency_sync("query_analysis"):
+        analysis = analyze_query(
+            state["question"],
+            selected_book_count=len(state.get("selected_library_items", [])),
+            has_conversation_context=bool(
+                state.get("short_term_context") or state.get("conversation_summary")
+            ),
+            provider=get_llm_provider(),
+            provider_name=settings.llm_provider,
+        )
+    return {"query_analysis": analysis.model_dump(), "subqueries": analysis.subqueries}
+
+
+async def streaming_analyze_query_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("understanding_query", "正在理解问题")
+    return await asyncio.to_thread(analyze_query_node, state)
+
+
+def build_execution_plan_node(state: ChatRAGState) -> ChatRAGState:
+    analysis = QueryAnalysis.model_validate(state["query_analysis"])
+    with measure_latency_sync("planning"):
+        plan = build_execution_plan(analysis)
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.route = plan.route
+        trace.set_counter("route", plan.route)
+        trace.set_counter("execution_mode", plan.mode)
+        trace.set_counter(
+            "selected_library_item_count",
+            len(state.get("selected_library_items", [])),
+        )
+    return {
+        "execution_plan": plan.model_dump(),
+        "route": plan.route,
+        "route_decision": plan.route,
+    }
+
+
+def streaming_execution_plan_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("planning_research", "正在制定检索计划")
+    result = build_execution_plan_node(state)
+    _write_custom({"kind": "route_selected", "route": result["route"]})
+    return result
+
+
 def streaming_router_node(state: ChatRAGState) -> ChatRAGState:
     _write_activity("routing", "正在分析问题")
     result = router_node(state)
@@ -260,7 +412,7 @@ def streaming_local_node(
 ) -> ChatRAGState:
     session = session_factory()
     try:
-        if state["route"] == "web_only":
+        if not _should_run(state, "local"):
             return local_library_agent_node(state, session)
         _write_activity("retrieving_local", "正在检索已选书籍")
         result = local_library_agent_node(state, session)
@@ -277,11 +429,17 @@ def streaming_local_node(
     return result
 
 
-def streaming_web_node(state: ChatRAGState) -> ChatRAGState:
-    if state["route"] == "local_only":
-        return web_research_agent_node(state)
-    _write_activity("searching_web", "正在搜索网络资料")
-    result = web_research_agent_node(state)
+async def streaming_web_node(
+    state: ChatRAGState, *, gateway: MCPToolGateway | None = None
+) -> ChatRAGState:
+    if not _should_run(state, "web"):
+        return _skipped_web_state()
+    settings = get_settings()
+    if settings.mcp_enabled:
+        result = await mcp_web_research_agent_node(state, gateway=gateway)
+    else:
+        _write_activity("searching_web", "正在搜索网络资料")
+        result = await asyncio.to_thread(web_research_agent_node, state)
     _write_custom(
         {
             "kind": "retrieval_completed",
@@ -292,17 +450,106 @@ def streaming_web_node(state: ChatRAGState) -> ChatRAGState:
     return result
 
 
+async def mcp_web_research_agent_node(
+    state: ChatRAGState, *, gateway: MCPToolGateway | None = None
+) -> ChatRAGState:
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.increment("web_search_call_count")
+    with measure_latency_sync("web_subgraph"):
+        result = await run_mcp_web_research(
+            _research_query(state),
+            gateway=gateway or MCPToolGateway(),
+            activity=_write_activity,
+        )
+        with measure_latency_sync("web_result_processing"):
+            result_state = _web_research_result_to_state(result)
+    if trace is not None:
+        trace.set_counter("web_result_count", len(result.sources))
+    return result_state
+
+
+async def streaming_academic_node(
+    state: ChatRAGState, *, gateway: MCPToolGateway | None = None
+) -> ChatRAGState:
+    if not _should_run(state, "academic"):
+        return _skipped_academic_state()
+    _write_activity("searching_academic", "正在搜索学术资料")
+    result = await _run_academic_async(state, gateway or MCPToolGateway())
+    _write_custom(
+        {
+            "kind": "retrieval_completed",
+            "source": "academic",
+            "result_count": len(result.get("academic_sources", [])),
+        }
+    )
+    return result
+
+
+def streaming_merge_evidence_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("evaluating_sources", "正在评估来源")
+    return merge_evidence_node(state)
+
+
+def streaming_grade_evidence_node(state: ChatRAGState) -> ChatRAGState:
+    return grade_evidence_node(state)
+
+
+async def streaming_corrective_retrieval_node(
+    state: ChatRAGState,
+    *,
+    session_factory: Callable[[], Session],
+    gateway: MCPToolGateway,
+) -> ChatRAGState:
+    _write_activity("correcting_retrieval", "正在补充资料")
+    session = session_factory()
+    try:
+        return await corrective_retrieval_async(state, session=session, gateway=gateway)
+    finally:
+        session.rollback()
+        session.close()
+
+
+def streaming_answer_plan_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("organizing_answer", "正在组织回答")
+    return build_answer_plan_node(state)
+
+
+def streaming_verify_answer_node(state: ChatRAGState) -> ChatRAGState:
+    _write_activity("verifying_citations", "正在验证引用")
+    return verify_answer_node(state)
+
+
 async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
     _write_activity("processing_sources", "正在整合本地与网络证据")
-    local_result = _state_to_local_library_agent_result(state)
-    web_result = _state_to_web_research_result(state)
-    prepared = prepare_agent_synthesis(
-        question=state["question"],
-        route=state["route"],
-        local_result=local_result,
-        web_result=web_result,
-        memory_context=state.get("memory_prompt_context", ""),
-    )
+    execution_plan = ExecutionPlan.model_validate(state["execution_plan"])
+    if execution_plan.clarification_question:
+        answer = execution_plan.clarification_question
+        _write_activity("streaming", "正在生成回答")
+        _write_custom({"kind": "synthesis_token", "delta": answer})
+        return {"answer": answer, "final_answer": answer}
+    if execution_plan.mode == "direct_answer":
+        prompt = _direct_answer_prompt(state["question"])
+        local_summary = None
+        web_summary = None
+        prepared_warnings: list[str] = []
+        prepared_errors: list[str] = []
+    else:
+        local_result = _state_to_local_library_agent_result(state)
+        web_result = _state_to_web_research_result(state)
+        prepared = prepare_agent_synthesis(
+            question=state["question"],
+            route=state["route"],
+            local_result=local_result,
+            web_result=web_result,
+            memory_context=state.get("memory_prompt_context", ""),
+            answer_plan=json.dumps(state.get("answer_plan", {}), ensure_ascii=False),
+        )
+        prompt = prepared.prompt
+        local_summary = prepared.local_summary
+        web_summary = prepared.web_summary
+        prepared_warnings = prepared.warnings
+        prepared_errors = prepared.errors
     _write_activity("synthesizing", "正在生成回答")
     provider = get_llm_provider()
     started_at = perf_counter()
@@ -311,7 +558,7 @@ async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
     finish_reason: str | None = None
     usage: TokenUsage | None = None
     chunks: list[str] = []
-    async for chunk in provider.stream_chat_completion(prepared.prompt):
+    async for chunk in provider.stream_chat_completion(prompt):
         if chunk.usage is not None:
             usage = chunk.usage
         if chunk.finish_reason is not None:
@@ -350,10 +597,10 @@ async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
     return {
         "answer": answer,
         "final_answer": answer,
-        "local_summary": prepared.local_summary,
-        "web_summary": prepared.web_summary,
-        "warnings": _merge_unique_strings(state.get("warnings", []), prepared.warnings),
-        "errors": _merge_unique_strings(state.get("errors", []), prepared.errors),
+        "local_summary": local_summary,
+        "web_summary": web_summary,
+        "warnings": _merge_unique_strings(state.get("warnings", []), prepared_warnings),
+        "errors": _merge_unique_strings(state.get("errors", []), prepared_errors),
     }
 
 
@@ -469,9 +716,16 @@ def build_initial_agent_state(
     selected_library_item_ids = request.library_item_ids or (
         [request.library_item_id] if request.library_item_id else []
     )
+    settings = get_settings()
     return {
         "user_message": request.question or request.message or "",
         "selected_library_item_ids": selected_library_item_ids,
+        "settings": {
+            "mcp_enabled": settings.mcp_enabled,
+            "mcp_max_calls_per_request": settings.mcp_max_calls_per_request,
+            "mcp_max_evidence": settings.mcp_max_evidence,
+            "mcp_max_fetch_urls": settings.mcp_max_fetch_urls,
+        },
         "question": request.question or request.message or "",
         "session_id": conversation.session_id,
         "conversation_id": str(conversation.conversation_id),
@@ -492,7 +746,20 @@ def build_initial_agent_state(
         "retrieved_chunks": [],
         "citations": [],
         "web_sources": [],
+        "academic_sources": [],
         "local_citations": [],
+        "query_analysis": {},
+        "execution_plan": {},
+        "subqueries": [],
+        "local_evidence": [],
+        "web_evidence": [],
+        "academic_evidence": [],
+        "merged_evidence": [],
+        "evidence_grade": {},
+        "retrieval_retry_count": 0,
+        "answer_plan": {},
+        "verification_result": {},
+        "answer_repair_count": 0,
         "local_summary": None,
         "web_summary": None,
         "warnings": [],
@@ -632,7 +899,7 @@ def router_node(state: ChatRAGState) -> ChatRAGState:
 
 def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGState:
     # The local agent owns pgvector retrieval and [S#] citation creation.
-    if state["route"] == "web_only":
+    if not _should_run(state, "local"):
         return {
             "retrieved_chunks": [],
             "citations": [],
@@ -655,48 +922,54 @@ def local_library_agent_node(state: ChatRAGState, session: Session) -> ChatRAGSt
     long_term_memories = [
         _state_to_long_term_memory(memory) for memory in state["long_term_context"]
     ]
-    with measure_latency_sync("local_agent_total"):
-        result = run_local_library_agent_service(
-            session,
-            question=state["question"],
-            scope_type=state["scope_type"],
-            library_item_id=state.get("library_item_id"),
-            library_item_ids=state.get("library_item_ids", []),
-            top_k=state["top_k"],
-            recent_turns=recent_turns,
-            long_term_memories=long_term_memories,
-            retrieve_global=retrieve_relevant_chunks,
-            retrieve_single_book=retrieve_relevant_chunks_for_library_item,
-            retrieve_multi_book=retrieve_relevant_chunks_for_library_items,
-        )
+    with measure_latency_sync("local_subgraph"):
+        with measure_latency_sync("local_agent_total"):
+            result = run_local_library_agent_service(
+                session,
+                question=_research_query(state),
+                scope_type=state["scope_type"],
+                library_item_id=state.get("library_item_id"),
+                library_item_ids=state.get("library_item_ids", []),
+                top_k=state["top_k"],
+                recent_turns=recent_turns,
+                long_term_memories=long_term_memories,
+                retrieve_global=retrieve_relevant_chunks,
+                retrieve_single_book=retrieve_relevant_chunks_for_library_item,
+                retrieve_multi_book=retrieve_relevant_chunks_for_library_items,
+            )
     trace = current_latency_trace()
     if trace is not None:
         trace.set_counter("retrieved_chunk_count", len(result.retrieved_chunks))
     return _local_library_agent_result_to_state(result)
 
 
-def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
+def web_research_agent_node(
+    state: ChatRAGState, *, gateway: MCPToolGateway | None = None
+) -> ChatRAGState:
     # The web agent is provider-backed and always returns structured [W#] sources.
-    if state["route"] == "local_only":
-        return {
-            "web_summary": None,
-            "web_sources": [],
-            "web_results": {
-                "summary": None,
-                "sources": [],
-                "status": "skipped",
-                "warnings": [],
-                "errors": [],
-                "skipped": True,
-            },
-        }
+    if not _should_run(state, "web"):
+        return _skipped_web_state()
 
     trace = current_latency_trace()
     if trace is not None:
         trace.increment("web_search_call_count")
         if get_settings().web_research_provider.strip().lower() == "tavily":
             trace.increment("tavily_call_count")
-    with measure_latency_sync("web_agent_total"):
+    settings = get_settings()
+    if settings.mcp_enabled:
+        with measure_latency_sync("web_subgraph"):
+            result = mcp_client_manager.run_sync(
+                run_mcp_web_research(
+                    _research_query(state), gateway=gateway or MCPToolGateway()
+                ),
+                timeout_seconds=(settings.mcp_total_timeout_seconds),
+            )
+            with measure_latency_sync("web_result_processing"):
+                result_state = _web_research_result_to_state(result)
+        if trace is not None:
+            trace.set_counter("web_result_count", len(result.sources))
+        return result_state
+    with measure_latency_sync("web_subgraph"):
         with measure_latency_sync("web_search"):
             result = run_web_research_agent_service(state["question"])
         with measure_latency_sync("web_result_processing"):
@@ -706,8 +979,233 @@ def web_research_agent_node(state: ChatRAGState) -> ChatRAGState:
     return result_state
 
 
+def academic_research_agent_node(
+    state: ChatRAGState, *, gateway: MCPToolGateway | None = None
+) -> ChatRAGState:
+    if not _should_run(state, "academic"):
+        return _skipped_academic_state()
+    settings = get_settings()
+    if not settings.mcp_enabled:
+        return {
+            **_skipped_academic_state(),
+            "warnings": ["Academic MCP research is not enabled."],
+        }
+    with measure_latency_sync("academic_subgraph"):
+        result = mcp_client_manager.run_sync(
+            run_mcp_academic_research(
+                _research_query(state), gateway=gateway or MCPToolGateway()
+            ),
+            timeout_seconds=settings.mcp_total_timeout_seconds,
+        )
+    return _academic_result_to_state(result)
+
+
+def merge_evidence_node(state: ChatRAGState) -> ChatRAGState:
+    with measure_latency_sync("evidence_merge"):
+        local_chunks, local_citations = _dedupe_local_sources(state)
+        local = _local_evidence_from_state(
+            {
+                **state,
+                "retrieved_chunks": local_chunks,
+                "local_citations": local_citations,
+            }
+        )
+        combined_sources = _renumber_web_sources(
+            [*state.get("web_sources", []), *state.get("academic_sources", [])]
+        )
+        web_source_items = [
+            item for item in combined_sources if item.get("source_type") != "academic"
+        ]
+        academic_source_items = [
+            item for item in combined_sources if item.get("source_type") == "academic"
+        ]
+        web = _web_evidence_from_sources(web_source_items, "web")
+        academic = _web_evidence_from_sources(academic_source_items, "academic")
+        merged = merge_evidence([*local, *web, *academic])
+        combined_result = _combined_web_result_state(state, combined_sources)
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("evidence_count", len(merged))
+    return {
+        "local_evidence": [item.model_dump() for item in local],
+        "web_evidence": [item.model_dump() for item in web],
+        "academic_evidence": [item.model_dump() for item in academic],
+        "merged_evidence": [item.model_dump() for item in merged],
+        "retrieved_chunks": local_chunks,
+        "citations": local_citations,
+        "local_citations": local_citations,
+        "web_sources": combined_sources,
+        "web_summary": combined_result["summary"],
+        "web_results": combined_result,
+    }
+
+
+def grade_evidence_node(state: ChatRAGState) -> ChatRAGState:
+    analysis = QueryAnalysis.model_validate(state["query_analysis"])
+    evidence = [
+        EvidenceItem.model_validate(item) for item in state.get("merged_evidence", [])
+    ]
+    with measure_latency_sync("evidence_grade"):
+        grade = grade_evidence(state["question"], analysis, evidence)
+    return {"evidence_grade": grade.model_dump()}
+
+
+def corrective_route(state: ChatRAGState) -> str:
+    grade = EvidenceGrade.model_validate(state["evidence_grade"])
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    count = state.get("retrieval_retry_count", 0)
+    external_unavailable = (
+        plan.run_web
+        and (state.get("web_results") or {}).get("status") == "unavailable"
+        and not get_settings().mcp_enabled
+    )
+    if external_unavailable and not state.get("retrieved_chunks"):
+        return "answer"
+    needs_correction = grade.status == "empty" or (
+        grade.status == "insufficient" and grade.relevance < 0.3
+    )
+    if needs_correction and count < plan.max_corrective_retries:
+        return "correct"
+    return "answer"
+
+
+def corrective_retrieval_node(
+    state: ChatRAGState, *, session: Session, gateway: MCPToolGateway
+) -> ChatRAGState:
+    if not get_settings().mcp_enabled:
+        plan = ExecutionPlan.model_validate(state["execution_plan"])
+        retry_count = state.get("retrieval_retry_count", 0) + 1
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("corrective_retry_count")
+        correction_state = {
+            **state,
+            "subqueries": [_corrective_query(state)],
+            "top_k": min(20, state["top_k"] * 2),
+        }
+        updates: dict[str, Any] = {"retrieval_retry_count": retry_count}
+        if plan.run_local:
+            updates.update(
+                run_local_node_with_independent_session(correction_state, session)
+            )
+        if plan.run_web:
+            updates.update(web_research_agent_node(correction_state, gateway=gateway))
+        if plan.run_academic:
+            updates.update(_skipped_academic_state())
+            updates["warnings"] = ["Academic MCP research is not enabled."]
+        return _preserve_prior_evidence(state, updates)
+    return mcp_client_manager.run_sync(
+        corrective_retrieval_async(state, session=session, gateway=gateway),
+        timeout_seconds=get_settings().mcp_total_timeout_seconds,
+    )
+
+
+async def corrective_retrieval_async(
+    state: ChatRAGState, *, session: Session, gateway: MCPToolGateway
+) -> ChatRAGState:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    retry_count = state.get("retrieval_retry_count", 0) + 1
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.increment("corrective_retry_count")
+    query = _corrective_query(state)
+    correction_state = {
+        **state,
+        "subqueries": [query],
+        "top_k": min(20, state["top_k"] * 2),
+    }
+    updates: dict[str, Any] = {"retrieval_retry_count": retry_count}
+    tasks: list[tuple[str, Any]] = []
+    if plan.run_local:
+        tasks.append(
+            (
+                "local",
+                asyncio.to_thread(
+                    run_local_node_with_independent_session, correction_state, session
+                ),
+            )
+        )
+    if plan.run_web:
+        tasks.append(("web", streaming_web_node(correction_state, gateway=gateway)))
+    if plan.run_academic:
+        tasks.append(("academic", _run_academic_async(correction_state, gateway)))
+    results = await asyncio.gather(*(task for _, task in tasks), return_exceptions=True)
+    for (source, _), result in zip(tasks, results, strict=True):
+        if isinstance(result, BaseException):
+            updates["warnings"] = _merge_unique_strings(
+                updates.get("warnings", []),
+                [f"Corrective {source} retrieval was unavailable."],
+            )
+            continue
+        updates.update(result)
+    return _preserve_prior_evidence(state, updates)
+
+
+def build_answer_plan_node(state: ChatRAGState) -> ChatRAGState:
+    analysis = QueryAnalysis.model_validate(state["query_analysis"])
+    grade = EvidenceGrade.model_validate(state["evidence_grade"])
+    evidence = [
+        EvidenceItem.model_validate(item) for item in state.get("merged_evidence", [])
+    ]
+    with measure_latency_sync("answer_plan"):
+        plan = build_answer_plan(analysis, grade, evidence)
+    warnings = list(state.get("warnings", []))
+    if grade.status != "sufficient":
+        warnings = _merge_unique_strings(
+            warnings,
+            ["The answer is based on incomplete or conflicting available evidence."],
+        )
+    return {"answer_plan": plan.model_dump(), "warnings": warnings}
+
+
+def verify_answer_node(state: ChatRAGState) -> ChatRAGState:
+    with measure_latency_sync("citation_verify"):
+        result = verify_answer(
+            state["answer"],
+            state.get("local_citations", []),
+            state.get("web_sources", []),
+        )
+        answer = state["answer"]
+        repair_count = 0
+        if not result.valid:
+            answer = repair_answer_citations(
+                answer,
+                state.get("local_citations", []),
+                state.get("web_sources", []),
+            )
+            repair_count = 1
+            result = verify_answer(
+                answer,
+                state.get("local_citations", []),
+                state.get("web_sources", []),
+            ).model_copy(update={"repaired": True})
+    trace = current_latency_trace()
+    if trace is not None and repair_count:
+        trace.increment("answer_repair_count")
+    return {
+        "answer": answer,
+        "final_answer": answer,
+        "verification_result": result.model_dump(),
+        "answer_repair_count": repair_count,
+        "warnings": _merge_unique_strings(
+            state.get("warnings", []), result.warnings, result.errors
+        ),
+    }
+
+
 def synthesis_node(state: ChatRAGState) -> ChatRAGState:
     # Synthesis combines agent outputs without merging local citations and web sources.
+    execution_plan = ExecutionPlan.model_validate(state["execution_plan"])
+    if execution_plan.clarification_question:
+        return {
+            "answer": execution_plan.clarification_question,
+            "final_answer": execution_plan.clarification_question,
+        }
+    if execution_plan.mode == "direct_answer":
+        provider = get_llm_provider()
+        with measure_latency_sync("synthesis_total"):
+            answer = provider.generate(_direct_answer_prompt(state["question"]))
+        return {"answer": answer, "final_answer": answer}
     local_result = _state_to_local_library_agent_result(state)
     web_result = _state_to_web_research_result(state)
     synthesis = synthesize_agent_answer(
@@ -717,6 +1215,7 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         web_result=web_result,
         llm_provider=get_llm_provider(),
         memory_context=state.get("memory_prompt_context", ""),
+        answer_plan=json.dumps(state.get("answer_plan", {}), ensure_ascii=False),
     )
     return {
         "answer": synthesis.answer,
@@ -728,6 +1227,18 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         ),
         "errors": _merge_unique_strings(state.get("errors", []), synthesis.errors),
     }
+
+
+def _direct_answer_prompt(question: str) -> str:
+    return "\n".join(
+        [
+            "Respond briefly to this simple request without research or citations.",
+            f"User request: {question.strip()}",
+            "",
+            DETERMINISTIC_ANSWER_MARKER,
+            "Hello! How can I help with your learning today?",
+        ]
+    )
 
 
 def save_memory(
@@ -1038,6 +1549,10 @@ def _retrieved_chunk_to_state(chunk: RetrievedChunkResult) -> dict[str, Any]:
         "section_type": chunk.section_type,
         "chapter_title": chunk.chapter_title,
         "section_title": chunk.section_title,
+        "extraction_method": chunk.extraction_method,
+        "ocr_confidence": chunk.ocr_confidence,
+        "section_path": list(chunk.section_path),
+        "bounding_boxes": list(chunk.bounding_boxes),
         "score": chunk.score,
     }
 
@@ -1062,6 +1577,10 @@ def _state_to_retrieved_chunk(data: dict[str, Any]) -> RetrievedChunkResult:
         section_type=data.get("section_type", "unknown"),
         chapter_title=data.get("chapter_title"),
         section_title=data.get("section_title"),
+        extraction_method=data.get("extraction_method", "text"),
+        ocr_confidence=data.get("ocr_confidence"),
+        section_path=tuple(data.get("section_path", [])),
+        bounding_boxes=tuple(data.get("bounding_boxes", [])),
         score=data["score"],
     )
 
@@ -1086,6 +1605,12 @@ def _citation_to_state(citation: ChunkCitationResult) -> dict[str, Any]:
         "score": citation.score,
         "excerpt": citation.excerpt,
         "content": citation.content,
+        "source_type": citation.source_type,
+        "title": citation.title,
+        "section_path": list(citation.section_path),
+        "extraction_method": citation.extraction_method,
+        "ocr_confidence": citation.ocr_confidence,
+        "bounding_boxes": list(citation.bounding_boxes),
     }
 
 
@@ -1109,6 +1634,12 @@ def _state_to_citation_result(data: dict[str, Any]) -> ChunkCitationResult:
         score=data["score"],
         excerpt=data["excerpt"],
         content=data["content"],
+        source_type=data.get("source_type", "local"),
+        title=data.get("title"),
+        section_path=tuple(data.get("section_path", [])),
+        extraction_method=data.get("extraction_method"),
+        ocr_confidence=data.get("ocr_confidence"),
+        bounding_boxes=tuple(data.get("bounding_boxes", [])),
     )
 
 
@@ -1169,11 +1700,20 @@ def _state_to_local_library_agent_result(
 def _web_source_to_state(source: WebSourceResult) -> dict[str, Any]:
     return {
         "source_id": source.source_id,
+        "citation_id": source.source_id,
         "title": source.title,
         "url": source.url,
         "excerpt": source.excerpt,
         "provider": source.provider,
         "published_date": source.published_date,
+        "published_at": source.published_at,
+        "retrieved_at": source.retrieved_at,
+        "evidence_id": source.evidence_id,
+        "source_type": source.source_type,
+        "content": source.content,
+        "authors": list(source.authors),
+        "doi": source.doi,
+        "arxiv_id": source.arxiv_id,
     }
 
 
@@ -1185,6 +1725,14 @@ def _state_to_web_source(data: dict[str, Any]) -> WebSourceResult:
         excerpt=data["excerpt"],
         provider=data.get("provider", "deterministic"),
         published_date=data.get("published_date"),
+        published_at=data.get("published_at"),
+        retrieved_at=data.get("retrieved_at"),
+        evidence_id=data.get("evidence_id"),
+        source_type=data.get("source_type", "web"),
+        content=data.get("content"),
+        authors=tuple(data.get("authors", [])),
+        doi=data.get("doi"),
+        arxiv_id=data.get("arxiv_id"),
     )
 
 
@@ -1223,6 +1771,225 @@ def _state_to_web_research_result(state: ChatRAGState) -> WebResearchResult | No
         warnings=(state.get("web_results", {}) or {}).get("warnings", []),
         errors=(state.get("web_results", {}) or {}).get("errors", []),
     )
+
+
+def _should_run(state: ChatRAGState, source: str) -> bool:
+    raw = state.get("execution_plan")
+    if raw:
+        plan = ExecutionPlan.model_validate(raw)
+        return {
+            "local": plan.run_local,
+            "web": plan.run_web,
+            "academic": plan.run_academic,
+        }[source]
+    route = state.get("route", "both")
+    return (
+        source == "local"
+        and route != "web_only"
+        or source == "web"
+        and route != "local_only"
+    )
+
+
+def _research_query(state: ChatRAGState) -> str:
+    subqueries = state.get("subqueries", [])
+    return subqueries[0] if subqueries else state["question"]
+
+
+def _corrective_query(state: ChatRAGState) -> str:
+    grade = EvidenceGrade.model_validate(state["evidence_grade"])
+    missing = ", ".join(grade.missing_aspects) or "missing supporting evidence"
+    return f"{state['question']} Focus on: {missing}."
+
+
+def _skipped_web_state() -> ChatRAGState:
+    return {
+        "web_summary": None,
+        "web_sources": [],
+        "web_results": {
+            "summary": None,
+            "sources": [],
+            "status": "skipped",
+            "warnings": [],
+            "errors": [],
+            "skipped": True,
+        },
+    }
+
+
+def _skipped_academic_state() -> ChatRAGState:
+    return {
+        "academic_sources": [],
+        "academic_results": {
+            "summary": None,
+            "sources": [],
+            "status": "skipped",
+            "warnings": [],
+            "errors": [],
+            "skipped": True,
+        },
+    }
+
+
+async def _run_academic_async(
+    state: ChatRAGState, gateway: MCPToolGateway
+) -> ChatRAGState:
+    settings = get_settings()
+    if not settings.mcp_enabled:
+        return {
+            **_skipped_academic_state(),
+            "warnings": ["Academic MCP research is not enabled."],
+        }
+    with measure_latency_sync("academic_subgraph"):
+        result = await run_mcp_academic_research(
+            _research_query(state), gateway=gateway, activity=_write_activity
+        )
+    return _academic_result_to_state(result)
+
+
+def _academic_result_to_state(result: WebResearchResult) -> ChatRAGState:
+    sources = [
+        {**_web_source_to_state(source), "source_type": "academic"}
+        for source in result.sources
+    ]
+    return {
+        "academic_sources": sources,
+        "academic_results": {
+            "summary": result.summary,
+            "sources": sources,
+            "status": result.status,
+            "warnings": result.warnings,
+            "errors": result.errors,
+            "skipped": result.status == "skipped",
+        },
+        "warnings": result.warnings,
+        "errors": result.errors,
+    }
+
+
+def _local_evidence_from_state(state: ChatRAGState) -> list[EvidenceItem]:
+    chunks = state.get("retrieved_chunks", [])
+    citations = state.get("local_citations", state.get("citations", []))
+    items: list[EvidenceItem] = []
+    for chunk, citation in zip(chunks, citations, strict=False):
+        citation_id = str(citation.get("citation_id", ""))
+        items.append(
+            EvidenceItem(
+                evidence_id=f"local:{chunk.get('chunk_id', citation_id)}",
+                source="local",
+                title=str(
+                    citation.get("library_title")
+                    or citation.get("document_title")
+                    or "Local Library"
+                ),
+                excerpt=str(chunk.get("content", ""))[:4_000],
+                citation_id=citation_id,
+                library_item_id=citation.get("library_item_id"),
+                page_start=citation.get("page_start"),
+                page_end=citation.get("page_end"),
+            )
+        )
+    return items
+
+
+def _dedupe_local_sources(
+    state: ChatRAGState,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    chunks: list[dict[str, Any]] = []
+    citations: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    source_citations = state.get("local_citations", state.get("citations", []))
+    for chunk, citation in zip(
+        state.get("retrieved_chunks", []), source_citations, strict=False
+    ):
+        key = str(chunk.get("chunk_id") or citation.get("chunk_id"))
+        if key in seen:
+            continue
+        seen.add(key)
+        identifier = f"S{len(chunks) + 1}"
+        chunks.append(chunk)
+        citations.append({**citation, "citation_id": identifier})
+    return chunks, citations
+
+
+def _web_evidence_from_sources(
+    sources: list[dict[str, Any]], source: str
+) -> list[EvidenceItem]:
+    return [
+        EvidenceItem(
+            evidence_id=str(item.get("evidence_id") or item.get("source_id")),
+            source=source,  # type: ignore[arg-type]
+            title=str(item.get("title", "Untitled source")),
+            excerpt=str(item.get("content") or item.get("excerpt") or "")[:4_000],
+            citation_id=str(item.get("source_id", "")),
+            url=item.get("url"),
+            provider=item.get("provider"),
+            published_at=item.get("published_at") or item.get("published_date"),
+            authors=list(item.get("authors", [])),
+            doi=item.get("doi"),
+            arxiv_id=item.get("arxiv_id"),
+        )
+        for item in sources
+    ]
+
+
+def _renumber_web_sources(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for source in sources:
+        doi = str(source.get("doi") or "").lower().removeprefix("https://doi.org/")
+        arxiv_id = str(source.get("arxiv_id") or "").lower().removeprefix("arxiv:")
+        key = str(
+            (f"doi:{doi}" if doi else None)
+            or (f"arxiv:{arxiv_id}" if arxiv_id else None)
+            or source.get("url")
+            or source.get("evidence_id")
+            or source.get("title")
+        )
+        key = key.lower().rstrip("/")
+        if key in seen:
+            continue
+        seen.add(key)
+        citation_id = f"W{len(result) + 1}"
+        result.append({**source, "source_id": citation_id, "citation_id": citation_id})
+    return result
+
+
+def _combined_web_result_state(
+    state: ChatRAGState, sources: list[dict[str, Any]]
+) -> dict[str, Any]:
+    web = state.get("web_results") or {}
+    academic = state.get("academic_results") or {}
+    summary = " ".join(
+        f"[{source.get('source_id')}] {source.get('title')}: "
+        f"{str(source.get('content') or source.get('excerpt') or '')[:500]}"
+        for source in sources
+    )
+    return {
+        "summary": summary or None,
+        "sources": sources,
+        "status": "available" if sources else "unavailable",
+        "warnings": _merge_unique_strings(
+            web.get("warnings", []), academic.get("warnings", [])
+        ),
+        "errors": _merge_unique_strings(
+            web.get("errors", []), academic.get("errors", [])
+        ),
+        "skipped": not sources,
+    }
+
+
+def _preserve_prior_evidence(
+    state: ChatRAGState, updates: dict[str, Any]
+) -> dict[str, Any]:
+    for key in ("retrieved_chunks", "citations", "local_citations"):
+        if key in updates:
+            existing = state.get(key, [])
+            updates[key] = [*existing, *updates[key]]
+    for key in ("web_sources", "academic_sources"):
+        if key in updates:
+            updates[key] = [*state.get(key, []), *updates[key]]
+    return updates
 
 
 def _merge_unique_strings(*groups: list[str]) -> list[str]:

@@ -18,11 +18,14 @@ describe("Agent run state machine", () => {
     let state = createAgentRunState("message-1");
     for (const value of [
       { type: "status", stage: "loading_context", message: "读取上下文" },
-      { type: "status", stage: "routing", message: "分析问题" },
+      { type: "status", stage: "understanding_query", message: "理解问题" },
+      { type: "status", stage: "planning_research", message: "制定计划" },
       { type: "status", stage: "retrieving_local", message: "检索书库" },
-      { type: "status", stage: "processing_sources", message: "整合证据" },
+      { type: "status", stage: "evaluating_sources", message: "评估来源" },
+      { type: "status", stage: "organizing_answer", message: "组织回答" },
       { type: "status", stage: "synthesizing", message: "生成回答" },
       { type: "token", delta: "answer" },
+      { type: "status", stage: "verifying_citations", message: "验证引用" },
       { type: "status", stage: "persisting", message: "保存回答" },
       { type: "done" },
     ]) {
@@ -32,10 +35,13 @@ describe("Agent run state machine", () => {
     expect(state.content).toBe("answer");
     expect(state.activity.steps.map((step) => step.stage)).toEqual([
       "loading_context",
-      "routing",
+      "understanding_query",
+      "planning_research",
       "retrieving_local",
-      "processing_sources",
+      "evaluating_sources",
+      "organizing_answer",
       "synthesizing",
+      "verifying_citations",
       "persisting",
     ]);
   });
@@ -61,4 +67,20 @@ describe("Agent run state machine", () => {
       expect(state.content).toBe("partial");
     },
   );
+
+  it("tracks local and web research as parallel public branches", () => {
+    let state = createAgentRunState("message-1");
+    for (const value of [
+      { type: "status", stage: "retrieving_local", message: "检索书库" },
+      { type: "status", stage: "planning_research", message: "规划网络检索" },
+      { type: "status", stage: "searching_academic", message: "检索论文" },
+    ]) {
+      state = reduceAgentRun(state, event(value));
+    }
+    expect(state.activity.steps).toMatchObject([
+      { stage: "retrieving_local", status: "completed" },
+      { stage: "planning_research", status: "completed" },
+      { stage: "searching_academic", status: "active" },
+    ]);
+  });
 });

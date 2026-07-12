@@ -36,6 +36,7 @@ def synthesize_agent_answer(
     web_result: WebResearchResult | None = None,
     llm_provider: LLMProvider | None = None,
     memory_context: str = "",
+    answer_plan: str = "",
 ) -> AgentSynthesisResult:
     """Combine fixed local and web agent outputs into one stable MVP answer."""
     prepared = prepare_agent_synthesis(
@@ -44,6 +45,7 @@ def synthesize_agent_answer(
         local_result=local_result,
         web_result=web_result,
         memory_context=memory_context,
+        answer_plan=answer_plan,
     )
     answer = prepared.deterministic_answer
     if llm_provider is not None:
@@ -83,6 +85,7 @@ def prepare_agent_synthesis(
     local_result: LocalLibraryAgentResult | None = None,
     web_result: WebResearchResult | None = None,
     memory_context: str = "",
+    answer_plan: str = "",
 ) -> PreparedAgentSynthesis:
     """Prepare the one final-answer prompt shared by sync and streaming paths."""
     local_summary = local_result.summary if local_result is not None else None
@@ -130,6 +133,7 @@ def prepare_agent_synthesis(
             ),
             web_source_count=(len(web_result.sources) if web_result is not None else 0),
             memory_context=memory_context,
+            answer_plan=answer_plan,
         )
     trace = current_latency_trace()
     if trace is not None:
@@ -174,6 +178,7 @@ def build_synthesis_prompt(
     local_citation_count: int,
     web_source_count: int,
     memory_context: str = "",
+    answer_plan: str = "",
 ) -> str:
     """Build a bounded prompt for final answer synthesis."""
     lines = [
@@ -203,6 +208,9 @@ def build_synthesis_prompt(
             ["", "Personalization and conversation context:", memory_context.strip()]
         )
 
+    if answer_plan:
+        lines.extend(["", "Required answer structure:", answer_plan.strip()])
+
     if local_summary:
         lines.extend(["", "Local Library Agent summary:", local_summary.strip()])
 
@@ -220,11 +228,16 @@ def build_synthesis_prompt(
         lines.extend(["", "Web Research sources:"])
         for source in web_sources:
             label = f"[{source.source_id}] {source.title}; {source.url}"
+            label += f"; type {source.source_type}; provider {source.provider}"
             if source.published_date:
                 label += f"; published {source.published_date}"
+            if source.authors:
+                label += f"; authors {', '.join(source.authors[:8])}"
+            if source.doi:
+                label += f"; DOI {source.doi}"
             lines.append(label)
             lines.append("Text:")
-            lines.append(source.excerpt.strip())
+            lines.append((source.content or source.excerpt).strip()[:4_000])
 
     lines.extend(["", DETERMINISTIC_ANSWER_MARKER, deterministic_answer])
     return "\n".join(lines)

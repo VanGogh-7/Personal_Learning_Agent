@@ -807,7 +807,7 @@ def test_agent_chat_uses_deterministic_provider_without_network(
         )
     )
 
-    assert "minimal MVP answer" in response.answer
+    assert "Local Library evidence" in response.answer
 
 
 def test_agent_chat_rejects_invalid_scope_type() -> None:

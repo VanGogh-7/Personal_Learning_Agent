@@ -14,8 +14,18 @@ AgentActivityStage = Literal[
     "loading_context",
     "retrieving_memory",
     "routing",
+    "understanding_query",
+    "planning_research",
     "retrieving_local",
+    "planning_web",
     "searching_web",
+    "searching_academic",
+    "reading_pages",
+    "filtering_sources",
+    "evaluating_sources",
+    "correcting_retrieval",
+    "organizing_answer",
+    "verifying_citations",
     "processing_sources",
     "synthesizing",
     "streaming",
@@ -52,7 +62,7 @@ class RouteSelectedEvent(AgentStreamEventBase):
 
 class RetrievalCompletedEvent(AgentStreamEventBase):
     type: Literal["retrieval_completed"] = "retrieval_completed"
-    source: Literal["local", "web"]
+    source: Literal["local", "web", "academic"]
     result_count: int = Field(ge=0)
 
 

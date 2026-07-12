@@ -26,6 +26,29 @@ def _default_counters() -> dict[str, int | float | str | None]:
         "web_result_count": 0,
         "web_search_call_count": 0,
         "tavily_call_count": 0,
+        "mcp_call_count": 0,
+        "mcp_fallback_count": 0,
+        "mcp_error_count": 0,
+        "mcp_retry_count": 0,
+        "mcp_timeout_count": 0,
+        "mcp_cancelled_count": 0,
+        "mcp_server_restart_count": 0,
+        "active_mcp_process_count": 0,
+        "corrective_retry_count": 0,
+        "answer_repair_count": 0,
+        "evidence_count": 0,
+        "deduplicated_count": 0,
+        "extraction_failure_count": 0,
+        "indexing_failure_count": 0,
+        "ocr_success_rate": None,
+        "ocr_page_ms": None,
+        "ocr_confidence": None,
+        "text_retrieval_ms": None,
+        "visual_retrieval_ms": None,
+        "fusion_ms": None,
+        "citation_page_accuracy": None,
+        "visual_storage_bytes": 0,
+        "visual_gpu_memory_mb": None,
         "prompt_input_tokens": None,
         "completion_tokens": None,
         "output_character_count": 0,
@@ -56,6 +79,7 @@ class AgentLatencyTrace:
     _query_embeddings: dict[tuple[str, int, str], list[float]] = field(
         default_factory=dict, repr=False
     )
+    _mcp_servers_reported: set[str] = field(default_factory=set, repr=False)
     _logged: bool = field(default=False, repr=False)
     _lock: RLock = field(default_factory=RLock, repr=False)
 

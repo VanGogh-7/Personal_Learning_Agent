@@ -4,10 +4,16 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "stronghold:default",
+    "stronghold:allow-remove-store-record",
     "dialog:allow-open",
     {
       "identifier": "opener:allow-open-path",
       "allow": [{ "path": "**/*.pdf" }]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://*" }, { "url": "http://*" }]
     }
   ]
 }

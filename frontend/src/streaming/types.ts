@@ -9,8 +9,18 @@ export type AgentActivityStage =
   | "loading_context"
   | "retrieving_memory"
   | "routing"
+  | "understanding_query"
+  | "planning_research"
   | "retrieving_local"
+  | "planning_web"
   | "searching_web"
+  | "searching_academic"
+  | "reading_pages"
+  | "filtering_sources"
+  | "evaluating_sources"
+  | "correcting_retrieval"
+  | "organizing_answer"
+  | "verifying_citations"
   | "processing_sources"
   | "synthesizing"
   | "streaming"
@@ -64,7 +74,7 @@ export interface RouteSelectedEvent extends StreamEventBase {
 
 export interface RetrievalCompletedEvent extends StreamEventBase {
   type: "retrieval_completed";
-  source: "local" | "web";
+  source: "local" | "web" | "academic";
   result_count: number;
 }
 

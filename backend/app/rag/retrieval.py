@@ -4,17 +4,28 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.vector_search import search_similar_chunks, search_similar_chunks_for_documents
-from app.db.vector_search import DEFAULT_EXCLUDED_SECTION_TYPES
+from app.db.vector_search import (
+    DEFAULT_EXCLUDED_SECTION_TYPES,
+    document_ids_with_embeddings,
+    search_similar_chunks,
+    search_similar_chunks_for_documents,
+)
 from app.embeddings.base import EmbeddingProvider
 from app.embeddings.providers import get_embedding_provider
+from app.core.config import get_settings
 from app.models.document import Document
-from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
 from app.observability.latency import (
     current_latency_trace,
     get_request_query_embedding,
     measure_latency_sync,
+)
+from app.rag.hybrid import hybrid_search_chunks
+from app.rag.fusion import fuse_text_and_visual
+from app.rag.visual import (
+    search_visual_pages,
+    visual_candidates_to_chunks,
+    visual_encoder_registry,
 )
 
 
@@ -37,6 +48,11 @@ class RetrievedChunkResult:
     section_type: str = "unknown"
     chapter_title: str | None = None
     section_title: str | None = None
+    element_type: str = "paragraph"
+    extraction_method: str = "text"
+    ocr_confidence: float | None = None
+    section_path: tuple[str, ...] = ()
+    bounding_boxes: tuple[dict, ...] = ()
 
 
 @dataclass
@@ -62,23 +78,17 @@ def resolve_library_item_rag_context(
         raise LibraryItemRagError("Library item not found")
 
     with measure_latency_sync("document_chunk_load"):
-        documents = session.execute(
-            select(Document).where(Document.library_item_id == item.id)
-        ).scalars().all()
+        documents = (
+            session.execute(select(Document).where(Document.library_item_id == item.id))
+            .scalars()
+            .all()
+        )
     if not documents:
         raise LibraryItemRagError("Library item has not been indexed yet.")
 
     document_ids = [document.id for document in documents]
-    document_ids_with_embeddings = set(
-        session.execute(
-            select(DocumentChunk.document_id)
-            .where(DocumentChunk.document_id.in_(document_ids))
-            .where(DocumentChunk.embedding.is_not(None))
-        )
-        .scalars()
-        .all()
-    )
-    if not document_ids_with_embeddings:
+    searchable_document_ids = document_ids_with_embeddings(session, document_ids)
+    if not searchable_document_ids:
         raise LibraryItemRagError("Library item has no indexed chunks to search.")
 
     return LibraryItemRagContext(
@@ -100,9 +110,13 @@ def resolve_library_items_rag_context(
         raise LibraryItemRagError("library_item_ids must not be empty")
 
     with measure_latency_sync("document_chunk_load"):
-        items = session.execute(
-            select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
-        ).scalars().all()
+        items = (
+            session.execute(
+                select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+            )
+            .scalars()
+            .all()
+        )
     items_by_id = {item.id: item for item in items}
 
     for item_id in deduped_item_ids:
@@ -110,9 +124,13 @@ def resolve_library_items_rag_context(
             raise LibraryItemRagError("Library item not found")
 
     with measure_latency_sync("document_chunk_load"):
-        documents = session.execute(
-            select(Document).where(Document.library_item_id.in_(deduped_item_ids))
-        ).scalars().all()
+        documents = (
+            session.execute(
+                select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+            )
+            .scalars()
+            .all()
+        )
     documents_by_item_id: dict[uuid.UUID, list[Document]] = {
         item_id: [] for item_id in deduped_item_ids
     }
@@ -128,19 +146,11 @@ def resolve_library_items_rag_context(
             )
 
     document_ids = [document.id for document in documents]
-    document_ids_with_embeddings = set(
-        session.execute(
-            select(DocumentChunk.document_id)
-            .where(DocumentChunk.document_id.in_(document_ids))
-            .where(DocumentChunk.embedding.is_not(None))
-        )
-        .scalars()
-        .all()
-    )
+    searchable_document_ids = document_ids_with_embeddings(session, document_ids)
 
     for item_id in deduped_item_ids:
         if not any(
-            document.id in document_ids_with_embeddings
+            document.id in searchable_document_ids
             for document in documents_by_item_id[item_id]
         ):
             item = items_by_id[item_id]
@@ -176,12 +186,26 @@ def retrieve_relevant_chunks(
     query_embedding = get_request_query_embedding(provider, question)
 
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
+    scalar_documents = session.execute(select(Document)).scalars()
+    documents_for_search = (
+        scalar_documents.all()
+        if hasattr(scalar_documents, "all")
+        else list(scalar_documents)
+    )
+    document_ids = [document.id for document in documents_for_search]
     with measure_latency_sync("document_vector_search"):
-        similar_chunks = search_similar_chunks(
+        similar_chunks = _search_local_chunks(
             session,
-            query_embedding,
-            limit=top_k,
+            question=question,
+            query_embedding=query_embedding,
+            document_ids=document_ids,
+            top_k=top_k,
             exclude_section_types=exclude_section_types,
+            global_fallback=True,
+            has_processed_pdf=any(
+                getattr(document, "active_processing_version_id", None) is not None
+                for document in documents_for_search
+            ),
         )
     if not similar_chunks:
         return []
@@ -237,6 +261,11 @@ def retrieve_relevant_chunks(
                 section_type=chunk.section_type,
                 chapter_title=chunk.chapter_title,
                 section_title=chunk.section_title,
+                element_type=chunk.element_type,
+                extraction_method=chunk.extraction_method,
+                ocr_confidence=chunk.ocr_confidence,
+                section_path=chunk.section_path,
+                bounding_boxes=chunk.bounding_boxes,
                 score=chunk.distance,
             )
         )
@@ -258,9 +287,11 @@ def retrieve_relevant_chunks_for_library_item(
         raise LibraryItemRagError("Library item not found")
 
     with measure_latency_sync("document_chunk_load"):
-        documents = session.execute(
-            select(Document).where(Document.library_item_id == item.id)
-        ).scalars().all()
+        documents = (
+            session.execute(select(Document).where(Document.library_item_id == item.id))
+            .scalars()
+            .all()
+        )
     if not documents:
         raise LibraryItemRagError("Library item has not been indexed yet.")
 
@@ -269,12 +300,17 @@ def retrieve_relevant_chunks_for_library_item(
     document_ids = [document.id for document in documents]
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
     with measure_latency_sync("document_vector_search"):
-        similar_chunks = search_similar_chunks_for_documents(
+        similar_chunks = _search_local_chunks(
             session,
-            query_embedding,
+            question=question,
+            query_embedding=query_embedding,
             document_ids=document_ids,
-            limit=top_k,
+            top_k=top_k,
             exclude_section_types=exclude_section_types,
+            has_processed_pdf=any(
+                document.active_processing_version_id is not None
+                for document in documents
+            ),
         )
     if not similar_chunks:
         raise LibraryItemRagError("Library item has no indexed chunks to search.")
@@ -309,6 +345,11 @@ def retrieve_relevant_chunks_for_library_item(
                 section_type=chunk.section_type,
                 chapter_title=chunk.chapter_title,
                 section_title=chunk.section_title,
+                element_type=chunk.element_type,
+                extraction_method=chunk.extraction_method,
+                ocr_confidence=chunk.ocr_confidence,
+                section_path=chunk.section_path,
+                bounding_boxes=chunk.bounding_boxes,
                 score=chunk.distance,
             )
         )
@@ -330,9 +371,13 @@ def retrieve_relevant_chunks_for_library_items(
         raise LibraryItemRagError("library_item_ids must not be empty")
 
     with measure_latency_sync("document_chunk_load"):
-        items = session.execute(
-            select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
-        ).scalars().all()
+        items = (
+            session.execute(
+                select(LibraryItem).where(LibraryItem.id.in_(deduped_item_ids))
+            )
+            .scalars()
+            .all()
+        )
     items_by_id = {item.id: item for item in items}
 
     for item_id in deduped_item_ids:
@@ -340,9 +385,13 @@ def retrieve_relevant_chunks_for_library_items(
             raise LibraryItemRagError("Library item not found")
 
     with measure_latency_sync("document_chunk_load"):
-        documents = session.execute(
-            select(Document).where(Document.library_item_id.in_(deduped_item_ids))
-        ).scalars().all()
+        documents = (
+            session.execute(
+                select(Document).where(Document.library_item_id.in_(deduped_item_ids))
+            )
+            .scalars()
+            .all()
+        )
     documents_by_item_id: dict[uuid.UUID, list[Document]] = {
         item_id: [] for item_id in deduped_item_ids
     }
@@ -358,19 +407,11 @@ def retrieve_relevant_chunks_for_library_items(
             )
 
     document_ids = [document.id for document in documents]
-    document_ids_with_embeddings = set(
-        session.execute(
-            select(DocumentChunk.document_id)
-            .where(DocumentChunk.document_id.in_(document_ids))
-            .where(DocumentChunk.embedding.is_not(None))
-        )
-        .scalars()
-        .all()
-    )
+    searchable_document_ids = document_ids_with_embeddings(session, document_ids)
 
     for item_id in deduped_item_ids:
         if not any(
-            document.id in document_ids_with_embeddings
+            document.id in searchable_document_ids
             for document in documents_by_item_id[item_id]
         ):
             item = items_by_id[item_id]
@@ -382,15 +423,22 @@ def retrieve_relevant_chunks_for_library_items(
     query_embedding = get_request_query_embedding(provider, question)
     exclude_section_types = () if include_non_body else DEFAULT_EXCLUDED_SECTION_TYPES
     with measure_latency_sync("document_vector_search"):
-        similar_chunks = search_similar_chunks_for_documents(
+        similar_chunks = _search_local_chunks(
             session,
-            query_embedding,
+            question=question,
+            query_embedding=query_embedding,
             document_ids=document_ids,
-            limit=top_k,
+            top_k=top_k,
             exclude_section_types=exclude_section_types,
+            has_processed_pdf=any(
+                document.active_processing_version_id is not None
+                for document in documents
+            ),
         )
     if not similar_chunks:
-        raise LibraryItemRagError("Selected library items have no indexed chunks to search.")
+        raise LibraryItemRagError(
+            "Selected library items have no indexed chunks to search."
+        )
 
     documents_by_id = {document.id: document for document in documents}
     contexts = [
@@ -430,6 +478,11 @@ def retrieve_relevant_chunks_for_library_items(
                 section_type=chunk.section_type,
                 chapter_title=chunk.chapter_title,
                 section_title=chunk.section_title,
+                element_type=chunk.element_type,
+                extraction_method=chunk.extraction_method,
+                ocr_confidence=chunk.ocr_confidence,
+                section_path=chunk.section_path,
+                bounding_boxes=chunk.bounding_boxes,
                 score=chunk.distance,
             )
         )
@@ -438,3 +491,75 @@ def retrieve_relevant_chunks_for_library_items(
     if trace is not None:
         trace.set_counter("retrieved_chunk_count", len(results))
     return contexts, results
+
+
+def _search_local_chunks(
+    session: Session,
+    *,
+    question: str,
+    query_embedding: list[float],
+    document_ids: list[uuid.UUID],
+    top_k: int,
+    exclude_section_types,
+    global_fallback: bool = False,
+    has_processed_pdf: bool | None = None,
+):
+    settings = get_settings()
+    if has_processed_pdf is None:
+        has_processed_pdf = bool(
+            session.execute(
+                select(Document.id)
+                .where(Document.id.in_(document_ids))
+                .where(Document.active_processing_version_id.is_not(None))
+                .limit(1)
+            ).first()
+        )
+    if settings.pdf_text_hybrid_retrieval_enabled and has_processed_pdf:
+        text_results = hybrid_search_chunks(
+            session,
+            question=question,
+            query_embedding=query_embedding,
+            document_ids=document_ids,
+            limit=top_k,
+            exclude_section_types=exclude_section_types,
+            dense_weight=settings.pdf_hybrid_dense_weight,
+            keyword_weight=settings.pdf_hybrid_keyword_weight,
+        )
+        encoder = (
+            visual_encoder_registry.get()
+            if settings.pdf_visual_retrieval_enabled
+            else None
+        )
+        if encoder is None:
+            return text_results
+        visual_candidates = search_visual_pages(
+            session,
+            question=question,
+            document_ids=document_ids,
+            limit=max(top_k, top_k * 2),
+            encoder=encoder,
+        )
+        visual_results = visual_candidates_to_chunks(session, visual_candidates)
+        with measure_latency_sync("fusion"):
+            return fuse_text_and_visual(
+                text_results,
+                visual_results,
+                text_weight=settings.pdf_hybrid_dense_weight
+                + settings.pdf_hybrid_keyword_weight,
+                visual_weight=settings.pdf_hybrid_visual_weight,
+                limit=top_k,
+            )
+    if global_fallback:
+        return search_similar_chunks(
+            session,
+            query_embedding,
+            limit=top_k,
+            exclude_section_types=exclude_section_types,
+        )
+    return search_similar_chunks_for_documents(
+        session,
+        query_embedding,
+        document_ids=document_ids,
+        limit=top_k,
+        exclude_section_types=exclude_section_types,
+    )

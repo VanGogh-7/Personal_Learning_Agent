@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.memory.long_term import LongTermMemoryResult
 from app.memory.short_term import ConversationTurnResult
 from app.rag.citations import ChunkCitationResult, build_chunk_citations
-from app.rag.qa import build_deterministic_answer
 from app.rag.retrieval import (
     LibraryItemRagContext,
     RetrievedChunkResult,
@@ -79,12 +78,7 @@ def run_local_library_agent(
         retrieved = retrieve_global(session, question, top_k)
 
     citations = build_chunk_citations(retrieved)
-    summary = build_deterministic_answer(
-        question,
-        retrieved,
-        recent_turns=recent_turns,
-        long_term_memories=long_term_memories,
-    )
+    summary = _build_evidence_summary(retrieved, citations)
     return LocalLibraryAgentResult(
         summary=summary,
         selected_library_items=selected_items,
@@ -94,7 +88,9 @@ def run_local_library_agent(
     )
 
 
-def classify_evidence_quality(retrieved_chunks: list[RetrievedChunkResult]) -> EvidenceQuality:
+def classify_evidence_quality(
+    retrieved_chunks: list[RetrievedChunkResult],
+) -> EvidenceQuality:
     """Classify local evidence using only already-computed retrieval scores."""
     if not retrieved_chunks:
         return "none"
@@ -105,3 +101,16 @@ def classify_evidence_quality(retrieved_chunks: list[RetrievedChunkResult]) -> E
     if best_score <= 0.35:
         return "partial"
     return "weak"
+
+
+def _build_evidence_summary(
+    chunks: list[RetrievedChunkResult], citations: list[ChunkCitationResult]
+) -> str:
+    """Return bounded findings for Synthesis, never a second complete answer."""
+    if not chunks:
+        return "No relevant local Library evidence was retrieved."
+    lines = ["Local Library evidence:"]
+    for chunk, citation in zip(chunks, citations, strict=True):
+        excerpt = " ".join(chunk.content.split())[:800]
+        lines.append(f"[{citation.citation_id}] {excerpt}")
+    return "\n".join(lines)

@@ -17,8 +17,18 @@ const ACTIVITY_STAGES = new Set([
   "loading_context",
   "retrieving_memory",
   "routing",
+  "understanding_query",
+  "planning_research",
   "retrieving_local",
+  "planning_web",
   "searching_web",
+  "searching_academic",
+  "reading_pages",
+  "filtering_sources",
+  "evaluating_sources",
+  "correcting_retrieval",
+  "organizing_answer",
+  "verifying_citations",
   "processing_sources",
   "synthesizing",
   "streaming",
@@ -144,7 +154,7 @@ function hasValidEventFields(event: Record<string, unknown>): boolean {
       return ["local_only", "web_only", "both"].includes(String(event.route));
     case "retrieval_completed":
       return (
-        ["local", "web"].includes(String(event.source)) &&
+        ["local", "web", "academic"].includes(String(event.source)) &&
         typeof event.result_count === "number"
       );
     case "token":

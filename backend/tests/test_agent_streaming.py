@@ -12,8 +12,10 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-import app.graphs.chat_rag_graph as graph_module
 import app.api.agent_routes as agent_routes_module
+import app.graphs.chat_rag_graph as graph_module
+from app.agents.web_research import WebResearchResult, WebSourceResult
+from app.core.config import get_settings
 from app.db.base import Base
 from app.main import app
 from app.graphs.schemas import AgentChatRequest
@@ -24,6 +26,7 @@ from app.llm.providers import (
 )
 from app.models.conversation import Conversation
 from app.models.conversation_turn import ConversationTurn
+from app.mcp.client import mcp_client_manager
 from app.streaming.events import (
     AgentStreamEventFactory,
     RunStartedEvent,
@@ -33,6 +36,7 @@ from app.streaming.events import (
 from app.streaming.service import (
     ActiveAgentRunRegistry,
     DeferredTaskCollector,
+    _finish_persistence_producer,
     _public_event_from_custom,
     active_agent_runs,
     compensate_stream_persistence,
@@ -133,6 +137,21 @@ def test_active_run_registry_locks_only_the_same_conversation() -> None:
     assert registry.acquire("conversation-b") is True
     registry.release("conversation-a")
     assert registry.acquire("conversation-a") is True
+
+
+@pytest.mark.anyio
+async def test_persistence_completion_drains_bounded_queue() -> None:
+    queue: asyncio.Queue[tuple[str, object]] = asyncio.Queue(maxsize=1)
+    await queue.put(("custom", {"kind": "status", "stage": "persisting"}))
+
+    async def finish_graph() -> None:
+        await queue.put(("complete", {}))
+
+    producer = asyncio.create_task(finish_graph())
+    await asyncio.wait_for(_finish_persistence_producer(producer, queue), timeout=1)
+
+    assert producer.done()
+    assert producer.cancelled() is False
 
 
 def test_compensation_failure_emits_high_priority_structured_log(caplog) -> None:
@@ -239,7 +258,132 @@ async def test_both_stream_has_parallel_branch_activity(stream_session_factory) 
     stages = [event.get("stage") for event in events if event["type"] == "status"]
     assert "retrieving_local" in stages
     assert "searching_web" in stages
+
+
+@pytest.mark.anyio
+async def test_adaptive_activity_follows_real_graph_order(
+    stream_session_factory,
+) -> None:
+    events = await collect_events(
+        AgentChatRequest(message="Explain completeness"), stream_session_factory
+    )
+    stages = [event["stage"] for event in events if event["type"] == "status"]
+    ordered = [
+        "understanding_query",
+        "planning_research",
+        "evaluating_sources",
+        "organizing_answer",
+        "synthesizing",
+        "verifying_citations",
+        "persisting",
+    ]
+    assert [stages.index(stage) for stage in ordered] == sorted(
+        stages.index(stage) for stage in ordered
+    )
     assert events[-1]["type"] == "done"
+
+
+@pytest.mark.anyio
+async def test_mcp_activity_is_public_but_tool_details_are_not(
+    monkeypatch, stream_session_factory
+) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    get_settings.cache_clear()
+
+    async def fake_web_research(question, *, gateway, activity):
+        activity("searching_web", "正在搜索网页")
+        return WebResearchResult(
+            summary="Web evidence [W1].",
+            sources=[
+                WebSourceResult(
+                    source_id="W1",
+                    title="Web source",
+                    url="https://example.test/web",
+                    excerpt="Evidence",
+                )
+            ],
+        )
+
+    async def fake_academic_research(question, *, gateway, activity):
+        activity("searching_academic", "正在搜索学术资料")
+        return WebResearchResult(
+            summary="Academic evidence [W1].",
+            sources=[
+                WebSourceResult(
+                    source_id="W1",
+                    title="Paper",
+                    url="https://example.test/paper",
+                    excerpt="Evidence",
+                    provider="academic",
+                    source_type="academic",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(graph_module, "run_mcp_web_research", fake_web_research)
+    monkeypatch.setattr(
+        graph_module, "run_mcp_academic_research", fake_academic_research
+    )
+    events = await collect_events(
+        AgentChatRequest(message="Find the latest research paper"),
+        stream_session_factory,
+    )
+    stages = [event.get("stage") for event in events if event["type"] == "status"]
+    assert "planning_research" in stages
+    assert "searching_academic" in stages
+    assert "evaluating_sources" in stages
+    serialized = json.dumps(events)
+    assert "search_arxiv" not in serialized
+    assert "academic_client" not in serialized
+    get_settings.cache_clear()
+
+
+@pytest.mark.anyio
+async def test_local_only_never_calls_mcp(monkeypatch, stream_session_factory) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    get_settings.cache_clear()
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("local_only must not call MCP")
+
+    monkeypatch.setattr(graph_module, "run_mcp_web_research", forbidden)
+    monkeypatch.setattr(graph_module, "run_mcp_academic_research", forbidden)
+    events = await collect_events(
+        AgentChatRequest(message="What does this book say?"), stream_session_factory
+    )
+    assert events[-1]["type"] == "done"
+    get_settings.cache_clear()
+
+
+@pytest.mark.anyio
+async def test_legacy_json_web_node_reuses_lifespan_mcp_loop(monkeypatch) -> None:
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    get_settings.cache_clear()
+
+    async def fake_research(question, *, gateway):
+        return WebResearchResult(
+            summary="Web evidence [W1].",
+            sources=[
+                WebSourceResult(
+                    source_id="W1",
+                    title="Source",
+                    url="https://example.test/source",
+                    excerpt="Evidence",
+                )
+            ],
+        )
+
+    monkeypatch.setattr(graph_module, "run_mcp_web_research", fake_research)
+    await mcp_client_manager.startup()
+    try:
+        result = await asyncio.to_thread(
+            graph_module.web_research_agent_node,
+            {"route": "web_only", "question": "What is current?"},
+        )
+    finally:
+        await mcp_client_manager.shutdown()
+        get_settings.cache_clear()
+    assert result["web_sources"][0]["source_id"] == "W1"
 
 
 @pytest.mark.anyio

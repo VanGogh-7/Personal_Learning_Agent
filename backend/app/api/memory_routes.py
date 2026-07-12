@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import get_db_session
+from app.core.config import get_settings
 from app.memory.long_term import (
     DEFAULT_LIST_LIMIT,
     MAX_IMPORTANCE,
@@ -151,7 +152,9 @@ def update_long_term_memory_endpoint(
         changes = request.model_dump(exclude_unset=True)
         if "content" in changes:
             memory.content = changes["content"]
-            memory.embedding = get_embedding_provider().embed_text(memory.content)
+            memory.embedding = get_embedding_provider(get_settings()).embed_text(
+                memory.content
+            )
         for field in ("importance", "confidence", "structured_data", "valid_until"):
             if field in changes:
                 setattr(memory, field, changes[field])

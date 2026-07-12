@@ -1,5 +1,7 @@
 """Index one local PDF through the backend PDF-to-RAG pipeline."""
 
+# ruff: noqa: E402
+
 from __future__ import annotations
 
 import argparse
@@ -53,7 +55,9 @@ class IndexPdfSummary:
     section_type_counts: dict[str, int]
 
 
-def index_pdf_file(pdf_path: str | Path, session: Session | None = None) -> IndexPdfSummary:
+def index_pdf_file(
+    pdf_path: str | Path, session: Session | None = None
+) -> IndexPdfSummary:
     """Create or reuse a Library item and index its PDF content."""
     path = _validate_pdf_path(pdf_path)
     owns_session = session is None
@@ -67,14 +71,24 @@ def index_pdf_file(pdf_path: str | Path, session: Session | None = None) -> Inde
         provider = get_embedding_provider()
         result = index_library_item(db, item.id, embedding_provider=provider)
         if result is None or result.document_id is None:
-            raise LibraryIndexingError("PDF indexing did not produce a document record.")
+            raise LibraryIndexingError(
+                "PDF indexing did not produce a document record."
+            )
+        document = db.get(Document, result.document_id)
+        if document is None or document.active_processing_version_id is None:
+            raise LibraryIndexingError("PDF processing version was not activated.")
 
         chunk_count = db.scalar(
-            select(func.count(DocumentChunk.id)).where(
-                DocumentChunk.document_id == result.document_id
+            select(func.count(DocumentChunk.id))
+            .where(DocumentChunk.document_id == result.document_id)
+            .where(
+                DocumentChunk.processing_version_id
+                == document.active_processing_version_id
             )
         )
-        section_type_counts = _count_chunk_section_types(db, result.document_id)
+        section_type_counts = _count_chunk_section_types(
+            db, result.document_id, document.active_processing_version_id
+        )
         if owns_session:
             db.commit()
 
@@ -129,13 +143,20 @@ def _get_or_create_library_item(session: Session, path: Path) -> LibraryItem:
     return item
 
 
-def _count_chunk_section_types(session: Session, document_id: uuid.UUID) -> dict[str, int]:
+def _count_chunk_section_types(
+    session: Session,
+    document_id: uuid.UUID,
+    processing_version_id: uuid.UUID,
+) -> dict[str, int]:
     rows = session.execute(
         select(DocumentChunk.section_type, func.count(DocumentChunk.id))
         .where(DocumentChunk.document_id == document_id)
+        .where(DocumentChunk.processing_version_id == processing_version_id)
         .group_by(DocumentChunk.section_type)
     ).all()
-    counts = {section_type or SECTION_UNKNOWN: int(count) for section_type, count in rows}
+    counts = {
+        section_type or SECTION_UNKNOWN: int(count) for section_type, count in rows
+    }
     ordered_counts = {
         section_type: counts.pop(section_type, 0)
         for section_type in SECTION_TYPE_PRINT_ORDER

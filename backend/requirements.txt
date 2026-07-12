@@ -12,3 +12,5 @@ pgvector
 langgraph
 langgraph-checkpoint-postgres
 pypdf
+PyMuPDF>=1.24,<2
+mcp>=1.27,<2

@@ -5,6 +5,11 @@ import type {
   LibraryItemListResponse,
   LibraryPdfImportRequest,
   LibraryPdfImportResponse,
+  ProviderCatalogEntry,
+  ProviderConnectionTest,
+  ProviderProfile,
+  ProviderProfileInput,
+  ProviderProfileList,
 } from "./types";
 import { getBackendBaseUrl } from "./config";
 import { AgentSSEParser } from "../streaming/parser";
@@ -47,6 +52,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const message = await extractErrorMessage(response);
     throw new ApiError(message, response.status);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return parseJsonResponse<T>(response);
@@ -140,6 +149,68 @@ export function importLibraryPdfs(
   return requestJson<LibraryPdfImportResponse>("/api/library/import-pdfs", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function listProviderCatalog(): Promise<ProviderCatalogEntry[]> {
+  return requestJson<ProviderCatalogEntry[]>("/api/settings/provider-catalog");
+}
+
+export function listProviderProfiles(): Promise<ProviderProfileList> {
+  return requestJson<ProviderProfileList>("/api/settings/profiles");
+}
+
+export function createProviderProfile(
+  profile: ProviderProfileInput,
+): Promise<ProviderProfile> {
+  return requestJson<ProviderProfile>("/api/settings/profiles", {
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function activateProviderProfile(
+  profileId: string,
+  apiKey: string | null,
+): Promise<ProviderProfile> {
+  return requestJson<ProviderProfile>(
+    `/api/settings/profiles/${profileId}/activate`,
+    { method: "POST", body: JSON.stringify({ api_key: apiKey }) },
+  );
+}
+
+export function updateProviderSecretReference(
+  profileId: string,
+  secretRef: string | null,
+): Promise<ProviderProfile> {
+  return requestJson<ProviderProfile>(
+    `/api/settings/profiles/${profileId}/secret`,
+    { method: "PATCH", body: JSON.stringify({ secret_ref: secretRef }) },
+  );
+}
+
+export function testProviderConnection(
+  profile: ProviderProfileInput,
+): Promise<ProviderConnectionTest> {
+  return requestJson<ProviderConnectionTest>("/api/settings/test-provider", {
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
+export function reindexEmbeddingProfile(
+  profileId: string,
+  apiKey: string | null,
+): Promise<{ message: string }> {
+  return requestJson<{ message: string }>(
+    `/api/settings/profiles/${profileId}/reindex`,
+    { method: "POST", body: JSON.stringify({ api_key: apiKey }) },
+  );
+}
+
+export function deleteProviderProfile(profileId: string): Promise<void> {
+  return requestJson<void>(`/api/settings/profiles/${profileId}`, {
+    method: "DELETE",
   });
 }
 

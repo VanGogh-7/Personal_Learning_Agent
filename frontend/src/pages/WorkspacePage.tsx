@@ -285,6 +285,7 @@ export default function WorkspacePage() {
             conversation={conversation}
             onConversationChange={setConversation}
             workspaceSelectedItems={selectedItems}
+            libraryItems={items}
           />
         </main>
       </div>

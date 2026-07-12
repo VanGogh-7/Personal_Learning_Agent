@@ -26,6 +26,12 @@ class ChunkCitationResult:
     section_type: str = "unknown"
     chapter_title: str | None = None
     section_title: str | None = None
+    source_type: str = "local"
+    title: str | None = None
+    section_path: tuple[str, ...] = ()
+    extraction_method: str | None = None
+    ocr_confidence: float | None = None
+    bounding_boxes: tuple[dict, ...] = ()
 
 
 def make_excerpt(text: str, max_length: int = DEFAULT_EXCERPT_LENGTH) -> str:
@@ -53,7 +59,9 @@ def build_chunk_citations(
                 citation_id=f"S{index}",
                 chunk_id=str(chunk.chunk_id),
                 document_id=str(chunk.document_id),
-                library_item_id=str(chunk.library_item_id) if chunk.library_item_id else None,
+                library_item_id=str(chunk.library_item_id)
+                if chunk.library_item_id
+                else None,
                 library_title=chunk.library_title,
                 library_author=chunk.library_author,
                 document_title=chunk.document_title,
@@ -65,6 +73,11 @@ def build_chunk_citations(
                 section_type=chunk.section_type,
                 chapter_title=chunk.chapter_title,
                 section_title=chunk.section_title,
+                title=chunk.library_title or chunk.document_title,
+                section_path=chunk.section_path,
+                extraction_method=chunk.extraction_method,
+                ocr_confidence=chunk.ocr_confidence,
+                bounding_boxes=chunk.bounding_boxes,
                 score=chunk.score,
                 excerpt=make_excerpt(chunk.content, max_length=max_excerpt_length),
                 content=chunk.content,

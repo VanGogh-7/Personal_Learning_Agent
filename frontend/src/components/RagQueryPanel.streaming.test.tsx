@@ -53,6 +53,24 @@ function response(answer: string): AgentChatResponse {
   };
 }
 
+const streamedCitation = {
+  citation_id: "S1",
+  chunk_id: "chunk-1",
+  document_id: "document-1",
+  library_item_id: null,
+  library_title: "Analysis",
+  library_author: null,
+  document_title: "Analysis",
+  document_source_path: null,
+  chunk_index: 0,
+  page_number: 3,
+  page_start: 3,
+  page_end: 3,
+  score: 0.9,
+  excerpt: "A complete metric space.",
+  content: "A complete metric space.",
+};
+
 function Harness() {
   const [conversation, setConversation] = useState<ConversationState>(
     createEmptyConversationState(),
@@ -71,6 +89,8 @@ describe("Agent Chat streaming UI", () => {
 
   it("creates one placeholder and shows only real route activity", async () => {
     let continueStream: (() => void) | undefined;
+    const finalResponse = response("完整回答 [S1]");
+    finalResponse.citations = [streamedCitation];
     vi.mocked(queryAgentChatStream).mockImplementation(
       async (_payload, { onEvent }) => {
         onEvent(
@@ -117,14 +137,21 @@ describe("Agent Chat streaming UI", () => {
           ),
         );
         onEvent(
-          streamEvent({ type: "citations", citations: [], web_sources: [] }, 7),
+          streamEvent(
+            {
+              type: "citations",
+              citations: [streamedCitation],
+              web_sources: [],
+            },
+            7,
+          ),
         );
         onEvent(
           streamEvent(
             {
               type: "final",
               message_id: "message-server-1",
-              response: response("完整回答"),
+              response: finalResponse,
             },
             8,
           ),
@@ -150,13 +177,17 @@ describe("Agent Chat streaming UI", () => {
     ).toBeInTheDocument();
 
     await act(async () => continueStream?.());
-    expect(await screen.findByText("完整回答")).toBeInTheDocument();
+    expect(await screen.findByText(/完整回答/)).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument(),
     );
     expect(
       container.querySelector(".assistant-message.completed"),
     ).not.toBeNull();
+    expect(screen.queryByLabelText("Agent Activity")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Sources/ }),
+    ).toBeInTheDocument();
   });
 
   it("keeps partial text, marks cancellation, and unlocks the next turn", async () => {

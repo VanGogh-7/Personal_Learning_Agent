@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# This script supports direct execution before the backend package is installed.
+# ruff: noqa: E402
+
 import argparse
 import json
 import sys
@@ -9,7 +12,6 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -261,7 +263,9 @@ def _print_result(result: RetrievalEvalResult, *, max_snippet_chars: int) -> Non
         "page metadata present: "
         f"{result.page_metadata_count}/{len(result.chunks)} chunks"
     )
-    print(f"snippets present: {result.snippet_source_count}/{len(result.chunks)} chunks")
+    print(
+        f"snippets present: {result.snippet_source_count}/{len(result.chunks)} chunks"
+    )
     if not result.chunks:
         print("No chunks returned.")
         print()
@@ -293,8 +297,7 @@ def _print_summary(summary: RetrievalEvalSummary) -> None:
     print(f"top_k: {summary.top_k}")
     print(f"keyword hits: {total_hits}/{total_expected}")
     print(
-        "page metadata coverage: "
-        f"{summary.page_metadata_count}/{total_chunks} chunks"
+        f"page metadata coverage: {summary.page_metadata_count}/{total_chunks} chunks"
     )
     print(f"snippet coverage: {summary.snippet_source_count}/{total_chunks} chunks")
     print("section_type counts:")
@@ -307,13 +310,17 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Run a lightweight retrieval-only baseline for one Library book."
     )
-    parser.add_argument("--library-item-id", required=True, help="Library item UUID to query.")
+    parser.add_argument(
+        "--library-item-id", required=True, help="Library item UUID to query."
+    )
     parser.add_argument(
         "--queries-file",
         default=str(DEFAULT_QUERIES_FILE),
         help="Path to the retrieval eval query JSON file.",
     )
-    parser.add_argument("--top-k", type=int, default=5, help="Number of chunks to retrieve.")
+    parser.add_argument(
+        "--top-k", type=int, default=5, help="Number of chunks to retrieve."
+    )
     parser.add_argument(
         "--include-non-body",
         action="store_true",
@@ -333,7 +340,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.max_snippet_chars < 1:
-        print("Evaluation failed: --max-snippet-chars must be positive.", file=sys.stderr)
+        print(
+            "Evaluation failed: --max-snippet-chars must be positive.", file=sys.stderr
+        )
         return 1
 
     try:

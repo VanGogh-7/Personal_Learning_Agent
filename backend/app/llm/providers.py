@@ -37,11 +37,21 @@ class LLMStreamChunk:
     usage: TokenUsage | None = None
 
 
+@dataclass(frozen=True)
+class LLMStructuredResult:
+    text: str
+    usage: TokenUsage | None = None
+    temperature: float | None = 0.0
+
+
 class LLMProvider(Protocol):
     """Small synchronous text-generation boundary used by backend services."""
 
     def generate(self, prompt: str) -> str:
         """Generate text for a prompt."""
+
+    def complete_chat(self, prompt: str) -> str:
+        """Return one normalized complete chat response."""
 
     def stream_chat_completion(
         self, prompt: str, *, max_tokens: int | None = None
@@ -76,6 +86,14 @@ class DeterministicLLMProvider:
         answer_start = marker_index + len(DETERMINISTIC_ANSWER_MARKER)
         return prompt[answer_start:].strip()
 
+    def complete_chat(self, prompt: str) -> str:
+        return self.generate(prompt)
+
+    def stream_chat(
+        self, prompt: str, *, max_tokens: int | None = None
+    ) -> AsyncIterator[LLMStreamChunk]:
+        return self.stream_chat_completion(prompt, max_tokens=max_tokens)
+
     def generate_with_metrics(self, prompt: str) -> LLMGenerationMetrics:
         started_at = perf_counter()
         text = self.generate(prompt)
@@ -87,6 +105,11 @@ class DeterministicLLMProvider:
             total_ms=total_ms,
             streaming=False,
         )
+
+    def generate_structured(
+        self, prompt: str, *, temperature: float | None = 0.0
+    ) -> LLMStructuredResult:
+        return LLMStructuredResult(text=self.generate(prompt), temperature=temperature)
 
     async def stream_chat_completion(
         self, prompt: str, *, max_tokens: int | None = None
@@ -113,12 +136,36 @@ class OpenAICompatibleLLMProvider:
         model: str,
         client: httpx.Client | None = None,
         async_client: httpx.AsyncClient | None = None,
+        temperature: float | None = None,
+        max_output_tokens: int | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._client = client
         self._async_client = async_client
+        self._temperature = temperature
+        self._max_output_tokens = max_output_tokens
+        self._extra_headers = dict(extra_headers or {})
+
+    @property
+    def model(self) -> str:
+        return self._model
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json", **self._extra_headers}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
+
+    def _generation_options(self) -> dict[str, int | float]:
+        options: dict[str, int | float] = {}
+        if self._temperature is not None:
+            options["temperature"] = self._temperature
+        if self._max_output_tokens is not None:
+            options["max_tokens"] = self._max_output_tokens
+        return options
 
     def generate(self, prompt: str) -> str:
         trace = current_latency_trace()
@@ -136,11 +183,9 @@ class OpenAICompatibleLLMProvider:
                 },
                 {"role": "user", "content": prompt},
             ],
+            **self._generation_options(),
         }
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = self._headers()
 
         try:
             if self._client is not None:
@@ -167,6 +212,62 @@ class OpenAICompatibleLLMProvider:
                 "Real LLM provider returned an invalid response."
             ) from exc
 
+    def complete_chat(self, prompt: str) -> str:
+        return self.generate(prompt)
+
+    def stream_chat(
+        self, prompt: str, *, max_tokens: int | None = None
+    ) -> AsyncIterator[LLMStreamChunk]:
+        return self.stream_chat_completion(prompt, max_tokens=max_tokens)
+
+    def generate_structured(
+        self, prompt: str, *, temperature: float | None = 0.0
+    ) -> LLMStructuredResult:
+        trace = current_latency_trace()
+        if trace is not None:
+            trace.increment("llm_call_count")
+        request_payload = {
+            "model": self._model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Return one JSON object matching the supplied schema.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        request_payload.update(self._generation_options())
+        if temperature is not None:
+            request_payload["temperature"] = temperature
+        headers = self._headers()
+        try:
+            client = self._client or provider_http_clients.get("llm")
+            response = client.post(
+                f"{self._base_url}/chat/completions",
+                json=request_payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            data = response.json()
+            usage = data.get("usage") or {}
+            return LLMStructuredResult(
+                text=_extract_openai_compatible_content(data),
+                temperature=temperature,
+                usage=TokenUsage(
+                    prompt_tokens=usage.get("prompt_tokens")
+                    if isinstance(usage.get("prompt_tokens"), int)
+                    else None,
+                    completion_tokens=usage.get("completion_tokens")
+                    if isinstance(usage.get("completion_tokens"), int)
+                    else None,
+                ),
+            )
+        except httpx.HTTPError as exc:
+            raise LLMProviderError("Structured LLM request failed.") from exc
+        except (KeyError, TypeError, ValueError) as exc:
+            raise LLMProviderError("Structured LLM response was invalid.") from exc
+
     def generate_with_metrics(self, prompt: str) -> LLMGenerationMetrics:
         trace = current_latency_trace()
         if trace is not None:
@@ -186,11 +287,9 @@ class OpenAICompatibleLLMProvider:
             ],
             "stream": True,
             "stream_options": {"include_usage": True},
+            **self._generation_options(),
         }
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = self._headers()
         client = self._client or provider_http_clients.get("llm")
         started_at = perf_counter()
         first_token_at: float | None = None
@@ -267,13 +366,11 @@ class OpenAICompatibleLLMProvider:
             ],
             "stream": True,
             "stream_options": {"include_usage": True},
+            **self._generation_options(),
         }
         if max_tokens is not None:
             payload["max_tokens"] = max_tokens
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
+        headers = self._headers()
         client = self._async_client or provider_http_clients.get_async("llm")
         try:
             async with client.stream(
@@ -336,8 +433,23 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
     network access. Real providers are selected only by explicit config.
     """
 
+    if settings is None:
+        from app.settings.runtime import current_chat_provider
+
+        active = current_chat_provider()
+        if active is not None:
+            return active
     resolved_settings = settings or get_settings()
     provider_name = resolved_settings.llm_provider.strip().lower()
+    trace = current_latency_trace()
+    if trace is not None:
+        trace.set_counter("llm_provider", provider_name or "deterministic")
+        trace.set_counter(
+            "llm_model",
+            resolved_settings.deepseek_model
+            if provider_name == DEEPSEEK_PROVIDER_NAME
+            else "deterministic",
+        )
 
     if provider_name in {"", DETERMINISTIC_PROVIDER_NAME, "mock"}:
         return DeterministicLLMProvider()

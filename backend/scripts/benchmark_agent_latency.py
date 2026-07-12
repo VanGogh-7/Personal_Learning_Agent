@@ -6,6 +6,9 @@ environment. Real benchmarks consume API quota.
 
 from __future__ import annotations
 
+# This script supports direct execution before the backend package is installed.
+# ruff: noqa: E402
+
 import argparse
 import os
 import statistics
@@ -46,7 +49,10 @@ FULL_PROMPT = "\n".join(
     [
         "Explain complete metric spaces using the supplied learning context.",
         "Keep the answer grounded and concise.",
-        *(f"Context item {index}: completeness controls Cauchy sequences." for index in range(80)),
+        *(
+            f"Context item {index}: completeness controls Cauchy sequences."
+            for index in range(80)
+        ),
     ]
 )
 

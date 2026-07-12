@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -92,6 +94,33 @@ def test_openai_compatible_provider_can_use_mocked_client_without_network() -> N
     )
 
     assert provider.generate("Question?") == "Mocked real-provider answer."
+
+
+def test_structured_provider_uses_zero_temperature_and_returns_usage() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["temperature"] == 0
+        assert payload["response_format"] == {"type": "json_object"}
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"intent":"ok"}'}}],
+                "usage": {"prompt_tokens": 12, "completion_tokens": 5},
+            },
+        )
+
+    provider = OpenAICompatibleLLMProvider(
+        api_key="test-key",
+        base_url="https://api.example.com",
+        model="test-model",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    result = provider.generate_structured("Return JSON")
+    assert result.text == '{"intent":"ok"}'
+    assert result.temperature == 0
+    assert result.usage is not None
+    assert result.usage.prompt_tokens == 12
+    assert result.usage.completion_tokens == 5
 
 
 def test_openai_compatible_provider_failure_is_clean_and_does_not_leak_key() -> None:

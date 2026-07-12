@@ -8,8 +8,12 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    JSON,
+    Float,
+    Index,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -27,11 +31,28 @@ class DocumentChunk(Base):
     __tablename__ = "document_chunks"
     __table_args__ = (
         UniqueConstraint(
-            "document_id", "chunk_index", name="uq_document_chunks_document_id_chunk_index"
+            "document_id",
+            "processing_version_id",
+            "chunk_index",
+            name="uq_document_chunks_document_version_chunk_index",
         ),
-        CheckConstraint("char_start >= 0", name="ck_document_chunks_char_start_non_negative"),
-        CheckConstraint("char_end >= 0", name="ck_document_chunks_char_end_non_negative"),
-        CheckConstraint("char_end >= char_start", name="ck_document_chunks_char_end_gte_char_start"),
+        Index(
+            "uq_document_chunks_legacy_document_chunk_index",
+            "document_id",
+            "chunk_index",
+            unique=True,
+            postgresql_where=text("processing_version_id IS NULL"),
+            sqlite_where=text("processing_version_id IS NULL"),
+        ),
+        CheckConstraint(
+            "char_start >= 0", name="ck_document_chunks_char_start_non_negative"
+        ),
+        CheckConstraint(
+            "char_end >= 0", name="ck_document_chunks_char_end_non_negative"
+        ),
+        CheckConstraint(
+            "char_end >= char_start", name="ck_document_chunks_char_end_gte_char_start"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -49,6 +70,26 @@ class DocumentChunk(Base):
     section_type: Mapped[str] = mapped_column(String, nullable=False, default="unknown")
     chapter_title: Mapped[str | None] = mapped_column(String, nullable=True)
     section_title: Mapped[str | None] = mapped_column(String, nullable=True)
+    processing_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pdf_processing_versions.id"),
+        nullable=True,
+        index=True,
+    )
+    parent_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("document_chunks.id"), nullable=True
+    )
+    element_type: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="paragraph"
+    )
+    section_path: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    bounding_boxes: Mapped[list[dict]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    extraction_method: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="text"
+    )
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

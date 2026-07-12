@@ -18,6 +18,7 @@ from app.models.document_chunk import DocumentChunk
 from app.models.learning_event import LearningEvent
 from app.models.library_item import LibraryItem
 from app.models.note import Note
+from app.models.pdf_processing import DocumentPage, PdfProcessingVersion
 from tests.pdf_fixtures import make_pdf_bytes
 
 
@@ -35,6 +36,8 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
             LibraryItem.__table__,
             Note.__table__,
             Document.__table__,
+            PdfProcessingVersion.__table__,
+            DocumentPage.__table__,
             DocumentChunk.__table__,
             Conversation.__table__,
             ConversationTurn.__table__,

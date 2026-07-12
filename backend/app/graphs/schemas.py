@@ -17,11 +17,26 @@ AgentChatScope = Literal["global", "single_book", "multi_book"]
 
 class WebSource(BaseModel):
     source_id: str
+    citation_id: str | None = None
     title: str
     url: str
     excerpt: str
     provider: str = "deterministic"
     published_date: str | None = None
+    published_at: str | None = None
+    retrieved_at: str | None = None
+    evidence_id: str | None = None
+    source_type: Literal["web", "news", "academic", "page"] = "web"
+    content: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    doi: str | None = None
+    arxiv_id: str | None = None
+
+    @model_validator(mode="after")
+    def default_citation_id(self) -> "WebSource":
+        if self.citation_id is None:
+            self.citation_id = self.source_id
+        return self
 
 
 class AgentDebugTimings(BaseModel):

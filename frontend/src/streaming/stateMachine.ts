@@ -44,17 +44,30 @@ export function reduceAgentRun(
   }
   if (event.type === "retrieval_completed") {
     const stage =
-      event.source === "local" ? "retrieving_local" : "searching_web";
+      event.source === "local"
+        ? "retrieving_local"
+        : event.source === "academic"
+          ? "searching_academic"
+          : "filtering_sources";
     const label =
       event.source === "local"
         ? `已检索书库，找到 ${event.result_count} 个相关片段`
-        : `已搜索网络资料，找到 ${event.result_count} 个结果`;
+        : event.source === "academic"
+          ? `已搜索学术资料，找到 ${event.result_count} 个结果`
+          : `已搜索网络资料，找到 ${event.result_count} 个结果`;
     return {
       ...state,
       activity: {
         ...state.activity,
         steps: state.activity.steps.map((step) =>
-          step.stage === stage
+          step.stage === stage ||
+          (event.source !== "local" &&
+            [
+              "planning_web",
+              "searching_web",
+              "searching_academic",
+              "reading_pages",
+            ].includes(step.stage))
             ? {
                 ...step,
                 message: label,
@@ -145,16 +158,16 @@ function activateStep(
   stage: AgentActivityStage,
   message: string,
 ) {
-  const parallelRetrieval =
-    stage === "retrieving_local" || stage === "searching_web";
+  const stageBranch = retrievalBranch(stage);
   const updated = steps.map((step) => {
     if (step.stage === stage) {
       return { ...step, message, status: "active" as const };
     }
     if (
       step.status === "active" &&
-      (!parallelRetrieval ||
-        (step.stage !== "retrieving_local" && step.stage !== "searching_web"))
+      (!stageBranch ||
+        retrievalBranch(step.stage) === stageBranch ||
+        !retrievalBranch(step.stage))
     ) {
       return { ...step, status: "completed" as const };
     }
@@ -164,6 +177,24 @@ function activateStep(
     updated.push({ stage, message, status: "active" });
   }
   return updated;
+}
+
+function retrievalBranch(stage: AgentActivityStage): "local" | "web" | null {
+  if (stage === "retrieving_local") return "local";
+  if (
+    [
+      "planning_web",
+      "searching_web",
+      "searching_academic",
+      "reading_pages",
+      "filtering_sources",
+      "evaluating_sources",
+      "correcting_retrieval",
+    ].includes(stage)
+  ) {
+    return "web";
+  }
+  return null;
 }
 
 function terminalState(

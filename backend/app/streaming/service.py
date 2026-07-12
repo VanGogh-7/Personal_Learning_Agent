@@ -34,6 +34,11 @@ from app.observability.latency import (
     latency_trace_context,
     measure_latency_sync,
 )
+from app.settings.runtime import (
+    ProviderRuntimeSnapshot,
+    capture_provider_snapshots,
+    provider_request_snapshot,
+)
 from app.streaming.events import (
     AgentStreamEventBase,
     AgentStreamEventFactory,
@@ -104,6 +109,9 @@ class AgentStreamingRun:
     session_factory: Callable[[], Session]
     conversation_is_provisional: bool
     trace: AgentLatencyTrace
+    provider_snapshots: (
+        tuple[ProviderRuntimeSnapshot | None, ProviderRuntimeSnapshot | None] | None
+    ) = None
 
 
 def prepare_streaming_run(
@@ -134,6 +142,7 @@ def prepare_streaming_run(
         session_factory=session_factory,
         conversation_is_provisional=provisional,
         trace=trace,
+        provider_snapshots=capture_provider_snapshots(),
     )
 
 
@@ -208,11 +217,12 @@ async def stream_agent_sse(
             )
             initial_state = build_initial_agent_state(run.request, run.identity)
             producer = asyncio.create_task(
-                _produce_graph_events(
+                _produce_graph_events_with_snapshot(
                     graph,
                     initial_state,
                     thread_id=run.identity.thread_id,
                     queue=queue,
+                    provider_snapshots=run.provider_snapshots,
                 )
             )
             heartbeat_at = monotonic() + settings.agent_stream_heartbeat_seconds
@@ -222,8 +232,7 @@ async def stream_agent_sse(
                     trace.set_counter("client_cancelled", True)
                     terminal_error = RuntimeError("client_cancelled")
                     if persistence_started:
-                        with suppress(asyncio.CancelledError, Exception):
-                            await asyncio.shield(producer)
+                        await _finish_persistence_producer(producer, queue)
                     else:
                         producer.cancel()
                         with suppress(asyncio.CancelledError):
@@ -338,8 +347,7 @@ async def stream_agent_sse(
     finally:
         if producer is not None and not producer.done():
             if persistence_started:
-                with suppress(asyncio.CancelledError, Exception):
-                    await asyncio.shield(producer)
+                await _finish_persistence_producer(producer, queue)
             else:
                 producer.cancel()
                 with suppress(asyncio.CancelledError):
@@ -371,6 +379,41 @@ async def stream_agent_sse_with_run_lock(
     finally:
         await generator.aclose()
         active_agent_runs.release(conversation_id)
+
+
+async def _produce_graph_events_with_snapshot(
+    graph: Any,
+    initial_state: AgentGraphState,
+    *,
+    thread_id: str,
+    queue: asyncio.Queue[tuple[str, Any]],
+    provider_snapshots: tuple[
+        ProviderRuntimeSnapshot | None, ProviderRuntimeSnapshot | None
+    ]
+    | None,
+) -> None:
+    with provider_request_snapshot(provider_snapshots):
+        await _produce_graph_events(
+            graph, initial_state, thread_id=thread_id, queue=queue
+        )
+
+
+async def _finish_persistence_producer(
+    producer: asyncio.Task[None], queue: asyncio.Queue[tuple[str, Any]]
+) -> None:
+    """Let an in-flight final transaction finish without deadlocking its queue.
+
+    Once the client has disconnected, queued public events no longer have a
+    consumer. Draining them here preserves the commit/compensation boundary
+    while allowing the bounded producer queue to make progress.
+    """
+    while not producer.done():
+        try:
+            await asyncio.wait_for(queue.get(), timeout=0.1)
+        except TimeoutError:
+            continue
+    with suppress(asyncio.CancelledError, Exception):
+        await asyncio.shield(producer)
 
 
 async def _produce_graph_events(

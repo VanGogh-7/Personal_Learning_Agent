@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { MarkdownMessage } from "./MarkdownMessage";
 
 describe("MarkdownMessage", () => {
@@ -57,6 +57,21 @@ $$`}
     expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(
       4,
     );
+  });
+
+  it("turns only S/W markers into safe citation buttons", () => {
+    const activate = vi.fn();
+    render(
+      <MarkdownMessage
+        content="Use [S1], [W2], and `[S3]`."
+        onCitationActivate={activate}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show source S1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show source W2" }));
+    expect(activate.mock.calls).toEqual([["S1"], ["W2"]]);
+    expect(screen.getByText("[S3]", { selector: "code" })).toBeInTheDocument();
   });
 
   it("keeps dollar-delimited text inside inline and fenced code out of KaTeX", () => {

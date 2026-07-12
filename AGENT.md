@@ -11,7 +11,8 @@ source management and Agent Chat as the main interaction surface.
 - Repository + Agent Chat frontend.
 - Add PDFs through the Tauri file picker.
 - Copy imported PDFs into backend-managed storage.
-- Extract text from born-digital PDFs.
+- Classify born-digital/scanned/mixed PDFs and retain retryable OCR processing
+  versions without modifying the source PDF.
 - Chunk, embed, retrieve, and cite local Library evidence.
 - Run `/api/agent/chat` through an explicit LangGraph dual-agent graph.
 - Stream `/api/agent/chat/stream` as POST SSE while retaining `/api/agent/chat`
@@ -42,11 +43,9 @@ Do not add or reintroduce these unless the user explicitly requests a
 new stage for them:
 
 - embedded PDF preview/reader
-- citation click-to-page behavior
 - local embedding model deployment
-- OCR/scanned PDF support
-- document-RAG reranker, hybrid/BM25 search, or query expansion
-- Settings UI
+- automatic OCR/visual-model installation
+- production visual-page retrieval without measured real-model evidence
 - Calendar UI
 - Notes UI
 - broad tool calling or autonomous planning
@@ -58,8 +57,9 @@ new stage for them:
 - Database: PostgreSQL + pgvector.
 - Embeddings: API-based provider with mock provider for tests.
 - LLM: API-based provider with deterministic provider for tests.
-- Web Research Agent: provider boundary with unavailable, mock, and
-  optional Tavily modes.
+- Web Research Agent: deterministic planner over an allowlisted MCP gateway for
+  Tavily, Brave, Secure Fetch, and academic metadata, with legacy provider
+  compatibility.
 
 ## LangGraph Design
 
@@ -141,6 +141,8 @@ Add PDF
 - `frontend/src/components/RagQueryPanel.tsx`: Agent Chat UI.
 - `frontend/src/streaming/`: SSE protocol types, parser, and run state machine.
 - `frontend/src/components/AgentActivity.tsx`: real backend-driven Activity.
+- `frontend/src/components/SourcesPanel.tsx`: grouped local/web/academic source cards.
+- `frontend/src/sources/sourceUtils.ts`: source normalization, safe URLs, and display-only deduplication.
 - `frontend/src/tauri/filePicker.ts`: PDF-only desktop file picker.
 - `frontend/src/tauri/pdfOpener.ts`: managed-PDF system opener boundary.
 - `frontend/src/chat/conversationState.ts`: current conversation, messages,
@@ -153,6 +155,13 @@ Add PDF
 - `backend/app/agents/router.py`: deterministic route heuristics.
 - `backend/app/agents/local_library.py`: local retrieval agent.
 - `backend/app/agents/web_research.py`: web provider boundary.
+- `backend/app/mcp/config.py`: audited server configuration and tool allowlists.
+- `backend/app/mcp/client.py`: reusable STDIO/Streamable HTTP lifecycle manager.
+- `backend/app/mcp/gateway.py`: per-request MCP call budget.
+- `backend/app/mcp/research.py`: deterministic planner, provider selection, and fallback.
+- `backend/app/mcp/evidence.py`: evidence normalization, ranking, and deduplication.
+- `backend/app/mcp/servers/fetch.py`: SSRF-protected public-page Fetch MCP.
+- `backend/app/mcp/servers/academic.py`: local arXiv/OpenAlex/Crossref MCP server.
 - `backend/app/agents/synthesis.py`: final answer synthesis.
 - `backend/app/library/importing.py`: managed PDF import flow.
 - `backend/app/library/indexing.py`: PDF indexing flow.
@@ -208,6 +217,7 @@ bun run tauri dev
   - `DEEPSEEK_API_KEY`
   - `ZHIPU_API_KEY`
   - `TAVILY_API_KEY`
+  - `BRAVE_API_KEY`
 
 Tests should use deterministic/mock providers and must not require real
 Zhipu, DeepSeek, Tavily, Brave, Serper, or other network API access.
@@ -241,6 +251,204 @@ Stage 54 reliability rules:
   checkpointing remains outside that transaction and compensation is best effort.
 - Fault injection stays deterministic, test-only, default-off, and forbidden in
   production. Do not add public debug failure endpoints.
+
+Stage 55 MCP rules:
+
+- Keep `MCP_ENABLED=false` and `MCP_REAL_TESTS=false` by default. Ordinary
+  pytest must never start external Tavily/Brave servers or consume API quota.
+- Never auto-install an MCP server. Default external commands use
+  `npx --no-install`; operators install and pin audited packages separately.
+- The model never receives unrestricted MCP discovery. A tool must be present
+  in both the server discovery response and PLA's static per-server allowlist.
+- Reuse manager-owned sessions across requests and close them in FastAPI
+  lifespan. Cancellation must stop the affected runtime before later Fetch work.
+- `local_only` never calls MCP. In `both`, the independent Local and Web graph
+  branches remain parallel.
+- Synthesis receives only normalized Web evidence, never raw MCP JSON. Academic
+  sources remain `[W]` with `source_type=academic` metadata.
+- Fetch only preselected public HTTP(S) URLs. Keep DNS, redirect, peer-address,
+  content-type, response-size, redirect-count, and timeout checks intact.
+- Never log keys, raw tool arguments, full web pages, prompts, or MCP subprocess
+  stderr. Public SSE Activity must use stable product stages, not server/tool names.
+- The local Academic MCP is metadata-only: no PDF downloads, automatic
+  Repository imports, or citation-graph traversal.
+
+Stage 56 MCP reliability rules:
+
+- FastAPI lifespan is the only owner of the shared `MCPClientManager`. Keep
+  servers lazy and reusable; never start one subprocess or HTTP session per
+  Agent request.
+- Preserve the explicit server states `disabled`, `starting`, `healthy`,
+  `degraded`, and `unavailable`. Health checks may repeat discovery but must not
+  execute a search or consume Provider quota.
+- Keep one serialized worker and a bounded pending queue per MCP session.
+  `MCP_TOTAL_TIMEOUT_SECONDS` must include queueing, bounded retries, and
+  backoff; never add an unbounded retry or recursive fallback.
+- Every gateway tool needs both a static allowlist entry and an internal
+  Pydantic argument schema. Discovery alone never authorizes a new tool or
+  parameter.
+- Cancellation and shutdown must fail current/queued callers, close the
+  transport, and release `pla-mcp-*` worker tasks. Do not continue Fetch,
+  fallback, final persistence, or Memory post-processing after cancellation.
+- Secure Fetch requires public HTTP(S) targets before connection, on every
+  redirect, and at the connected peer when available. Preserve mixed-DNS,
+  IPv4-mapped IPv6, private/link-local/metadata, content-type, size, redirect,
+  read-timeout, and total-time defenses.
+- MCP structured logs may contain request ID, server, approved tool, transport,
+  outcome, and safe error category only. Never add arguments, response bodies,
+  subprocess stderr, raw exception stacks, or secrets.
+- The manager is process-local. Do not claim cross-worker coordination or add
+  Redis/database locks as incidental reliability work.
+
+Stage 57 adaptive graph rules:
+
+- Query semantics must validate against `QueryAnalysis`. Real LLM JSON is
+  advisory semantic input; deterministic code alone selects from the fixed
+  execution modes and graph paths.
+- Local, Web, and Academic research return structured evidence only. Final
+  Synthesis is the sole long-form answer generator.
+- One request shares one `MCPToolGateway` across Web, Academic, and correction,
+  so graph loops never reset `MCP_MAX_CALLS_PER_REQUEST`.
+- Independent research branches may run concurrently. Never bypass the Stage
+  56 per-session serialized worker to force concurrency inside one MCP server.
+- Corrective retrieval defaults to one attempt and has a hard limit of two.
+  Keep successful prior evidence and never introduce an open-ended graph loop.
+- Citation verification is deterministic first. Permit at most one repair and
+  one re-verification; persisted text and the final SSE response must be the
+  verified version.
+- Public Activity uses stable product stages only. Never expose analysis JSON,
+  internal node names, prompts, tool arguments, raw evidence payloads, or
+  chain-of-thought.
+- Keep the current dense Local retrieval implementation unless a separate
+  measured RAG stage explicitly adds keyword retrieval, reranking, or parent
+  context expansion.
+
+Stage 58 evaluation rules:
+
+- Keep `backend/evals/adaptive_graph.jsonl` human-labelled and schema-valid.
+  Golden labels are primary; LLM judges are experiments, never ground truth.
+- Default evaluation must remain deterministic and network-free. Real DeepSeek
+  runs require `PLA_REAL_PROVIDER_TESTS=true`, `--real-providers`, and
+  `--confirm-costs` together.
+- Never write questions, prompts, raw evidence, keys, Authorization headers, or
+  full Provider payloads to evaluation reports. Safe case IDs, request IDs,
+  routes, aggregates, token counts, and error types are allowed.
+- Do not hard-code Provider prices. Cost is null unless explicit per-million
+  input and output rates are supplied for that run.
+- Keep experimental LLM grader and semantic verifier adapters under
+  `app.evaluation`; do not import them into the production Graph or enable them
+  by default.
+- Treat offline path latency and call counts as proxies. Use Stage 52/54 real
+  traces for Provider TTFT, generation, MCP latency, persistence, and perceived
+  frontend latency.
+- Apply production rule changes only for repeated labelled failures. Document
+  before/after metrics and do not tune thresholds from one anecdotal case.
+
+Stage 59 held-out evaluation rules:
+
+- Keep `evals/heldout/cases.jsonl`, `labels.jsonl`, and `claims.jsonl`
+  separate. Model and MCP calls receive case inputs or source excerpts only;
+  expected intent, route, grade, and claim labels belong exclusively to scoring.
+- Never use the held-out labels to tune production QueryAnalysis rules, grader
+  thresholds, or citation triggers. Create a new sealed validation subset if a
+  later measured defect justifies a production change.
+- Real QueryAnalysis, MCP sampling, and semantic verification require
+  `PLA_REAL_PROVIDER_TESTS=true`, explicit CLI flags, and `--confirm-costs`.
+  They remain excluded from ordinary pytest and must skip clearly without keys.
+- Semantic verification stays in `app.evaluation`; production Graph modules
+  must not import it. A recommendation requires human claim labels plus measured
+  precision, recall, false-positive rate, latency, failures, and token cost.
+- Generated reports may contain case IDs, routes, aggregate metrics, safe error
+  categories, and bounded normalized public-source samples. Do not include full
+  questions, prompts, claim text, complete pages, Authorization data, or keys.
+- Do not describe offline deterministic latency as Provider latency. Real
+  DeepSeek and MCP results must record the run count and environment and must
+  not be generalized from a single run.
+
+Stage 60 Settings and Provider rules:
+
+- Store Provider profile metadata and secret references only. API keys belong
+  in Tauri Stronghold, never PostgreSQL, localStorage, ordinary JSON, logs,
+  traces, exception text, or API responses.
+- The Stronghold passphrase is session-only. Browser development may keep a key
+  in memory for testing but must clearly state that persistent secure storage
+  requires the Tauri desktop runtime.
+- Preserve `.env` DeepSeek/Zhipu/deterministic configuration as the fallback
+  whenever no unlocked runtime profile exists.
+- Capture Chat and Embedding Provider snapshots before each Agent run. Profile
+  activation affects new requests only and must not mutate an in-flight stream.
+- Keep Provider-specific payloads inside adapters. Graph, RAG, evaluation, and
+  UI code consume normalized chat chunks, structured results, embeddings, and
+  capability metadata.
+- Never activate an Embedding profile until its index version is `ready`.
+  Versioned vectors live in `chunk_embeddings` and every query filters one exact
+  `embedding_index_version`; do not overwrite or mix the legacy vector column.
+- Long-term Memory retains its existing configured embedding space until a
+  separate measured Memory migration explicitly versions that schema.
+- Connection tests are minimal and bounded. They must not create Conversation,
+  Memory, citation, or learning-event records and must return safe errors only.
+
+Stage 61 legacy-PDF and retrieval rules:
+
+- Keep the source PDF immutable. OCRmyPDF output, page OCR data, chunks, and
+  visual vectors belong to a new processing/index version; activate it only
+  after successful text extraction and embedding.
+- Persist only bounded classification evidence, page/bbox metadata, confidence,
+  extraction method, parser/OCR versions, and checksums. Never log full page
+  text or rendered page images.
+- PyMuPDF plus deterministic math/layout rules is the sole production parser in
+  this stage. Do not add Docling, MinerU, or PP-Structure as parallel main paths.
+- PDF Local Research uses dense plus PostgreSQL full-text candidates, RRF,
+  bounded reranking, and parent context. Preserve non-PDF dense compatibility,
+  selected-book filtering, `LocalEvidence`, and `[S#]` page citations.
+- Text, OCR-text, Stage 60 embedding, and visual page versions are isolated.
+  Queries must use `documents.active_processing_version_id`, an exact active
+  embedding-index version, and matching visual model/dimension/page checksum.
+- Visual retrieval is opt-in and default-off. Never auto-download a model,
+  assume a GPU, or describe the deterministic fixture encoder as production.
+- Use `scripts/evaluate_pdf_rag.py` for offline comparison. Treat checked-in
+  latency/storage values as fixture proxies; real OCR/GPU claims require an
+  explicitly marked run and recorded environment.
+- Do not add an ANN vector index without measured production-scale evidence.
+
+Stage 63 source and citation UX rules:
+
+- Preserve `[S#]` for local Library evidence and `[W#]` for Web/Academic evidence.
+  Citation interaction may enhance these markers but must never introduce a new
+  marker family or rewrite answer HTML.
+- Render one compact Sources area inside each completed Assistant turn. Group
+  Local, Web, and Academic cards while retaining every original citation ID as
+  an alias when adjacent pages or duplicate external records share one card.
+- Open local citations only by matching `library_item_id` to a loaded Repository
+  item and reusing the managed-PDF Tauri opener. Never render an absolute local
+  path or add an arbitrary-path backend endpoint.
+- External source opening must use the Tauri opener after frontend validation of
+  `http` or `https`; reject `javascript`, `file`, and malformed URLs. Prefer a
+  canonical DOI URL, then canonical arXiv URL, when those identifiers exist.
+- Treat OCR excerpts as fallible extraction. Label OCR sources and show the
+  lightweight confidence warning only below the UI threshold; keep page and
+  bounded bbox metadata in the response contract.
+- Sources remain an additive response/UX change. Do not change Graph routing,
+  retrieval scoring, MCP execution, Memory, Provider Settings, or model setup.
+
+Stage 64 stabilization rules:
+
+- Keep Backend `AgentActivityStage`, retrieval sources, frontend streaming
+  types, and the runtime SSE parser whitelist synchronized. TypeScript types
+  alone do not validate incoming network events.
+- On disconnect during final persistence, let the transaction reach its
+  commit-or-compensate boundary while draining discarded internal events so a
+  bounded queue cannot deadlock the producer or retain the active-run lock.
+- Preserve legacy chunk uniqueness when `processing_version_id IS NULL` with
+  the Stage 64 partial unique index. Never delete ambiguous duplicate rows in a
+  migration; block with a clear remediation message instead.
+- Provider profile metadata may persist, but runtime clients do not survive a
+  Backend restart and the Backend cannot read Stronghold. Expose the runtime
+  activation state and require explicit reconnection after vault unlock; keep
+  `.env` fallback behavior unchanged.
+- Do not edit already-applied migrations, globally format unrelated legacy
+  files, start sidecar packaging, enable Visual Retrieval, or claim opt-in real
+  environment checks that were not executed.
 
 ## Repository Hygiene
 
