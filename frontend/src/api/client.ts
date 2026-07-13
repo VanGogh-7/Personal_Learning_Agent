@@ -10,6 +10,7 @@ import type {
   ProviderProfile,
   ProviderProfileInput,
   ProviderProfileList,
+  LongTermMemoryList,
 } from "./types";
 import { getBackendBaseUrl } from "./config";
 import { AgentSSEParser } from "../streaming/parser";
@@ -218,6 +219,16 @@ export function reindexEmbeddingProfile(
 
 export function deleteProviderProfile(profileId: string): Promise<void> {
   return requestJson<void>(`/api/settings/profiles/${profileId}`, {
+    method: "DELETE",
+  });
+}
+
+export function listLongTermMemories(): Promise<LongTermMemoryList> {
+  return requestJson<LongTermMemoryList>("/api/memory/long-term?limit=100");
+}
+
+export function deleteLongTermMemory(memoryId: string): Promise<void> {
+  return requestJson<void>(`/api/memory/long-term/${memoryId}`, {
     method: "DELETE",
   });
 }

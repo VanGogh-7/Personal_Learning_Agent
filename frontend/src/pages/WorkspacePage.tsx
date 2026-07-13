@@ -1,42 +1,51 @@
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { importLibraryPdfs, listLibraryItems } from "../api/client";
 import type { LibraryItem } from "../api/types";
 import {
-  persistConversationState,
   pruneMissingLibraryItems,
-  restoreConversationState,
   toggleSelectedLibraryItem,
+  type ConversationState,
 } from "../chat/conversationState";
+import {
+  activeConversation,
+  persistConversationWorkspace,
+  restoreConversationWorkspace,
+  selectConversation,
+  startNewConversation,
+  updateActiveConversation,
+  updateConversationEntry,
+} from "../chat/conversationWorkspace";
 import RagQueryPanel from "../components/RagQueryPanel";
+import Sidebar from "../components/Sidebar";
 import { selectLocalPdfFiles } from "../tauri/filePicker";
 import { openManagedLibraryPdf } from "../tauri/pdfOpener";
-import {
-  fileNameFromPath,
-  pdfSupportLabel,
-  workspaceStatusLabel,
-} from "../utils/libraryFiles";
+import { fileNameFromPath } from "../utils/libraryFiles";
 
-export default function WorkspacePage() {
-  const [restoredConversation] = useState(restoreConversationState);
+export default function WorkspacePage({
+  onOpenSettings = () => undefined,
+}: {
+  onOpenSettings?: () => void;
+}) {
+  const [restored] = useState(restoreConversationWorkspace);
+  const [workspace, setWorkspace] = useState(restored.workspace);
   const [items, setItems] = useState<LibraryItem[]>([]);
-  const [conversation, setConversation] = useState(restoredConversation.state);
-  const [conversationWarning, setConversationWarning] = useState<string | null>(
-    restoredConversation.warning,
-  );
+  const [warning, setWarning] = useState<string | null>(restored.warning);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
-  const [libraryError, setLibraryError] = useState<string | null>(null);
   const [addingPdfs, setAddingPdfs] = useState(false);
-  const [addPdfStatus, setAddPdfStatus] = useState<string | null>(null);
-  const [addPdfError, setAddPdfError] = useState<string | null>(null);
-  const [openPdfError, setOpenPdfError] = useState<string | null>(null);
+  const [libraryNotice, setLibraryNotice] = useState<string | null>(null);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [providerReady, setProviderReady] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const clickTimerRef = useRef<number | null>(null);
+  const current = activeConversation(workspace);
 
   const selectedItems = useMemo(
     () =>
-      conversation.selectedLibraryItemIds
+      current.state.selectedLibraryItemIds
         .map((id) => items.find((item) => item.id === id))
         .filter((item): item is LibraryItem => Boolean(item)),
-    [conversation.selectedLibraryItemIds, items],
+    [current.state.selectedLibraryItemIds, items],
   );
 
   useEffect(() => {
@@ -44,17 +53,14 @@ export default function WorkspacePage() {
   }, []);
 
   useEffect(() => {
-    const warning = persistConversationState(conversation);
-    if (warning) {
-      setConversationWarning(warning);
-    }
-  }, [conversation]);
+    const persistenceWarning = persistConversationWorkspace(workspace);
+    if (persistenceWarning) setWarning(persistenceWarning);
+  }, [workspace]);
 
   useEffect(
     () => () => {
-      if (clickTimerRef.current !== null) {
+      if (clickTimerRef.current !== null)
         window.clearTimeout(clickTimerRef.current);
-      }
     },
     [],
   );
@@ -65,22 +71,22 @@ export default function WorkspacePage() {
     try {
       const response = await listLibraryItems({ limit: 100 });
       setItems(response.items);
+      setProviderReady(true);
       const availableIds = new Set(response.items.map((item) => item.id));
-      setConversation((current) => {
-        const pruned = pruneMissingLibraryItems(current, availableIds);
-        if (pruned !== current) {
-          setConversationWarning(
-            "One or more selected PDFs no longer exist and were removed from context.",
-          );
-        }
-        return pruned;
-      });
+      setWorkspace((value) => ({
+        ...value,
+        conversations: value.conversations.map((entry) => ({
+          ...entry,
+          state: pruneMissingLibraryItems(entry.state, availableIds),
+        })),
+      }));
     } catch (error) {
       setItems([]);
+      setProviderReady(false);
       setLibraryError(
         error instanceof Error
           ? error.message
-          : "Could not load PDF Library items.",
+          : "Could not load the PDF Repository.",
       );
     } finally {
       setLoadingLibrary(false);
@@ -88,85 +94,85 @@ export default function WorkspacePage() {
   }
 
   async function addPdfs() {
-    setAddPdfError(null);
-    setAddPdfStatus(null);
+    setLibraryError(null);
+    setLibraryNotice(null);
     setAddingPdfs(true);
-
     try {
       const selectedPaths = await selectLocalPdfFiles();
-      if (selectedPaths.length === 0) {
-        return;
-      }
-
-      let lastIndexedItem: LibraryItem | null = null;
-      setAddPdfStatus(
+      if (!selectedPaths.length) return;
+      setLibraryNotice(
         selectedPaths.length === 1
           ? `Indexing ${fileNameFromPath(selectedPaths[0])}`
           : `Indexing ${selectedPaths.length} PDFs`,
       );
-
-      const importResponse = await importLibraryPdfs({
-        source_paths: selectedPaths,
-      });
-      lastIndexedItem =
-        importResponse.items[importResponse.items.length - 1]?.library_item ||
-        null;
-
+      const imported = await importLibraryPdfs({ source_paths: selectedPaths });
       const response = await listLibraryItems({ limit: 100 });
       setItems(response.items);
-      if (lastIndexedItem) {
-        setConversation((current) =>
-          current.selectedLibraryItemIds.includes(lastIndexedItem.id)
-            ? current
-            : {
-                ...current,
-                selectedLibraryItemIds: [
-                  ...current.selectedLibraryItemIds,
-                  lastIndexedItem.id,
-                ],
-              },
+      const last = imported.items[imported.items.length - 1]?.library_item;
+      if (last) {
+        setWorkspace((value) =>
+          updateActiveConversation(value, (state) =>
+            state.selectedLibraryItemIds.includes(last.id)
+              ? state
+              : {
+                  ...state,
+                  selectedLibraryItemIds: [
+                    ...state.selectedLibraryItemIds,
+                    last.id,
+                  ],
+                },
+          ),
         );
       }
-      setAddPdfStatus(
-        selectedPaths.length === 1
-          ? "PDF indexed successfully."
-          : `${selectedPaths.length} PDFs indexed successfully.`,
+      setLibraryNotice(
+        `${selectedPaths.length} PDF${selectedPaths.length === 1 ? "" : "s"} indexed successfully.`,
       );
     } catch (error) {
-      setAddPdfError(
+      setLibraryError(
         error instanceof Error ? error.message : "Could not add PDFs.",
       );
-      setAddPdfStatus("PDF indexing failed.");
       await loadLibrary();
     } finally {
       setAddingPdfs(false);
     }
   }
 
+  function updateConversation(
+    update:
+      ConversationState | ((state: ConversationState) => ConversationState),
+  ) {
+    const conversationKey = current.key;
+    setWorkspace((value) =>
+      updateConversationEntry(value, conversationKey, update),
+    );
+  }
+
   function handleRepositoryClick(event: MouseEvent, itemId: string) {
     if (event.detail > 1) {
-      if (clickTimerRef.current !== null) {
+      if (clickTimerRef.current !== null)
         window.clearTimeout(clickTimerRef.current);
-        clickTimerRef.current = null;
-      }
+      clickTimerRef.current = null;
       return;
     }
     clickTimerRef.current = window.setTimeout(() => {
-      setConversation((current) => toggleSelectedLibraryItem(current, itemId));
+      setWorkspace((value) =>
+        updateActiveConversation(value, (state) =>
+          toggleSelectedLibraryItem(state, itemId),
+        ),
+      );
       clickTimerRef.current = null;
     }, 220);
   }
 
-  async function handleRepositoryDoubleClick(item: LibraryItem) {
-    if (clickTimerRef.current !== null) {
+  async function openPdf(item: LibraryItem) {
+    if (clickTimerRef.current !== null)
       window.clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-    setOpenPdfError(null);
+    clickTimerRef.current = null;
+    setLibraryError(null);
     try {
       await openManagedLibraryPdf(item);
     } catch (error) {
-      setOpenPdfError(
+      setLibraryError(
         error instanceof Error
           ? error.message
           : "The managed PDF could not be opened.",
@@ -174,126 +180,69 @@ export default function WorkspacePage() {
     }
   }
 
+  function newChat() {
+    setWorkspace((value) => startNewConversation(value));
+    setMobileSidebarOpen(false);
+  }
+
   return (
-    <div className="workspace-page">
-      <div className="ide-workspace repository-chat-workspace">
-        <aside className="workspace-panel library-explorer">
-          <div className="workspace-panel-header">
-            <div>
-              <h2>PDF Repository</h2>
-              <p>{items.length} PDF books</p>
-            </div>
-            <div className="button-row">
-              <button
-                type="button"
-                className="compact-button"
-                disabled={addingPdfs}
-                onClick={addPdfs}
-              >
-                {addingPdfs ? "Adding..." : "Add PDFs"}
-              </button>
-              <button
-                type="button"
-                className="secondary-button compact-button"
-                disabled={loadingLibrary || addingPdfs}
-                onClick={loadLibrary}
-              >
-                {loadingLibrary ? "Loading" : "Reload"}
-              </button>
-            </div>
-          </div>
-
-          {addPdfStatus && (
-            <p
-              className={
-                addPdfError ? "error compact-error" : "success compact-success"
-              }
+    <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        conversations={workspace.conversations}
+        activeConversationKey={workspace.activeKey}
+        items={items}
+        selectedItemIds={current.state.selectedLibraryItemIds}
+        loadingLibrary={loadingLibrary}
+        addingPdfs={addingPdfs}
+        healthLabel={providerReady ? "Ready" : "Check settings"}
+        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+        onNewChat={newChat}
+        onSelectConversation={(key) => {
+          setWorkspace((value) => selectConversation(value, key));
+          setMobileSidebarOpen(false);
+        }}
+        onRepositoryClick={handleRepositoryClick}
+        onRepositoryDoubleClick={(item) => void openPdf(item)}
+        onAddPdfs={() => void addPdfs()}
+        onReload={() => void loadLibrary()}
+        onOpenSettings={onOpenSettings}
+      />
+      <div className="workspace-content">
+        {(warning || libraryNotice || libraryError) && (
+          <div
+            className={`workspace-toast${libraryError ? " error" : ""}`}
+            role="status"
+          >
+            {libraryError || warning || libraryNotice}
+            <button
+              type="button"
+              aria-label="Dismiss notification"
+              onClick={() => {
+                setWarning(null);
+                setLibraryNotice(null);
+                setLibraryError(null);
+              }}
             >
-              {addPdfStatus}
-            </p>
-          )}
-          {addPdfError && <p className="error compact-error">{addPdfError}</p>}
-          {libraryError && (
-            <p className="error compact-error">{libraryError}</p>
-          )}
-          {openPdfError && (
-            <p className="error compact-error">{openPdfError}</p>
-          )}
-          {conversationWarning && (
-            <p className="error compact-error">{conversationWarning}</p>
-          )}
-
-          {selectedItems.length > 0 ? (
-            <div className="selected-context">
-              <span className="field-label">
-                Selected context ({selectedItems.length})
-              </span>
-              <div className="selected-book-list">
-                {selectedItems.map((item) => (
-                  <span className="selected-book-chip" key={item.id}>
-                    {item.title}
-                  </span>
-                ))}
-              </div>
-              <small>
-                Click a selected book again to remove it. Double-click to open.
-              </small>
-            </div>
-          ) : null}
-
-          {items.length === 0 ? (
-            <p className="empty-state">
-              {loadingLibrary
-                ? "Loading PDF Repository..."
-                : "No Library items found."}
-            </p>
-          ) : (
-            <ul className="explorer-list" aria-label="PDF Repository items">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className={
-                      conversation.selectedLibraryItemIds.includes(item.id)
-                        ? "explorer-item selected"
-                        : "explorer-item"
-                    }
-                    aria-pressed={conversation.selectedLibraryItemIds.includes(
-                      item.id,
-                    )}
-                    onClick={(event) => handleRepositoryClick(event, item.id)}
-                    onDoubleClick={() => void handleRepositoryDoubleClick(item)}
-                    title="Click to toggle Agent context; double-click to open PDF"
-                  >
-                    <span className="explorer-title">{item.title}</span>
-                    <span className="explorer-meta">
-                      {pdfSupportLabel(item)} ·{" "}
-                      {workspaceStatusLabel(item.status)}
-                    </span>
-                    <span className="explorer-meta">
-                      {workspaceFileLabel(item)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-
-        <main className="workspace-panel agent-chat-dock" tabIndex={-1}>
-          <RagQueryPanel
-            conversation={conversation}
-            onConversationChange={setConversation}
-            workspaceSelectedItems={selectedItems}
-            libraryItems={items}
-          />
-        </main>
+              ×
+            </button>
+          </div>
+        )}
+        <RagQueryPanel
+          key={current.key}
+          conversation={current.state}
+          onConversationChange={updateConversation}
+          workspaceSelectedItems={selectedItems}
+          libraryItems={items}
+          conversationTitle={current.title}
+          currentModel="Configured in Settings"
+          sidebarCollapsed={sidebarCollapsed}
+          onNewChat={newChat}
+          onOpenSidebar={() => setMobileSidebarOpen(true)}
+        />
       </div>
     </div>
   );
-}
-
-function workspaceFileLabel(item: LibraryItem): string {
-  const title = item.title.trim();
-  return title.toLowerCase().endsWith(".pdf") ? title : `${title}.pdf`;
 }

@@ -20,21 +20,40 @@ import {
 } from "../chat/conversationState";
 import { ChatTurnMessage } from "./ChatTurnMessage";
 import { FrontendLatencyTracker } from "../chat/latency";
+import ChatHeader from "./ChatHeader";
+import ContextPanel, { type ContextPanelTab } from "./ContextPanel";
+import type { ChatTurn } from "../chat/conversationState";
 
 export default function RagQueryPanel({
   conversation,
   onConversationChange,
   workspaceSelectedItems,
   libraryItems = workspaceSelectedItems,
+  conversationTitle = "New conversation",
+  currentModel = "Configured Agent model",
+  sidebarCollapsed = false,
+  onNewChat,
+  onOpenSidebar = () => undefined,
 }: {
   conversation: ConversationState;
   onConversationChange: Dispatch<SetStateAction<ConversationState>>;
   workspaceSelectedItems: LibraryItem[];
   libraryItems?: LibraryItem[];
+  conversationTitle?: string;
+  currentModel?: string;
+  sidebarCollapsed?: boolean;
+  onNewChat?: () => void;
+  onOpenSidebar?: () => void;
 }) {
   const [question, setQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [activeRun, setActiveRun] = useState<AgentRunState | null>(null);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [contextTab, setContextTab] = useState<ContextPanelTab>("sources");
+  const [contextTurn, setContextTurn] = useState<ChatTurn | null>(null);
+  const [highlightedCitationId, setHighlightedCitationId] = useState<
+    string | null
+  >(null);
   const scrollRegionRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
   const activeRunRef = useRef<AgentRunState | null>(null);
@@ -283,12 +302,26 @@ export default function RagQueryPanel({
   }
 
   function startNewChat() {
-    onConversationChange(createEmptyConversationState());
+    if (onNewChat) onNewChat();
+    else onConversationChange(createEmptyConversationState());
     activeRunRef.current = null;
     setActiveRun(null);
     setQuestion("");
     setError(null);
     shouldAutoScrollRef.current = true;
+  }
+
+  function openSources(turn: ChatTurn, citationId?: string) {
+    setContextTurn(turn);
+    setHighlightedCitationId(citationId || null);
+    setContextTab("sources");
+    setContextOpen(true);
+  }
+
+  function openActivity(turn: ChatTurn) {
+    setContextTurn(turn);
+    setContextTab("activity");
+    setContextOpen(true);
   }
 
   function handleScroll(event: UIEvent<HTMLDivElement>) {
@@ -298,85 +331,154 @@ export default function RagQueryPanel({
     shouldAutoScrollRef.current = distanceFromBottom < 80;
   }
 
+  const latestTurn =
+    conversation.messages[conversation.messages.length - 1] || null;
+  const statusLabel = loading ? "Agent working" : "Ready";
+
   return (
-    <section className="panel agent-chat-panel">
-      <div className="panel-heading">
-        <div>
-          <h2>Agent Chat</h2>
-          <p>{activeContextLabel(workspaceSelectedItems)}</p>
-        </div>
-        <button
-          type="button"
-          className="secondary-button compact-button"
-          disabled={loading}
-          onClick={startNewChat}
-        >
-          New Chat
-        </button>
-      </div>
-
-      <div
-        className="chat-scroll-region"
-        ref={scrollRegionRef}
-        onScroll={handleScroll}
-      >
-        {workspaceSelectedItems.some((item) => item.status !== "indexed") && (
-          <p className="empty-state">
-            Unindexed PDFs remain selected visually but are excluded from the
-            next request.
-          </p>
-        )}
-
+    <section className={`agent-workspace${contextOpen ? " context-open" : ""}`}>
+      <main className="agent-chat-panel">
+        <ChatHeader
+          title={conversationTitle}
+          status={statusLabel}
+          selectedItems={workspaceSelectedItems}
+          sidebarCollapsed={sidebarCollapsed}
+          onOpenSidebar={onOpenSidebar}
+          onNewChat={startNewChat}
+          onToggleContext={() => {
+            if (!contextOpen) {
+              setContextTurn(contextTurn || latestTurn);
+              setContextTab("context");
+            }
+            setContextOpen((value) => !value);
+          }}
+        />
         <div
-          className={
-            conversation.messages.length === 0 && !loading
-              ? "chat-thread empty-chat-thread"
-              : "chat-thread"
-          }
-          aria-live="polite"
+          className="chat-scroll-region"
+          ref={scrollRegionRef}
+          onScroll={handleScroll}
         >
-          {conversation.messages.length === 0 && !loading ? (
+          {workspaceSelectedItems.some((item) => item.status !== "indexed") && (
             <p className="empty-state">
-              Ask a question about the selected PDFs.
+              Unindexed PDFs remain selected visually but are excluded from the
+              next request.
             </p>
-          ) : (
-            <>
-              {conversation.messages.map((turn) => (
-                <ChatTurnMessage
-                  turn={turn}
-                  libraryItems={libraryItems}
-                  key={turn.id}
-                />
-              ))}
-            </>
           )}
+
+          <div
+            className={
+              conversation.messages.length === 0 && !loading
+                ? "chat-thread empty-chat-thread"
+                : "chat-thread"
+            }
+            aria-live="polite"
+          >
+            {conversation.messages.length === 0 && !loading ? (
+              <EmptyChatState
+                selectedItems={workspaceSelectedItems}
+                onExample={setQuestion}
+              />
+            ) : (
+              <>
+                {conversation.messages.map((turn) => (
+                  <ChatTurnMessage
+                    turn={turn}
+                    libraryItems={libraryItems}
+                    onOpenSources={openSources}
+                    onOpenActivity={openActivity}
+                    key={turn.id}
+                  />
+                ))}
+              </>
+            )}
+          </div>
+
+          {error && <p className="error">{error}</p>}
         </div>
 
-        {error && <p className="error">{error}</p>}
-      </div>
+        <form className="chat-compose" onSubmit={submitQuery}>
+          {workspaceSelectedItems.length > 0 && (
+            <div className="composer-context-summary">
+              Using {workspaceSelectedItems.length} selected book
+              {workspaceSelectedItems.length === 1 ? "" : "s"}
+            </div>
+          )}
+          <label>
+            <span className="sr-only">Message</span>
+            <textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              rows={3}
+              placeholder="Ask about the selected PDFs..."
+            />
+          </label>
+          <button
+            type={loading ? "button" : "submit"}
+            disabled={activeRun?.status === "persisting"}
+            onClick={loading ? stopGeneration : undefined}
+          >
+            {activeRun?.status === "persisting"
+              ? "Saving..."
+              : loading
+                ? "Stop generating"
+                : "Send"}
+          </button>
+        </form>
+      </main>
+      <ContextPanel
+        open={contextOpen}
+        tab={contextTab}
+        turn={contextTurn || latestTurn}
+        selectedItems={libraryItems.filter((item) =>
+          conversation.selectedLibraryItemIds.includes(item.id),
+        )}
+        conversationId={conversation.conversationId}
+        conversationTitle={conversationTitle}
+        currentModel={currentModel}
+        highlightedCitationId={highlightedCitationId}
+        onTabChange={setContextTab}
+        onClose={() => setContextOpen(false)}
+      />
+    </section>
+  );
+}
 
-      <form className="chat-compose" onSubmit={submitQuery}>
-        <label>
-          <span className="sr-only">Message</span>
-          <textarea
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            rows={3}
-            placeholder="Ask about the selected PDFs..."
-          />
-        </label>
-        <button
-          type={loading ? "button" : "submit"}
-          disabled={activeRun?.status === "persisting"}
-          onClick={loading ? stopGeneration : undefined}
-        >
-          {activeRun?.status === "persisting"
-            ? "Saving..."
-            : loading
-              ? "Stop generating"
-              : "Send"}
-        </button>
-      </form>
+function EmptyChatState({
+  selectedItems,
+  onExample,
+}: {
+  selectedItems: LibraryItem[];
+  onExample: (value: string) => void;
+}) {
+  const examples = [
+    "Explain the main theorem and its assumptions.",
+    "Compare the definitions used across these books.",
+    "Create a proof outline for this result.",
+  ];
+  return (
+    <section className="empty-chat-state">
+      <p className="eyebrow">Personal Learning Agent</p>
+      <h2>Begin a focused research conversation</h2>
+      <p>Ask a question about the selected PDFs.</p>
+      <p className="empty-chat-detail">
+        You can also start with a broader mathematical question.
+      </p>
+      <div className="example-prompts">
+        {examples.map((example) => (
+          <button
+            type="button"
+            onClick={() => onExample(example)}
+            key={example}
+          >
+            {example}
+          </button>
+        ))}
+      </div>
+      <small>
+        {selectedItems.length
+          ? `${selectedItems.length} selected book${selectedItems.length === 1 ? "" : "s"} will be used as context.`
+          : "No books are selected yet."}
+      </small>
     </section>
   );
 }

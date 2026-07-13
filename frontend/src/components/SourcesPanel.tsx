@@ -23,6 +23,7 @@ export function SourcesPanel({
   highlightedCitationId,
   missingCitationId,
   onExpandedChange,
+  mode = "inline",
 }: {
   citations?: RagCitation[];
   webSources?: WebSource[];
@@ -31,6 +32,7 @@ export function SourcesPanel({
   highlightedCitationId: string | null;
   missingCitationId: string | null;
   onExpandedChange: (expanded: boolean) => void;
+  mode?: "inline" | "panel";
 }) {
   const cards = useMemo(
     () => buildSourceCards(citations, webSources),
@@ -43,17 +45,19 @@ export function SourcesPanel({
   if (cards.length === 0 && !missingCitationId) return null;
 
   return (
-    <section className="sources-panel" aria-label="Sources">
-      <button
-        type="button"
-        className="sources-toggle"
-        aria-expanded={expanded}
-        onClick={() => onExpandedChange(!expanded)}
-      >
-        <span>Sources</span>
-        <span className="source-count">{cards.length}</span>
-        <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
-      </button>
+    <section className={`sources-panel ${mode}`} aria-label="Sources">
+      {mode === "inline" && (
+        <button
+          type="button"
+          className="sources-toggle"
+          aria-expanded={expanded}
+          onClick={() => onExpandedChange(!expanded)}
+        >
+          <span>Sources</span>
+          <span className="source-count">{cards.length}</span>
+          <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
+        </button>
+      )}
       {expanded && (
         <div className="sources-content">
           {missingCitationId && !ids.has(missingCitationId) && (

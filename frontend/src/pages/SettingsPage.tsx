@@ -8,6 +8,8 @@ import {
   reindexEmbeddingProfile,
   testProviderConnection,
   updateProviderSecretReference,
+  listLongTermMemories,
+  deleteLongTermMemory,
 } from "../api/client";
 import type {
   ProviderCatalogEntry,
@@ -16,6 +18,7 @@ import type {
   ProviderKind,
   ProviderProfile,
   ProviderProfileInput,
+  LongTermMemory,
 } from "../api/types";
 import {
   deleteProviderSecret,
@@ -25,6 +28,18 @@ import {
   unlockSecretStore,
 } from "../settings/secretStore";
 import type { ThemePreference } from "../settings/theme";
+import type { DensityPreference } from "../settings/density";
+import { getBackendBaseUrl } from "../api/config";
+import { StatusPill } from "../components/ContextPanel";
+
+type SettingsSection =
+  | "appearance"
+  | "agent"
+  | "embedding"
+  | "memory"
+  | "research"
+  | "storage"
+  | "diagnostics";
 
 const EMPTY_CHAT: ProviderProfileInput = {
   kind: "chat",
@@ -49,9 +64,15 @@ const EMPTY_EMBEDDING: ProviderProfileInput = {
 export default function SettingsPage({
   theme,
   onThemeChange,
+  density = "comfortable",
+  onDensityChange = () => undefined,
+  onBack = () => undefined,
 }: {
   theme: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
+  density?: DensityPreference;
+  onDensityChange?: (density: DensityPreference) => void;
+  onBack?: () => void;
 }) {
   const [catalog, setCatalog] = useState<ProviderCatalogEntry[]>([]);
   const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
@@ -66,6 +87,10 @@ export default function SettingsPage({
   const [replacementKeys, setReplacementKeys] = useState<
     Record<string, string>
   >({});
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>("appearance");
+  const [memories, setMemories] = useState<LongTermMemory[]>([]);
+  const [loadingMemories, setLoadingMemories] = useState(false);
 
   const reload = async () => {
     const [entries, stored] = await Promise.all([
@@ -83,6 +108,36 @@ export default function SettingsPage({
       ),
     );
   }, []);
+
+  useEffect(() => {
+    if (activeSection !== "memory") return;
+    setLoadingMemories(true);
+    void listLongTermMemories()
+      .then((result) => setMemories(result.memories))
+      .catch((reason: unknown) =>
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Could not load saved memories.",
+        ),
+      )
+      .finally(() => setLoadingMemories(false));
+  }, [activeSection]);
+
+  const removeMemory = async (memory: LongTermMemory) => {
+    setError("");
+    try {
+      await deleteLongTermMemory(memory.id);
+      setMemories((current) => current.filter((item) => item.id !== memory.id));
+      setNotice("Saved memory deleted.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Could not delete saved memory.",
+      );
+    }
+  };
 
   const unlock = async () => {
     setError("");
@@ -219,134 +274,376 @@ export default function SettingsPage({
     }
   };
 
+  const settingsNav: Array<{ id: SettingsSection; label: string }> = [
+    { id: "appearance", label: "Appearance" },
+    { id: "agent", label: "Agent Model" },
+    { id: "embedding", label: "Embedding Model" },
+    { id: "memory", label: "Memory" },
+    { id: "research", label: "Research Tools" },
+    { id: "storage", label: "Storage" },
+    { id: "diagnostics", label: "Diagnostics" },
+  ];
+
   return (
-    <div className="settings-page">
-      <section className="settings-card">
-        <h2>Appearance</h2>
-        <label>
-          Theme
-          <select
-            aria-label="Theme"
-            value={theme}
-            onChange={(event) =>
-              onThemeChange(event.target.value as ThemePreference)
-            }
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
-      </section>
-
-      {secureSecretPersistenceAvailable() && !vaultUnlocked && (
-        <section className="settings-card vault-card">
-          <h2>Secure Provider Vault</h2>
-          <p>The passphrase unlocks Tauri Stronghold for this session.</p>
-          <input
-            aria-label="Vault passphrase"
-            type="password"
-            autoComplete="current-password"
-            value={vaultPassphrase}
-            onChange={(event) => setVaultPassphrase(event.target.value)}
-          />
-          <button type="button" onClick={() => void unlock()}>
-            Unlock vault
-          </button>
-        </section>
-      )}
-      {!secureSecretPersistenceAvailable() && (
-        <p className="settings-warning">
-          Browser development mode keeps API keys in memory only. Persistent
-          secret storage is available in the Tauri desktop app.
-        </p>
-      )}
-
-      <ProviderEditor
-        title="Agent Model"
-        draft={chat}
-        catalog={catalog}
-        onChange={setChat}
-        onTest={test}
-        onSave={save}
-      />
-      <ProviderEditor
-        title="Embedding Model"
-        draft={embedding}
-        catalog={catalog}
-        onChange={setEmbedding}
-        onTest={test}
-        onSave={save}
-      />
-
-      <section className="settings-card">
-        <h2>Saved profiles</h2>
-        <div className="profile-list">
-          {profiles.map((profile) => (
-            <article key={profile.id} className="profile-row">
-              <div>
-                <strong>{profile.name}</strong>
-                <span>
-                  {profile.provider} · {profile.model} ·{" "}
-                  {profile.api_key_mask ?? "no key"}
-                </span>
-                {profile.is_active && !profile.runtime_active && (
-                  <span>
-                    Reconnect this profile after unlocking the vault because the
-                    backend restarted.
-                  </span>
-                )}
-              </div>
-              <div className="profile-actions">
-                <input
-                  aria-label={`Replacement API Key for ${profile.name}`}
-                  type="password"
-                  autoComplete="off"
-                  placeholder="Replacement API key"
-                  value={replacementKeys[profile.id] ?? ""}
-                  onChange={(event) =>
-                    setReplacementKeys((current) => ({
-                      ...current,
-                      [profile.id]: event.target.value,
-                    }))
-                  }
-                />
-                <button type="button" onClick={() => void replaceKey(profile)}>
-                  Replace key
-                </button>
-                {profile.secret_ref && (
-                  <button type="button" onClick={() => void removeKey(profile)}>
-                    Remove key
-                  </button>
-                )}
-                {profile.kind === "embedding" && (
-                  <button type="button" onClick={() => void reindex(profile)}>
-                    Re-index
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={profile.runtime_active}
-                  onClick={() => void activate(profile)}
-                >
-                  {profile.runtime_active ? "Active" : "Activate"}
-                </button>
-                <button
-                  type="button"
-                  disabled={profile.is_active}
-                  onClick={() => void remove(profile)}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
-          ))}
-          {!profiles.length && <p>No desktop Provider profiles saved yet.</p>}
+    <div className="settings-shell">
+      <aside className="settings-sidebar">
+        <div className="settings-brand">
+          <span className="brand-mark">PLA</span>
+          <div>
+            <strong>Settings</strong>
+            <small>Workspace preferences</small>
+          </div>
         </div>
-      </section>
+        <button type="button" className="back-chat-button" onClick={onBack}>
+          ← Back to Chat
+        </button>
+        <nav aria-label="Settings sections">
+          {settingsNav.map((item) => (
+            <button
+              type="button"
+              className={activeSection === item.id ? "active" : ""}
+              aria-current={activeSection === item.id ? "page" : undefined}
+              onClick={() => setActiveSection(item.id)}
+              key={item.id}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="settings-sidebar-footer">
+          <StatusPill tone={error ? "danger" : "success"}>
+            {error ? "Attention needed" : "Desktop ready"}
+          </StatusPill>
+          <small>v0.1.0</small>
+        </div>
+      </aside>
+      <main className="settings-main">
+        <header className="settings-header">
+          <p className="eyebrow">Personal Learning Agent</p>
+          <h1>
+            {settingsNav.find((item) => item.id === activeSection)?.label}
+          </h1>
+          <p>
+            Configure the desktop workspace without exposing sensitive runtime
+            details.
+          </p>
+        </header>
+        {activeSection === "appearance" && (
+          <section className="settings-card">
+            <h2>Appearance</h2>
+            <p>
+              Choose a high-contrast theme and the workspace information
+              density.
+            </p>
+            <div className="settings-grid">
+              <label>
+                Theme
+                <select
+                  aria-label="Theme"
+                  value={theme}
+                  onChange={(event) =>
+                    onThemeChange(event.target.value as ThemePreference)
+                  }
+                >
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+              <label>
+                Density
+                <select
+                  aria-label="Density"
+                  value={density}
+                  onChange={(event) =>
+                    onDensityChange(event.target.value as DensityPreference)
+                  }
+                >
+                  <option value="comfortable">Comfortable</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </label>
+            </div>
+          </section>
+        )}
 
-      {notice && <p className="settings-notice">{notice}</p>}
-      {error && <p className="settings-error">{error}</p>}
+        {(activeSection === "agent" || activeSection === "embedding") &&
+          secureSecretPersistenceAvailable() &&
+          !vaultUnlocked && (
+            <section className="settings-card vault-card">
+              <h2>Secure Provider Vault</h2>
+              <p>The passphrase unlocks Tauri Stronghold for this session.</p>
+              <input
+                aria-label="Vault passphrase"
+                type="password"
+                autoComplete="current-password"
+                value={vaultPassphrase}
+                onChange={(event) => setVaultPassphrase(event.target.value)}
+              />
+              <button type="button" onClick={() => void unlock()}>
+                Unlock vault
+              </button>
+            </section>
+          )}
+        {(activeSection === "agent" || activeSection === "embedding") &&
+          !secureSecretPersistenceAvailable() && (
+            <p className="settings-warning">
+              Browser development mode keeps API keys in memory only. Persistent
+              secret storage is available in the Tauri desktop app.
+            </p>
+          )}
+
+        {activeSection === "agent" && (
+          <ProviderEditor
+            title="Agent Model"
+            draft={chat}
+            catalog={catalog}
+            onChange={setChat}
+            onTest={test}
+            onSave={save}
+          />
+        )}
+        {activeSection === "embedding" && (
+          <ProviderEditor
+            title="Embedding Model"
+            draft={embedding}
+            catalog={catalog}
+            onChange={setEmbedding}
+            onTest={test}
+            onSave={save}
+          />
+        )}
+
+        {(activeSection === "agent" || activeSection === "embedding") && (
+          <section className="settings-card">
+            <h2>
+              Saved {activeSection === "agent" ? "Agent" : "embedding"} profiles
+            </h2>
+            <div className="profile-list">
+              {profiles
+                .filter(
+                  (profile) =>
+                    profile.kind ===
+                    (activeSection === "agent" ? "chat" : "embedding"),
+                )
+                .map((profile) => (
+                  <article key={profile.id} className="profile-row">
+                    <div>
+                      <strong>{profile.name}</strong>
+                      <span>
+                        {profile.provider} · {profile.model} ·{" "}
+                        {profile.api_key_mask ?? "no key"}
+                        {profile.kind === "embedding"
+                          ? ` · index v${profile.config_version}`
+                          : ""}
+                      </span>
+                      {profile.is_active && !profile.runtime_active && (
+                        <span>
+                          Reconnect this profile after unlocking the vault
+                          because the backend restarted.
+                        </span>
+                      )}
+                    </div>
+                    <div className="profile-actions">
+                      <input
+                        aria-label={`Replacement API Key for ${profile.name}`}
+                        type="password"
+                        autoComplete="off"
+                        placeholder="Replacement API key"
+                        value={replacementKeys[profile.id] ?? ""}
+                        onChange={(event) =>
+                          setReplacementKeys((current) => ({
+                            ...current,
+                            [profile.id]: event.target.value,
+                          }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void replaceKey(profile)}
+                      >
+                        Replace key
+                      </button>
+                      {profile.secret_ref && (
+                        <button
+                          type="button"
+                          onClick={() => void removeKey(profile)}
+                        >
+                          Remove key
+                        </button>
+                      )}
+                      {profile.kind === "embedding" && (
+                        <button
+                          type="button"
+                          onClick={() => void reindex(profile)}
+                        >
+                          Re-index
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={profile.runtime_active}
+                        onClick={() => void activate(profile)}
+                      >
+                        {profile.runtime_active ? "Active" : "Activate"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={profile.is_active}
+                        onClick={() => void remove(profile)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              {!profiles.some(
+                (profile) =>
+                  profile.kind ===
+                  (activeSection === "agent" ? "chat" : "embedding"),
+              ) && <p>No matching desktop Provider profiles saved yet.</p>}
+            </div>
+          </section>
+        )}
+
+        {activeSection === "memory" && (
+          <section className="settings-card">
+            <h2>Memory</h2>
+            <div className="setting-summary-row">
+              <div>
+                <strong>Long-term memory</strong>
+                <p>
+                  Enabled for explicit, durable preferences. Short-term
+                  conversation details remain internal.
+                </p>
+              </div>
+              <StatusPill tone="success">Enabled</StatusPill>
+            </div>
+            <p className="settings-warning">
+              Memory enablement follows the existing backend policy; this UI
+              does not expose short-term memory internals.
+            </p>
+            <div className="memory-list" aria-label="Saved memories">
+              {loadingMemories ? (
+                <p>Loading saved memories…</p>
+              ) : memories.length ? (
+                memories.map((memory) => (
+                  <article className="memory-row" key={memory.id}>
+                    <div>
+                      <strong>{memory.content}</strong>
+                      <span>
+                        {memory.memory_type} · importance {memory.importance}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => void removeMemory(memory)}
+                    >
+                      Delete
+                    </button>
+                  </article>
+                ))
+              ) : (
+                <p>No saved long-term memories.</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeSection === "research" && (
+          <section className="settings-card">
+            <h2>Research Tools</h2>
+            <p>
+              Only audited backend tools are available. Arbitrary MCP
+              installation is disabled.
+            </p>
+            <div className="tool-status-list">
+              {[
+                "Tavily Search",
+                "Brave Search",
+                "Safe Fetch",
+                "Academic Search",
+              ].map((tool) => (
+                <div className="setting-summary-row" key={tool}>
+                  <div>
+                    <strong>{tool}</strong>
+                    <p>Managed by backend configuration</p>
+                  </div>
+                  <StatusPill>Backend managed</StatusPill>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {activeSection === "storage" && (
+          <section className="settings-card">
+            <h2>Storage</h2>
+            <div className="settings-facts">
+              <div>
+                <span>Managed PDF location</span>
+                <strong>Application-managed storage</strong>
+              </div>
+              <div>
+                <span>Database</span>
+                <strong>Backend managed</strong>
+              </div>
+              <div>
+                <span>Embedding index</span>
+                <strong>
+                  {profiles.find(
+                    (profile) =>
+                      profile.kind === "embedding" && profile.is_active,
+                  )?.model || "No active profile reported"}
+                </strong>
+              </div>
+            </div>
+            <p className="settings-warning">
+              Absolute paths are intentionally hidden. Temporary-file cleanup
+              remains controlled by the backend.
+            </p>
+          </section>
+        )}
+
+        {activeSection === "diagnostics" && (
+          <section className="settings-card">
+            <h2>Diagnostics</h2>
+            <div className="settings-facts">
+              <div>
+                <span>Backend</span>
+                <strong>{getBackendBaseUrl()}</strong>
+              </div>
+              <div>
+                <span>Provider profiles</span>
+                <strong>{profiles.length} configured</strong>
+              </div>
+              <div>
+                <span>MCP</span>
+                <strong>Backend managed</strong>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                void navigator.clipboard?.writeText(
+                  `PLA v0.1.0\nBackend: ${getBackendBaseUrl()}\nProfiles: ${profiles.length}\nTheme: ${theme}\nDensity: ${density}`,
+                )
+              }
+            >
+              Copy safe diagnostics
+            </button>
+            <p className="settings-warning">
+              Diagnostics never include API keys, secret references, or local
+              file paths.
+            </p>
+          </section>
+        )}
+
+        {notice && <p className="settings-notice">{notice}</p>}
+        {error && <p className="settings-error">{error}</p>}
+      </main>
     </div>
   );
 }
@@ -497,6 +794,26 @@ function ProviderEditor({
           </>
         )}
       </div>
+      {selected && (
+        <div
+          className="capability-summary"
+          aria-label={`${title} capabilities`}
+        >
+          <strong>Capabilities</strong>
+          <span>
+            {[
+              selected.capabilities.chat && "Chat",
+              selected.capabilities.streaming && "Streaming",
+              selected.capabilities.tool_calling && "Tool calling",
+              selected.capabilities.structured_output && "Structured output",
+              selected.capabilities.embeddings && "Embeddings",
+              selected.capabilities.multimodal_input && "Multimodal input",
+            ]
+              .filter(Boolean)
+              .join(" · ") || "No runtime capabilities reported"}
+          </span>
+        </div>
+      )}
       <div className="settings-actions">
         <button type="button" onClick={() => void onTest(draft)}>
           Test connection

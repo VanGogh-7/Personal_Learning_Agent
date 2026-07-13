@@ -8,9 +8,13 @@ import { SourcesPanel } from "./SourcesPanel";
 function ChatTurnMessageView({
   turn,
   libraryItems = [],
+  onOpenSources,
+  onOpenActivity,
 }: {
   turn: ChatTurn;
   libraryItems?: LibraryItem[];
+  onOpenSources?: (turn: ChatTurn, citationId?: string) => void;
+  onOpenActivity?: (turn: ChatTurn) => void;
 }) {
   const status = turn.status || "completed";
   const completed = status === "completed";
@@ -21,6 +25,10 @@ function ChatTurnMessageView({
   const turnRef = useRef<HTMLDivElement | null>(null);
 
   function activateCitation(citationId: string) {
+    if (onOpenSources) {
+      onOpenSources(turn, citationId);
+      return;
+    }
     setHighlightedCitationId(citationId);
     setSourcesExpanded(true);
     window.requestAnimationFrame(() => {
@@ -63,7 +71,22 @@ function ChatTurnMessageView({
               : "Answer incomplete"}
           </small>
         )}
-        {completed && (
+        {completed && onOpenSources && (
+          <div className="message-tools">
+            <button type="button" onClick={() => onOpenSources(turn)}>
+              Sources{" "}
+              <span>
+                {(turn.citations?.length || 0) + (turn.webSources?.length || 0)}
+              </span>
+            </button>
+            {turn.activity?.steps.length ? (
+              <button type="button" onClick={() => onOpenActivity?.(turn)}>
+                Activity
+              </button>
+            ) : null}
+          </div>
+        )}
+        {completed && !onOpenSources && (
           <SourcesPanel
             citations={turn.citations}
             webSources={turn.webSources}

@@ -11,6 +11,8 @@ const api = vi.hoisted(() => ({
   reindexEmbeddingProfile: vi.fn(),
   deleteProviderProfile: vi.fn(),
   updateProviderSecretReference: vi.fn(),
+  listLongTermMemories: vi.fn(),
+  deleteLongTermMemory: vi.fn(),
 }));
 
 vi.mock("../api/client", () => api);
@@ -51,6 +53,7 @@ describe("SettingsPage", () => {
       },
     ]);
     api.listProviderProfiles.mockResolvedValue({ profiles: [] });
+    api.listLongTermMemories.mockResolvedValue({ memories: [], total: 0 });
   });
 
   it("renders independent model sections and changes the theme", async () => {
@@ -74,7 +77,8 @@ describe("SettingsPage", () => {
       message: "Connection test succeeded.",
     });
     render(<SettingsPage theme="system" onThemeChange={vi.fn()} />);
-    await screen.findByText("Agent Model");
+    await screen.findByRole("button", { name: "Agent Model" });
+    fireEvent.click(screen.getByRole("button", { name: "Agent Model" }));
     fireEvent.click(screen.getAllByText("Test connection")[0]);
     await waitFor(() =>
       expect(api.testProviderConnection).toHaveBeenCalledTimes(1),
@@ -110,8 +114,37 @@ describe("SettingsPage", () => {
       ],
     });
     render(<SettingsPage theme="system" onThemeChange={vi.fn()} />);
-
+    fireEvent.click(await screen.findByRole("button", { name: "Agent Model" }));
     expect(await screen.findByText("Activate")).toBeEnabled();
     expect(screen.getByText(/backend restarted/)).toBeInTheDocument();
+  });
+
+  it("loads and deletes saved long-term memories from the existing API", async () => {
+    api.listLongTermMemories.mockResolvedValue({
+      total: 1,
+      memories: [
+        {
+          id: "memory-1",
+          memory_type: "semantic",
+          content: "Preferred name is Van",
+          importance: 4,
+          status: "active",
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    });
+    api.deleteLongTermMemory.mockResolvedValue(undefined);
+    render(<SettingsPage theme="system" onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Memory" }));
+
+    expect(
+      await screen.findByText("Preferred name is Van"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(api.deleteLongTermMemory).toHaveBeenCalledWith("memory-1"),
+    );
+    expect(screen.queryByText("Preferred name is Van")).not.toBeInTheDocument();
   });
 });

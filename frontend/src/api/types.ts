@@ -236,3 +236,20 @@ export interface ProviderConnectionTest {
   actual_embedding_dimension?: number | null;
   message: string;
 }
+
+export interface LongTermMemory {
+  id: string;
+  memory_type: string;
+  content: string;
+  importance: number;
+  source?: string | null;
+  tags?: string[] | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LongTermMemoryList {
+  memories: LongTermMemory[];
+  total: number;
+}

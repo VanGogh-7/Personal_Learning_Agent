@@ -526,6 +526,26 @@ Stage 64E theme, conversation-memory, and language rules:
   input, model answers, PDF/citation text, and language-routing fixtures.
 - Do not start Stage 65 packaging as part of Stage 64E.
 
+Stage 64F frontend workspace rules:
+
+- Keep the desktop UI as a three-region academic workspace: a collapsible
+  navigation/Repository sidebar, a fixed-header and fixed-composer Chat area,
+  and an optional right Context panel for Sources, Activity, and safe context.
+- Conversation switching and the local conversation list are presentation
+  state only. Requests still expose `conversation_id`, keep `thread_id`
+  internal, and preserve selected books per Conversation.
+- Repository single-click toggles selected context and double-click opens the
+  backend-managed PDF. Neither action creates or switches a Conversation.
+- Settings is a full main-content view with secondary navigation. Provider
+  profile, Stronghold, re-index, and Memory operations continue to use the
+  existing APIs and must never display secrets or absolute managed paths.
+- Components use the design tokens in `frontend/src/styles.css`; do not add a
+  large UI or icon framework, embedded PDF viewer, decorative animation, or
+  oversized Assistant answer cards.
+- Preserve responsive sidebar/context drawers, keyboard focus, reduced-motion
+  behavior, Markdown/KaTeX overflow containment, SSE cancellation, and the
+  bottom composer. Do not begin Stage 65 packaging as part of Stage 64F.
+
 ## Repository Hygiene
 
 Do not commit:

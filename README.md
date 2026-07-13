@@ -4,14 +4,14 @@ Experimental MVP for a LangGraph-based Personal Learning Agent. The app
 helps you import born-digital PDFs into a local Repository, select PDFs
 as knowledge context, and ask questions through Agent Chat.
 
-The product is a learning agent, not a PDF reader. The MVP UI is:
+The product is a learning agent, not a PDF reader. The desktop UI is:
 
 ```text
-PDF Repository | Agent Chat
+Sidebar | Agent Chat | optional Context panel
 ```
 
-Current stage: Stage 64E theme, Conversation memory, and answer-language
-stabilization before desktop packaging. Stage 65 packaging has not started.
+Current stage: Stage 64F frontend visual redesign and information architecture.
+Stage 65 packaging has not started.
 
 ## What It Does
 
@@ -24,8 +24,8 @@ stabilization before desktop packaging. Stage 65 packaging has not started.
 - Answers through a LangGraph dual-agent backend.
 - Shows local Library citations as `[S1]`, `[S2]`, etc.
 - Shows web research sources as `[W1]`, `[W2]`, etc. when configured.
-- Makes `[S#]` and `[W#]` markers keyboard-operable and maps them to grouped,
-  expandable source cards under the completed Assistant answer.
+- Makes `[S#]` and `[W#]` markers keyboard-operable and maps them to grouped
+  source cards in the right Context panel.
 - Renders Assistant Markdown, including GFM tables and locally bundled KaTeX
   for inline and display mathematics.
 
@@ -933,6 +933,34 @@ that same value. Product UI, Activity, errors, logs, prompt instructions,
 comments, and configuration descriptions in source remain English; user text,
 model output, PDF/citation excerpts, and required multilingual fixtures remain
 unchanged.
+
+### Stage 64F modern academic workspace
+
+The frontend is organized as a restrained desktop research workspace. The
+collapsible left sidebar contains New Chat, locally persisted Conversation
+switching, the multi-select PDF Repository, Selected Books, Settings, and a
+safe health/version footer. The main workspace has a compact Conversation
+header, selected-context chips, a scrollable 920 px reading column, and a
+bottom composer that does not move with empty or long conversations.
+
+User turns remain compact right-aligned bubbles. Assistant answers render as
+page-level Markdown rather than oversized cards, with contained code, tables,
+long URLs, and KaTeX. Citation markers and message footers open the optional
+right panel, whose Sources, Activity, and Context tabs show evidence, public
+execution stages, selected books, Conversation identity, Memory availability,
+and only non-sensitive model information.
+
+Settings is a full-page view with Appearance, Agent Model, Embedding Model,
+Memory, Research Tools, Storage, and Diagnostics navigation. Existing
+Provider/Vault/re-index operations and long-term-memory deletion continue to
+use the current backend APIs. Unsupported controls are described as
+backend-managed instead of inventing a new API or changing runtime semantics.
+
+Light and Dark themes use shared design tokens, while System follows live OS
+changes. The layout converts the Context panel to a drawer below 1180 px and
+the Sidebar to a drawer below 800 px, respects reduced motion, and constrains
+horizontal overflow to formulas, code, tables, and source URLs. The desktop
+window minimum is 720 by 560 pixels.
 
 Before desktop packaging, run the deterministic gates from the repository
 root. Real Provider, network, OCR, visual-GPU, soak, and manual Tauri checks
