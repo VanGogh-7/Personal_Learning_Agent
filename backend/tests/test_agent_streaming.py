@@ -100,12 +100,12 @@ def test_sse_encoder_uses_single_json_line_and_monotonic_sequence() -> None:
     )
     first = factory.create(RunStartedEvent, ui_flush_interval_ms=50)
     second = factory.create(
-        StatusEvent, stage="loading_context", message="正在读取\n上下文"
+        StatusEvent, stage="loading_context", message="Loading conversation\ncontext"
     )
     encoded = encode_sse_event(second)
     assert encoded.endswith(b"\n\n")
     assert encoded.startswith(b"event: status\ndata: {")
-    assert "正在读取" in encoded.decode("utf-8")
+    assert "Loading conversation" in encoded.decode("utf-8")
     assert "\\n" in encoded.decode("utf-8")
     assert first.sequence == 1
     assert second.sequence == 2
@@ -291,7 +291,7 @@ async def test_mcp_activity_is_public_but_tool_details_are_not(
     get_settings.cache_clear()
 
     async def fake_web_research(question, *, gateway, activity):
-        activity("searching_web", "正在搜索网页")
+        activity("searching_web", "Searching the web")
         return WebResearchResult(
             summary="Web evidence [W1].",
             sources=[
@@ -305,7 +305,7 @@ async def test_mcp_activity_is_public_but_tool_details_are_not(
         )
 
     async def fake_academic_research(question, *, gateway, activity):
-        activity("searching_academic", "正在搜索学术资料")
+        activity("searching_academic", "Searching academic sources")
         return WebResearchResult(
             summary="Academic evidence [W1].",
             sources=[
@@ -470,6 +470,44 @@ async def test_success_persists_one_complete_turn_after_tokens(
             session.execute(select(func.count()).select_from(Conversation)).scalar_one()
             == 1
         )
+
+
+@pytest.mark.anyio
+async def test_streaming_reuses_conversation_context_and_matches_sync_semantics(
+    stream_session_factory,
+) -> None:
+    first_events = await collect_events(
+        AgentChatRequest(message="my name is Van."), stream_session_factory
+    )
+    first_final = next(event for event in first_events if event["type"] == "final")
+    conversation_id = first_final["response"]["conversation_id"]
+    second_events = await collect_events(
+        AgentChatRequest(message="what is my name?", conversation_id=conversation_id),
+        stream_session_factory,
+    )
+    second_final = next(event for event in second_events if event["type"] == "final")
+    streamed = "".join(
+        event["delta"] for event in second_events if event["type"] == "token"
+    )
+
+    assert "Van" in second_final["response"]["answer"]
+    assert second_final["response"]["answer"] == streamed
+    assert second_final["response"]["memory"]["used_recent_turns"] == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("message", "expected_fragment"),
+    [("Hello", "Hello"), ("你好", "您好")],
+)
+async def test_streaming_answer_language_follows_current_message(
+    stream_session_factory, message, expected_fragment
+) -> None:
+    events = await collect_events(
+        AgentChatRequest(message=message), stream_session_factory
+    )
+    final = next(event for event in events if event["type"] == "final")
+    assert expected_fragment in final["response"]["answer"]
 
 
 @pytest.mark.anyio
@@ -656,7 +694,7 @@ async def test_citation_persistence_failure_does_not_complete(
 
 @pytest.mark.anyio
 async def test_checkpoint_failure_compensates_committed_turn(
-    monkeypatch, stream_session_factory
+    monkeypatch, stream_session_factory, caplog
 ) -> None:
     class FailingSaver(InMemorySaver):
         async def aput(self, *args, **kwargs):
@@ -670,6 +708,9 @@ async def test_checkpoint_failure_compensates_committed_turn(
     )
     assert events[-1]["type"] == "error"
     assert not any(event["type"] == "done" for event in events)
+    assert any(
+        "checkpoint_persist_failed" in record.message for record in caplog.records
+    )
     with stream_session_factory() as session:
         assert (
             session.execute(

@@ -39,8 +39,27 @@ class ConservativeMemoryCandidateExtractor:
             return []
 
         explicit = _has_explicit_memory_intent(text)
+        preferred_name = re.search(
+            r"remember(?:\s+that)?\s+my\s+preferred\s+name\s+is\s+([\w .'-]{1,100})[.!]?$",
+            text,
+            re.IGNORECASE,
+        )
+        if preferred_name:
+            name = preferred_name.group(1).strip(" .!")
+            return [
+                _candidate(
+                    MemoryType.SEMANTIC,
+                    MemorySubtype.STABLE_PROFILE,
+                    f"User's preferred name is {name}.",
+                    predicate="preferred_name",
+                    object_value=name,
+                    scope="identity",
+                    explicit=True,
+                )
+            ]
+
         leetcode = re.search(
-            r"(?:以后\s*)?(?:LeetCode|leetcode).*?(?:默认使用|改用|使用)\s*(Python|Rust|Java|C\+\+|Go)",
+            r"(?:\u4ee5\u540e\s*)?(?:LeetCode|leetcode).*?(?:\u9ed8\u8ba4\u4f7f\u7528|\u6539\u7528|\u4f7f\u7528)\s*(Python|Rust|Java|C\+\+|Go)",
             text,
             re.IGNORECASE,
         )
@@ -59,9 +78,9 @@ class ConservativeMemoryCandidateExtractor:
             ]
 
         if (
-            ("数学定理" in text or "theorem" in text.lower())
-            and ("定义" in text or "definition" in text.lower())
-            and ("先" in text or "begin" in text.lower() or "start" in text.lower())
+            ("\u6570\u5b66\u5b9a\u7406" in text or "theorem" in text.lower())
+            and ("\u5b9a\u4e49" in text or "definition" in text.lower())
+            and ("\u5148" in text or "begin" in text.lower() or "start" in text.lower())
         ):
             return [
                 _candidate(
@@ -71,12 +90,14 @@ class ConservativeMemoryCandidateExtractor:
                     predicate="math_explanation_order",
                     object_value="definitions_first",
                     scope="mathematics",
-                    explicit=explicit or "以后" in text,
+                    explicit=explicit or "\u4ee5\u540e" in text,
                 )
             ]
 
         preference = re.search(
-            r"(?:我的偏好是|我偏好|I prefer)\s*[:：]?\s*(.+)", text, re.I
+            r"(?:\u6211\u7684\u504f\u597d\u662f|\u6211\u504f\u597d|I prefer)\s*[:：]?\s*(.+)",
+            text,
+            re.I,
         )
         if preference and explicit:
             value = preference.group(1).strip("。.! ")[:500]
@@ -92,7 +113,11 @@ class ConservativeMemoryCandidateExtractor:
                 )
             ]
 
-        avoid = re.search(r"(?:不要再|以后不要|do not|don't)\s*(.+)", text, re.I)
+        avoid = re.search(
+            r"(?:\u4e0d\u8981\u518d|\u4ee5\u540e\u4e0d\u8981|do not|don't)\s*(.+)",
+            text,
+            re.I,
+        )
         if avoid and explicit:
             value = avoid.group(1).strip("。.! ")[:500]
             return [
@@ -143,11 +168,11 @@ def _has_explicit_memory_intent(text: str) -> bool:
     return any(
         marker in normalized
         for marker in (
-            "记住",
-            "以后",
-            "从现在开始",
-            "不要再",
-            "我的偏好",
+            "\u8bb0\u4f4f",
+            "\u4ee5\u540e",
+            "\u4ece\u73b0\u5728\u5f00\u59cb",
+            "\u4e0d\u8981\u518d",
+            "\u6211\u7684\u504f\u597d",
             "remember",
             "from now on",
             "i prefer",
@@ -159,7 +184,13 @@ def _is_temporary(text: str) -> bool:
     normalized = text.lower()
     return any(
         marker in normalized
-        for marker in ("今天", "现在有点", "此刻", "today", "right now")
+        for marker in (
+            "\u4eca\u5929",
+            "\u73b0\u5728\u6709\u70b9",
+            "\u6b64\u523b",
+            "today",
+            "right now",
+        )
     )
 
 
@@ -167,5 +198,7 @@ def _looks_sensitive(text: str) -> bool:
     return bool(
         re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", text)
         or re.search(r"\b(?:\+?\d[ -]?){8,15}\b", text)
-        or re.search(r"(?:password|密码|api[_ -]?key|身份证)", text, re.I)
+        or re.search(
+            r"(?:password|\u5bc6\u7801|api[_ -]?key|\u8eab\u4efd\u8bc1)", text, re.I
+        )
     )

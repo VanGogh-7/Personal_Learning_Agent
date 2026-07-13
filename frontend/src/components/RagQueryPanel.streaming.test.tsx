@@ -101,14 +101,18 @@ describe("Agent Chat streaming UI", () => {
             {
               type: "status",
               stage: "loading_context",
-              message: "正在读取会话上下文",
+              message: "Loading conversation context",
             },
             2,
           ),
         );
         onEvent(
           streamEvent(
-            { type: "status", stage: "routing", message: "正在分析问题" },
+            {
+              type: "status",
+              stage: "routing",
+              message: "Understanding the question",
+            },
             3,
           ),
         );
@@ -117,7 +121,7 @@ describe("Agent Chat streaming UI", () => {
             {
               type: "status",
               stage: "retrieving_local",
-              message: "正在检索已选书籍",
+              message: "Searching selected books",
             },
             4,
           ),
@@ -131,7 +135,7 @@ describe("Agent Chat streaming UI", () => {
             {
               type: "status",
               stage: "persisting",
-              message: "正在保存完整回答",
+              message: "Saving answer",
             },
             6,
           ),
@@ -169,11 +173,13 @@ describe("Agent Chat streaming UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
 
     expect(screen.getAllByText("Question")).toHaveLength(1);
-    expect(await screen.findByText("正在检索已选书籍")).toBeInTheDocument();
-    expect(screen.queryByText("正在搜索网络资料")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Searching selected books"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Searching the web")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".assistant-message")).toHaveLength(1);
     expect(
-      screen.getByRole("button", { name: "停止生成" }),
+      screen.getByRole("button", { name: "Stop generating" }),
     ).toBeInTheDocument();
 
     await act(async () => continueStream?.());
@@ -212,10 +218,12 @@ describe("Agent Chat streaming UI", () => {
       },
     );
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
-    fireEvent.click(await screen.findByRole("button", { name: "停止生成" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Stop generating" }),
+    );
 
     expect(await screen.findByText("部分回答")).toBeInTheDocument();
-    expect(await screen.findByText("已停止生成")).toBeInTheDocument();
+    expect(await screen.findByText("Generation stopped")).toBeInTheDocument();
     expect(
       container.querySelector(".assistant-message.cancelled"),
     ).not.toBeNull();

@@ -1,4 +1,5 @@
 import uuid
+from unittest.mock import Mock
 
 import pytest
 
@@ -6,6 +7,7 @@ from app.db.vector_search import (
     MAX_SEARCH_LIMIT,
     build_similarity_query,
     search_similar_chunks,
+    search_similar_chunks_for_documents,
     set_chunk_embedding,
 )
 from app.embeddings.base import EMBEDDING_DIMENSION
@@ -69,3 +71,48 @@ def test_set_chunk_embedding_rejects_wrong_embedding_dimension() -> None:
             chunk_id=uuid.uuid4(),
             embedding=[0.0] * (EMBEDDING_DIMENSION + 1),
         )
+
+
+def test_selected_book_routing_keeps_exact_search(monkeypatch) -> None:
+    version_id = uuid.uuid4()
+    captured: dict[str, bool] = {}
+    monkeypatch.setattr(
+        "app.db.vector_search._active_embedding_index_version_id",
+        lambda: str(version_id),
+    )
+
+    def fake_search(*args, force_ann: bool, **kwargs):
+        captured["force_ann"] = force_ann
+        return []
+
+    monkeypatch.setattr(
+        "app.db.vector_search._search_versioned_chunks_for_documents", fake_search
+    )
+    search_similar_chunks_for_documents(
+        Mock(), [0.0] * EMBEDDING_DIMENSION, [uuid.uuid4()], limit=5
+    )
+    assert captured["force_ann"] is False
+
+
+def test_large_scope_routing_uses_ann(monkeypatch) -> None:
+    version_id = uuid.uuid4()
+    captured: dict[str, bool] = {}
+    monkeypatch.setattr(
+        "app.db.vector_search._active_embedding_index_version_id",
+        lambda: str(version_id),
+    )
+
+    def fake_search(*args, force_ann: bool, **kwargs):
+        captured["force_ann"] = force_ann
+        return []
+
+    monkeypatch.setattr(
+        "app.db.vector_search._search_versioned_chunks_for_documents", fake_search
+    )
+    search_similar_chunks_for_documents(
+        Mock(),
+        [0.0] * EMBEDDING_DIMENSION,
+        [uuid.uuid4() for _ in range(6)],
+        limit=5,
+    )
+    assert captured["force_ann"] is True

@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     zhipu_api_key: str = ""
     zhipu_base_url: str = "https://open.bigmodel.cn/api/paas/v4"
     zhipu_embedding_model: str = "embedding-3"
-    zhipu_embedding_dimension: int = 2048
+    zhipu_embedding_dimension: int = 1024
     embedding_connect_timeout_seconds: float = 10.0
     embedding_read_timeout_seconds: float = 60.0
 
@@ -131,6 +131,8 @@ class Settings(BaseSettings):
     pdf_hybrid_dense_weight: float = Field(default=1.0, ge=0, le=5)
     pdf_hybrid_keyword_weight: float = Field(default=1.0, ge=0, le=5)
     pdf_hybrid_visual_weight: float = Field(default=0.7, ge=0, le=5)
+    local_exact_search_max_documents: int = Field(default=5, ge=1, le=100)
+    hnsw_ef_search: int = Field(default=40, ge=1, le=1000)
 
     memory_checkpointer_backend: str = "postgres"
     memory_recent_turn_limit: int = 16

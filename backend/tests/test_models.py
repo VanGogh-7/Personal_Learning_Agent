@@ -109,6 +109,7 @@ def test_document_chunk_columns_constraints_and_foreign_key() -> None:
         "section_title",
         "created_at",
         "embedding",
+        "embedding_2048",
         "processing_version_id",
         "parent_chunk_id",
         "element_type",
@@ -146,6 +147,16 @@ def test_document_chunk_embedding_column_is_nullable_vector() -> None:
     assert table.c.embedding.nullable
     assert isinstance(table.c.embedding.type, Vector)
     assert table.c.embedding.type.dim == EMBEDDING_DIMENSION
+
+
+def test_versioned_embedding_columns_keep_new_and_legacy_spaces_separate() -> None:
+    from app.models.embedding_index import ChunkEmbedding
+
+    table = ChunkEmbedding.__table__
+    assert table.c.embedding.type.dim == 1024
+    assert table.c.embedding_legacy.type.dim is None
+    assert table.c.embedding.nullable is True
+    assert table.c.embedding_legacy.nullable is True
 
 
 def test_conversation_turn_columns_and_constraints() -> None:
@@ -196,6 +207,7 @@ def test_long_term_memory_columns_and_constraints() -> None:
         "memory_subtype",
         "structured_data",
         "embedding",
+        "embedding_2048",
         "confidence",
         "status",
         "source_type",

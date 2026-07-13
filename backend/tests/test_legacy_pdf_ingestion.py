@@ -17,6 +17,7 @@ from app.ingestion.legacy_pdf import (
     classify_layout_element,
     detect_pdf_type,
     process_pdf,
+    generate_searchable_pdf,
 )
 from app.library.indexing import LibraryIndexingError, index_library_item
 from app.library.service import create_library_item
@@ -129,6 +130,26 @@ def test_scanned_pdf_without_available_backend_remains_retryable(
 
     with pytest.raises(OCRRetryableError, match="unavailable"):
         process_pdf(path, ocr_enabled=True)
+
+
+def test_searchable_pdf_reuses_valid_content_addressed_output(
+    tmp_path, monkeypatch
+) -> None:
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"%PDF-source")
+    output_dir = tmp_path / "ocr"
+    output_dir.mkdir()
+    import hashlib
+
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()[:16]
+    existing = output_dir / f"scan-{digest}-searchable.pdf"
+    existing.write_bytes(b"%PDF-existing")
+    monkeypatch.setattr(
+        "app.ingestion.legacy_pdf.subprocess.run",
+        lambda *args, **kwargs: pytest.fail("OCRmyPDF must not rerun"),
+    )
+
+    assert generate_searchable_pdf(source, output_dir, "eng") == str(existing)
 
 
 def test_layout_parser_filters_repeated_margins_and_classifies_math() -> None:

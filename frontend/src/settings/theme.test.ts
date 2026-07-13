@@ -31,4 +31,24 @@ describe("theme settings", () => {
     applyTheme("system");
     expect(document.documentElement.dataset.theme).toBe("dark");
   });
+
+  it("updates a system theme immediately when operating-system appearance changes", () => {
+    let listener: (() => void) | undefined;
+    const media = {
+      matches: false,
+      addEventListener: vi.fn((_name: string, callback: () => void) => {
+        listener = callback;
+      }),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList;
+    vi.mocked(window.matchMedia).mockReturnValue(media);
+    const { result } = renderHook(() => useThemePreference());
+    expect(result.current[0]).toBe("system");
+    expect(document.documentElement.dataset.theme).toBe("light");
+
+    Object.defineProperty(media, "matches", { value: true });
+    act(() => listener?.());
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
 });

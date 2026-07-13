@@ -483,6 +483,14 @@ def generate_searchable_pdf(
     output_dir.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(source.read_bytes()).hexdigest()[:16]
     output = output_dir / f"{source.stem}-{digest}-searchable.pdf"
+    if output.is_file():
+        try:
+            with output.open("rb") as file:
+                if file.read(5) == b"%PDF-":
+                    return str(output)
+        except OSError:
+            pass
+        output.unlink(missing_ok=True)
     command = [
         executable,
         "--skip-text",

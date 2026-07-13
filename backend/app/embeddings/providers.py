@@ -81,7 +81,11 @@ class ZhipuEmbeddingProvider(EmbeddingProvider):
         return embeddings
 
     def _embed_batch(self, texts: list[str]) -> list[list[float]]:
-        payload = {"model": self._model, "input": texts}
+        payload = {
+            "model": self._model,
+            "input": texts,
+            "dimensions": self._dimension,
+        }
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"

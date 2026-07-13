@@ -10,7 +10,11 @@ from sqlalchemy.pool import StaticPool
 
 import app.api.settings_routes as settings_routes
 from app.db.base import Base
-from app.db.vector_search import search_similar_chunks_for_documents
+from app.core.config import get_settings
+from app.db.vector_search import (
+    resolve_active_embedding_index_version_id,
+    search_similar_chunks_for_documents,
+)
 from app.embeddings.mock import MockEmbeddingProvider
 from app.embeddings.providers import get_embedding_provider
 from app.llm.providers import DeterministicLLMProvider, get_llm_provider
@@ -19,6 +23,7 @@ from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.embedding_index import ChunkEmbedding, EmbeddingIndexVersion
 from app.models.provider_profile import ProviderProfile
+from app.models.pdf_processing import PdfProcessingVersion
 from app.providers.http_clients import provider_http_clients
 from app.settings.catalog import get_provider_entry
 from app.settings.runtime import (
@@ -248,12 +253,12 @@ def test_versioned_vectors_do_not_mix_between_profiles(session: Session) -> None
             ChunkEmbedding(
                 chunk_id=first_chunk.id,
                 index_version_id=version_one.id,
-                embedding=[0.0, 0.0, 0.0],
+                embedding_legacy=[0.0, 0.0, 0.0],
             ),
             ChunkEmbedding(
                 chunk_id=second_chunk.id,
                 index_version_id=version_two.id,
-                embedding=[0.0, 0.0, 0.0],
+                embedding_legacy=[0.0, 0.0, 0.0],
             ),
         ]
     )
@@ -270,13 +275,140 @@ def test_versioned_vectors_do_not_mix_between_profiles(session: Session) -> None
     assert [item.chunk_id for item in results] == [first_chunk.id]
 
 
+def test_same_dimension_vectors_do_not_mix_between_providers(session: Session) -> None:
+    """Provider/model identity remains isolated even when dimensions match."""
+    document = Document(title="Doc", file_path="doc.txt", file_type="txt")
+    session.add(document)
+    session.flush()
+    first_chunk = DocumentChunk(
+        document_id=document.id,
+        chunk_index=0,
+        content="zhipu space",
+        char_start=0,
+        char_end=12,
+    )
+    second_chunk = DocumentChunk(
+        document_id=document.id,
+        chunk_index=1,
+        content="other provider space",
+        char_start=13,
+        char_end=33,
+    )
+    session.add_all([first_chunk, second_chunk])
+    zhipu_input = embedding_profile(
+        name="zhipu-1024",
+        provider="zhipu",
+        model="embedding-3",
+        base_url="https://open.bigmodel.cn/api/paas/v4",
+        embedding_dimension=1024,
+    )
+    other_input = embedding_profile(
+        name="other-1024",
+        provider="custom_openai_compatible",
+        model="other-model",
+        embedding_dimension=1024,
+    )
+    zhipu_profile = create_profile(session, zhipu_input)
+    other_profile = create_profile(session, other_input)
+    session.flush()
+    zhipu_version = session.scalar(
+        select(EmbeddingIndexVersion).where(
+            EmbeddingIndexVersion.embedding_profile_id == zhipu_profile.id
+        )
+    )
+    other_version = session.scalar(
+        select(EmbeddingIndexVersion).where(
+            EmbeddingIndexVersion.embedding_profile_id == other_profile.id
+        )
+    )
+    assert zhipu_version is not None
+    assert other_version is not None
+    session.add_all(
+        [
+            ChunkEmbedding(
+                chunk_id=first_chunk.id,
+                index_version_id=zhipu_version.id,
+                embedding=[0.0] * 1024,
+            ),
+            ChunkEmbedding(
+                chunk_id=second_chunk.id,
+                index_version_id=other_version.id,
+                embedding=[0.0] * 1024,
+            ),
+        ]
+    )
+    session.flush()
+    provider_runtime_registry.activate(
+        str(zhipu_profile.id),
+        zhipu_input,
+        "secret",
+        embedding_index_version_id=str(zhipu_version.id),
+    )
+
+    results = search_similar_chunks_for_documents(session, [0.0] * 1024, [document.id])
+
+    assert [item.chunk_id for item in results] == [first_chunk.id]
+
+
+def test_env_fallback_resolves_only_matching_active_index(
+    monkeypatch, session: Session
+) -> None:
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "zhipu")
+    monkeypatch.setenv("ZHIPU_EMBEDDING_MODEL", "embedding-3")
+    monkeypatch.setenv("ZHIPU_EMBEDDING_DIMENSION", "1024")
+    get_settings.cache_clear()
+    matching = create_profile(
+        session,
+        embedding_profile(
+            name="matching",
+            provider="zhipu",
+            model="embedding-3",
+            base_url="https://open.bigmodel.cn/api/paas/v4",
+            embedding_dimension=1024,
+        ),
+    )
+    wrong_model = create_profile(
+        session,
+        embedding_profile(
+            name="wrong-model",
+            provider="zhipu",
+            model="another-model",
+            base_url="https://open.bigmodel.cn/api/paas/v4",
+            embedding_dimension=1024,
+        ),
+    )
+    session.flush()
+    matching.is_active = True
+    wrong_model.is_active = False
+    matching_version = session.scalar(
+        select(EmbeddingIndexVersion).where(
+            EmbeddingIndexVersion.embedding_profile_id == matching.id
+        )
+    )
+    wrong_version = session.scalar(
+        select(EmbeddingIndexVersion).where(
+            EmbeddingIndexVersion.embedding_profile_id == wrong_model.id
+        )
+    )
+    assert matching_version is not None
+    assert wrong_version is not None
+    matching_version.status = "active"
+    wrong_version.status = "active"
+    session.flush()
+
+    resolved = resolve_active_embedding_index_version_id(session)
+
+    assert resolved == str(matching_version.id)
+    assert resolved != str(wrong_version.id)
+
+
 def test_reindex_builds_new_space_without_overwriting_legacy_vectors(
     monkeypatch, session: Session
 ) -> None:
     document = Document(title="Doc", file_path="doc.txt", file_type="txt")
     session.add(document)
     session.flush()
-    legacy = [0.0] * 2048
+    legacy = [0.0] * 1024
     chunk = DocumentChunk(
         document_id=document.id,
         chunk_index=0,
@@ -312,7 +444,88 @@ def test_reindex_builds_new_space_without_overwriting_legacy_vectors(
     versioned = session.execute(
         select(ChunkEmbedding).where(ChunkEmbedding.index_version_id == version.id)
     ).scalar_one()
-    assert list(versioned.embedding) == [0.1, 0.2, 0.3]
+    assert versioned.embedding is None
+    assert list(versioned.embedding_legacy) == [0.1, 0.2, 0.3]
+
+
+def test_reindex_only_embeds_active_processing_version_and_links_it(
+    monkeypatch, session: Session
+) -> None:
+    document = Document(title="Versioned PDF", file_path="book.pdf", file_type="pdf")
+    session.add(document)
+    session.flush()
+    old_processing = PdfProcessingVersion(
+        document_id=document.id,
+        status="ready",
+        pdf_type="scanned",
+        detection_evidence={},
+        parser_name="parser",
+        parser_version="1",
+        is_active=False,
+    )
+    active_processing = PdfProcessingVersion(
+        document_id=document.id,
+        status="ready",
+        pdf_type="scanned",
+        detection_evidence={},
+        parser_name="parser",
+        parser_version="2",
+        is_active=True,
+    )
+    session.add_all([old_processing, active_processing])
+    session.flush()
+    document.active_processing_version_id = active_processing.id
+    old_chunk = DocumentChunk(
+        document_id=document.id,
+        processing_version_id=old_processing.id,
+        chunk_index=0,
+        content="old content",
+        char_start=0,
+        char_end=11,
+    )
+    active_chunk = DocumentChunk(
+        document_id=document.id,
+        processing_version_id=active_processing.id,
+        chunk_index=0,
+        content="active content",
+        char_start=0,
+        char_end=14,
+    )
+    session.add_all([old_chunk, active_chunk])
+    profile = create_profile(session, embedding_profile())
+
+    def transport(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "data": [
+                    {"index": index, "embedding": [0.1, 0.2, 0.3]}
+                    for index, _ in enumerate(payload["input"])
+                ]
+            },
+        )
+
+    monkeypatch.setattr(
+        provider_http_clients,
+        "get",
+        lambda kind, settings=None: httpx.Client(
+            transport=httpx.MockTransport(transport)
+        ),
+    )
+
+    version = reindex_embedding_profile(session, profile.id, "secret")
+
+    embedded_chunk_ids = set(
+        session.scalars(
+            select(ChunkEmbedding.chunk_id).where(
+                ChunkEmbedding.index_version_id == version.id
+            )
+        )
+    )
+    assert embedded_chunk_ids == {active_chunk.id}
+    assert version.total_chunks == version.embedded_chunks == 1
+    assert active_processing.text_index_version_id == version.id
 
 
 def test_no_desktop_profiles_preserves_environment_fallback() -> None:

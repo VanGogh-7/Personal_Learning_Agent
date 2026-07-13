@@ -9,8 +9,8 @@ from time import perf_counter
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.embeddings.base import EmbeddingProvider
-from app.embeddings.providers import get_embedding_provider
+from app.embeddings.base import EMBEDDING_DIMENSION, EmbeddingProvider
+from app.embeddings.providers import EmbeddingProviderError, get_embedding_provider
 from app.ingestion.chunking import chunk_text
 from app.ingestion.pdf import PDFExtractionError, PDFPageText, extract_pdf_pages
 from app.ingestion.legacy_pdf import (
@@ -23,18 +23,23 @@ from app.ingestion.legacy_pdf import (
     process_pdf,
 )
 from app.core.config import BACKEND_DIR, get_settings
+from app.db.vector_search import resolve_active_embedding_index_version_id
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
-from app.models.embedding_index import ChunkEmbedding
+from app.models.embedding_index import ChunkEmbedding, EmbeddingIndexVersion
 from app.models.pdf_processing import DocumentPage, PdfProcessingVersion
 from app.models.library_item import LibraryItem
-from app.settings.runtime import current_embedding_index_version_id
 
 SUPPORTED_LIBRARY_INDEX_TYPES = {"txt", "md", "pdf"}
 DEFAULT_INDEX_CHUNK_SIZE = 800
 DEFAULT_INDEX_CHUNK_OVERLAP = 100
-PDF_INDEX_CHUNK_SIZE_CHARS = 4000
-PDF_INDEX_CHUNK_OVERLAP_CHARS = 650
+# Zhipu embedding-3 accepts at most 3,072 tokens per input. Noisy OCR can
+# tokenize close to one token per character, and the readable tail merge may
+# add up to ``PDF_INDEX_MIN_CHUNK_CHARS - 1`` characters. Keep the resulting
+# PDF chunks conservatively below the Provider limit without changing the
+# embedding model or vector dimension.
+PDF_INDEX_CHUNK_SIZE_CHARS = 2400
+PDF_INDEX_CHUNK_OVERLAP_CHARS = 400
 PDF_INDEX_MIN_CHUNK_CHARS = 350
 SECTION_BODY = "body"
 SECTION_CONTENTS = "contents"
@@ -42,6 +47,7 @@ SECTION_INDEX = "index"
 SECTION_BIBLIOGRAPHY = "bibliography"
 SECTION_PREFACE = "preface"
 SECTION_UNKNOWN = "unknown"
+MAX_EARLY_NON_BODY_PAGES = 12
 
 
 class LibraryIndexingError(ValueError):
@@ -125,6 +131,8 @@ def index_library_item(
         item.status = "indexing"
         session.flush()
 
+        index_version_id = resolve_active_embedding_index_version_id(session)
+
         path = _validate_file_path(item.file_path)
         file_type = _detect_supported_file_type(item.file_type, path)
         document = _get_or_create_document(session, item, path, file_type)
@@ -144,9 +152,7 @@ def index_library_item(
                 pdf_type="extraction_failed",
                 detection_evidence={},
                 text_index_version_id=(
-                    uuid.UUID(current_embedding_index_version_id())
-                    if current_embedding_index_version_id()
-                    else None
+                    uuid.UUID(index_version_id) if index_version_id else None
                 ),
             )
             session.add(processing_version)
@@ -160,7 +166,7 @@ def index_library_item(
                     ocr_enabled=settings.pdf_ocr_enabled,
                     ocr_backend=ocr_backend,
                     language=settings.pdf_ocr_language,
-                    searchable_output_dir=output_dir,
+                    searchable_output_dir=output_dir if ocr_backend is None else None,
                 )
             except OCRRetryableError as exc:
                 processing_version.status = "failed"
@@ -208,9 +214,13 @@ def index_library_item(
         document.content_hash = content_hash
         text_index_started = perf_counter()
         provider = embedding_provider or get_embedding_provider()
-        embeddings = provider.embed_texts([chunk.content for chunk in chunks])
+        try:
+            embeddings = provider.embed_texts([chunk.content for chunk in chunks])
+        except EmbeddingProviderError as exc:
+            raise LibraryIndexingError(
+                "Embedding provider could not index this Library item."
+            ) from exc
 
-        index_version_id = current_embedding_index_version_id()
         stored_chunks: list[DocumentChunk] = []
         for chunk, embedding in zip(chunks, embeddings, strict=True):
             stored = DocumentChunk(
@@ -238,14 +248,26 @@ def index_library_item(
             stored_chunks.append(stored)
         session.flush()
         if index_version_id is not None:
+            index_version = session.get(
+                EmbeddingIndexVersion, uuid.UUID(index_version_id)
+            )
+            if index_version is None:
+                raise LibraryIndexingError("Active embedding index was not found.")
             for stored, embedding in zip(stored_chunks, embeddings, strict=True):
                 session.add(
                     ChunkEmbedding(
                         chunk_id=stored.id,
                         index_version_id=uuid.UUID(index_version_id),
-                        embedding=embedding,
+                        embedding=embedding
+                        if index_version.dimension == EMBEDDING_DIMENSION
+                        else None,
+                        embedding_legacy=embedding
+                        if index_version.dimension != EMBEDDING_DIMENSION
+                        else None,
                     )
                 )
+            index_version.total_chunks += len(stored_chunks)
+            index_version.embedded_chunks += len(stored_chunks)
 
         if processing_version is not None:
             _assign_parent_chunks(stored_chunks)
@@ -421,6 +443,11 @@ def _element_type_for_chunk(
 def _assign_parent_chunks(chunks: list[DocumentChunk]) -> None:
     parents: dict[tuple[str, str | None, str | None], uuid.UUID] = {}
     for chunk in chunks:
+        # OCR text may not preserve heading line breaks. Without a detected
+        # heading, grouping every body chunk under the document's first chunk
+        # makes parent expansion inject unrelated front matter into all hits.
+        if chunk.chapter_title is None and chunk.section_title is None:
+            continue
         key = (chunk.section_type, chunk.chapter_title, chunk.section_title)
         parent_id = parents.get(key)
         if parent_id is None:
@@ -536,6 +563,7 @@ def _prepare_pdf_pages_for_chunking(
 ) -> list[PdfPageForChunking]:
     prepared_pages: list[PdfPageForChunking] = []
     current_section_type = SECTION_UNKNOWN
+    current_non_body_pages = 0
     current_chapter_title: str | None = None
     current_section_title: str | None = None
     document_offset = 0
@@ -549,7 +577,16 @@ def _prepare_pdf_pages_for_chunking(
             page.text,
             detected_section_type=detected_section_type,
             current_section_type=current_section_type,
+            current_non_body_pages=current_non_body_pages,
         )
+        if section_type in {SECTION_CONTENTS, SECTION_PREFACE}:
+            current_non_body_pages = (
+                current_non_body_pages + 1
+                if section_type == current_section_type
+                else 1
+            )
+        else:
+            current_non_body_pages = 0
         if section_type != SECTION_UNKNOWN:
             current_section_type = section_type
         heading_context = detect_pdf_heading_context(page.text)
@@ -839,6 +876,7 @@ def _resolve_pdf_page_section_type(
     *,
     detected_section_type: str,
     current_section_type: str,
+    current_non_body_pages: int = 0,
 ) -> str:
     non_body_sections = {
         SECTION_CONTENTS,
@@ -853,6 +891,11 @@ def _resolve_pdf_page_section_type(
         and detected_section_type == SECTION_BODY
         and not _looks_like_body_start(text)
     ):
+        if (
+            current_section_type in {SECTION_CONTENTS, SECTION_PREFACE}
+            and current_non_body_pages >= MAX_EARLY_NON_BODY_PAGES
+        ):
+            return SECTION_BODY
         return current_section_type
     return detected_section_type
 

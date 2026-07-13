@@ -16,7 +16,7 @@ from app.embeddings.providers import (
 
 
 def test_embedding_dimension_is_stable_constant() -> None:
-    assert EMBEDDING_DIMENSION == 2048
+    assert EMBEDDING_DIMENSION == 1024
 
 
 def test_mock_embedding_is_deterministic() -> None:
@@ -89,7 +89,7 @@ def test_zhipu_provider_validates_configured_dimension() -> None:
         zhipu_embedding_dimension=16,
     )
 
-    with pytest.raises(EmbeddingConfigurationError, match="2048"):
+    with pytest.raises(EmbeddingConfigurationError, match="1024"):
         get_embedding_provider(settings)
 
 
@@ -100,6 +100,7 @@ def test_zhipu_provider_can_use_mocked_http_client_without_network() -> None:
         payload = json.loads(request.content)
         assert payload["model"] == "embedding-3"
         assert payload["input"] == ["alpha", "beta"]
+        assert payload["dimensions"] == EMBEDDING_DIMENSION
         return httpx.Response(
             200,
             json={

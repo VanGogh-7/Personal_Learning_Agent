@@ -35,6 +35,7 @@ def hybrid_search_chunks(
     exclude_section_types: Sequence[str] = DEFAULT_EXCLUDED_SECTION_TYPES,
     dense_weight: float = 1.0,
     keyword_weight: float = 1.0,
+    force_ann: bool = False,
 ) -> list[SimilarChunkResult]:
     """Fuse dense and keyword ranks, then apply bounded deterministic reranking."""
     candidate_limit = min(100, max(limit, limit * MAX_CANDIDATE_MULTIPLIER))
@@ -45,6 +46,7 @@ def hybrid_search_chunks(
         document_ids,
         limit=candidate_limit,
         exclude_section_types=exclude_section_types,
+        force_ann=force_ann,
     )
     _record("dense_search", dense_started)
     keyword_started = perf_counter()
@@ -255,7 +257,7 @@ def _search_terms(value: str) -> list[str]:
         dict.fromkeys(
             token.casefold()
             for token in re.findall(
-                r"[A-Za-zÀ-žΑ-ω一-龥0-9]+(?:[.:-][A-Za-z0-9]+)*", value
+                r"[A-Za-zÀ-žΑ-ω\u4e00-\u9fa50-9]+(?:[.:-][A-Za-z0-9]+)*", value
             )
             if len(token) > 1 or token.isdigit()
         )

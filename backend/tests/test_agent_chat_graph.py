@@ -268,6 +268,74 @@ def test_agent_chat_reuses_conversation_and_hides_thread_id(
     assert not hasattr(second, "thread_id")
 
 
+def test_conversation_remembers_name_across_selected_book_changes_and_isolates_new_chat(
+    monkeypatch, agent_chat_session
+) -> None:
+    first_book = _create_indexed_item(agent_chat_session, "First", "First book text.")
+    second_book = _create_indexed_item(
+        agent_chat_session, "Second", "Second book text."
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+
+    first = agent_chat_endpoint(
+        AgentChatRequest(
+            message="my name is Van.",
+            selected_library_item_ids=[str(first_book.id)],
+        )
+    )
+    follow_up = agent_chat_endpoint(
+        AgentChatRequest(
+            message="what is my name?",
+            conversation_id=first.conversation_id,
+            selected_library_item_ids=[str(second_book.id)],
+        )
+    )
+    new_chat = agent_chat_endpoint(AgentChatRequest(message="what is my name?"))
+
+    assert follow_up.conversation_id == first.conversation_id
+    assert first.memory_updates == []
+    assert follow_up.memory.used_recent_turns == 1
+    assert "Van" in follow_up.answer
+    assert new_chat.conversation_id != first.conversation_id
+    assert new_chat.memory.used_recent_turns == 0
+    assert "Van" not in new_chat.answer
+
+
+def test_follow_up_pronoun_context_reaches_query_analysis_and_synthesis(
+    monkeypatch, agent_chat_session
+) -> None:
+    prompts: list[str] = []
+
+    class ContextAwareProvider:
+        def generate(self, prompt: str) -> str:
+            prompts.append(prompt)
+            if "How does it relate" in prompt:
+                assert "User: The topic is compactness." in prompt
+                assert "Assistant: Compactness is the current topic." in prompt
+                return "It refers to compactness and its open-cover definition."
+            return "Compactness is the current topic."
+
+    monkeypatch.setattr(
+        chat_rag_graph_module, "get_llm_provider", lambda: ContextAwareProvider()
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    first = agent_chat_endpoint(AgentChatRequest(message="The topic is compactness."))
+    second = agent_chat_endpoint(
+        AgentChatRequest(
+            message="How does it relate to open covers?",
+            conversation_id=first.conversation_id,
+        )
+    )
+
+    assert second.answer == "It refers to compactness and its open-cover definition."
+    assert second.memory.used_recent_turns == 1
+    assert any("Recent messages:" in prompt for prompt in prompts)
+
+
 def test_memory_extraction_failure_does_not_fail_agent_chat(
     monkeypatch, agent_chat_session
 ) -> None:
@@ -304,6 +372,69 @@ def test_stable_preference_is_retrieved_across_conversations(
     assert second.conversation_id != first.conversation_id
     assert second.memory.used_recent_turns == 0
     assert second.memory.used_long_term_memories == 1
+
+
+def test_explicit_preferred_name_memory_is_available_in_a_new_conversation(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    first = agent_chat_endpoint(
+        AgentChatRequest(message="Remember that my preferred name is Van.")
+    )
+    second = agent_chat_endpoint(AgentChatRequest(message="What is my preferred name?"))
+
+    assert first.memory_updates[0]["action"] == "create"
+    assert second.conversation_id != first.conversation_id
+    assert second.memory.used_recent_turns == 0
+    assert second.memory.used_long_term_memories == 1
+    assert "Van" in second.answer
+
+
+def test_current_name_statement_overrides_older_long_term_name(
+    monkeypatch, agent_chat_session
+) -> None:
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+    agent_chat_endpoint(
+        AgentChatRequest(message="Remember that my preferred name is Van.")
+    )
+    current = agent_chat_endpoint(AgentChatRequest(message="my name is Alex."))
+    follow_up = agent_chat_endpoint(
+        AgentChatRequest(
+            message="what is my name?", conversation_id=current.conversation_id
+        )
+    )
+
+    assert follow_up.memory.used_recent_turns == 1
+    assert follow_up.memory.used_long_term_memories == 1
+    assert "Alex" in follow_up.answer
+    assert "Van" not in follow_up.answer
+
+
+def test_final_answer_language_follows_current_message(
+    monkeypatch, agent_chat_session
+) -> None:
+    class LanguageAwareProvider:
+        def generate(self, prompt: str) -> str:
+            if "Write the complete final answer in Chinese." in prompt:
+                return "这是中文回答。"
+            return "This is an English answer."
+
+    monkeypatch.setattr(
+        chat_rag_graph_module, "get_llm_provider", lambda: LanguageAwareProvider()
+    )
+    monkeypatch.setattr(
+        chat_rag_graph_module, "retrieve_relevant_chunks", lambda *args, **kwargs: []
+    )
+
+    english = agent_chat_endpoint(AgentChatRequest(message="Explain completeness."))
+    chinese = agent_chat_endpoint(AgentChatRequest(message="解释完备性。"))
+
+    assert english.answer == "This is an English answer."
+    assert chinese.answer == "这是中文回答。"
 
 
 def test_agent_chat_product_selected_library_item_prefers_local_rag(

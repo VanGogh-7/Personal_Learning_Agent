@@ -16,7 +16,7 @@ describe("ChatTurnMessage", () => {
             steps: [
               {
                 stage: "streaming",
-                message: "正在生成回答",
+                message: "Generating answer",
                 status: "active",
               },
             ],
@@ -56,12 +56,12 @@ describe("ChatTurnMessage", () => {
             steps: [
               {
                 stage: "retrieving_local",
-                message: "正在检索已选书籍",
+                message: "Searching selected books",
                 status: "active",
               },
               {
                 stage: "searching_web",
-                message: "正在搜索网络资料",
+                message: "Searching the web",
                 status: "active",
               },
             ],
@@ -69,7 +69,7 @@ describe("ChatTurnMessage", () => {
         }}
       />,
     );
-    expect(screen.getByText("正在检索已选书籍")).toBeInTheDocument();
-    expect(screen.getByText("正在搜索网络资料")).toBeInTheDocument();
+    expect(screen.getByText("Searching selected books")).toBeInTheDocument();
+    expect(screen.getByText("Searching the web")).toBeInTheDocument();
   });
 });

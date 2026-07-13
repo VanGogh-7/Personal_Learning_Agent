@@ -41,10 +41,10 @@ def plan_research(question: str) -> ResearchPlan:
         "doi",
         "journal",
         "theorem",
-        "论文",
-        "文献",
-        "学术",
-        "期刊",
+        "\u8bba\u6587",
+        "\u6587\u732e",
+        "\u5b66\u672f",
+        "\u671f\u520a",
     )
     current_terms = (
         "latest",
@@ -52,10 +52,10 @@ def plan_research(question: str) -> ResearchPlan:
         "today",
         "recent",
         "news",
-        "最新",
-        "当前",
-        "近期",
-        "新闻",
+        "\u6700\u65b0",
+        "\u5f53\u524d",
+        "\u8fd1\u671f",
+        "\u65b0\u95fb",
         "cross-check",
     )
     doi_match = DOI_PATTERN.search(question)
@@ -81,9 +81,9 @@ async def run_mcp_research(
     warnings: list[str] = []
     evidence: list[WebSourceResult] = []
 
-    _activity(activity, "planning_web", "正在规划网络检索")
+    _activity(activity, "planning_web", "Searching the web")
     if plan.academic:
-        _activity(activity, "searching_academic", "正在搜索学术资料")
+        _activity(activity, "searching_academic", "Searching academic sources")
         academic_results, academic_warnings = await _academic_search(
             plan, resolved_gateway
         )
@@ -92,7 +92,7 @@ async def run_mcp_research(
 
     should_search_web = not plan.urls and (not plan.academic or not evidence)
     if should_search_web:
-        _activity(activity, "searching_web", "正在搜索网页")
+        _activity(activity, "searching_web", "Searching the web")
         web_results, web_warnings = await _web_search(plan, resolved_gateway)
         evidence.extend(web_results)
         warnings.extend(web_warnings)
@@ -122,13 +122,13 @@ async def run_mcp_research(
         : resolved_settings.mcp_max_fetch_urls
     ]
     if fetch_targets:
-        _activity(activity, "reading_pages", "正在读取相关页面")
+        _activity(activity, "reading_pages", "Evaluating sources")
         evidence, fetch_warnings = await _fetch_pages(
             evidence, fetch_targets, resolved_gateway, resolved_settings
         )
         warnings.extend(fetch_warnings)
 
-    _activity(activity, "filtering_sources", "正在筛选来源")
+    _activity(activity, "filtering_sources", "Evaluating sources")
     evidence, _ = deduplicate_and_rank(
         evidence,
         prefer_academic=plan.academic,
@@ -162,14 +162,14 @@ async def run_mcp_web_research(
     """Run only general-web MCP work for the adaptive Web subgraph."""
     resolved = settings or get_settings()
     plan = plan_research(question)
-    _activity(activity, "searching_web", "正在搜索网页")
+    _activity(activity, "searching_web", "Searching the web")
     evidence, warnings = await _web_search(plan, gateway)
     evidence, _ = deduplicate_and_rank(
         evidence, prefer_academic=False, limit=resolved.mcp_max_evidence
     )
     targets = [item.url for item in evidence if item.url][: resolved.mcp_max_fetch_urls]
     if targets:
-        _activity(activity, "reading_pages", "正在读取相关页面")
+        _activity(activity, "reading_pages", "Evaluating sources")
         evidence, fetch_warnings = await _fetch_pages(
             evidence, targets, gateway, resolved
         )
@@ -189,7 +189,7 @@ async def run_mcp_academic_research(
     """Run only academic metadata MCP work for the Academic subgraph."""
     resolved = settings or get_settings()
     plan = plan_research(question)
-    _activity(activity, "searching_academic", "正在搜索学术资料")
+    _activity(activity, "searching_academic", "Searching academic sources")
     evidence, warnings = await _academic_search(plan, gateway)
     return _research_result(evidence, warnings, prefer_academic=True, settings=resolved)
 

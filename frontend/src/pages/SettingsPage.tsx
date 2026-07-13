@@ -42,7 +42,7 @@ const EMPTY_EMBEDDING: ProviderProfileInput = {
   provider: "zhipu",
   base_url: "https://open.bigmodel.cn/api/paas/v4",
   model: "embedding-3",
-  embedding_dimension: 2048,
+  embedding_dimension: 1024,
   batch_size: 16,
 };
 
@@ -478,7 +478,7 @@ function ProviderEditor({
               <input
                 type="number"
                 min="1"
-                value={draft.embedding_dimension ?? 2048}
+                value={draft.embedding_dimension ?? 1024}
                 onChange={(e) =>
                   update("embedding_dimension", Number(e.target.value))
                 }

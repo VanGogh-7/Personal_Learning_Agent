@@ -54,11 +54,13 @@ function ChatTurnMessageView({
             </div>
           )
         ) : (
-          <p className="stream-placeholder">等待 Agent 响应…</p>
+          <p className="stream-placeholder">Waiting for the Agent response…</p>
         )}
         {(status === "cancelled" || status === "failed") && (
           <small className={`message-status ${status}`}>
-            {status === "cancelled" ? "已停止生成" : "回答未完成"}
+            {status === "cancelled"
+              ? "Generation stopped"
+              : "Answer incomplete"}
           </small>
         )}
         {completed && (

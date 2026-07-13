@@ -25,11 +25,11 @@ LOCAL_ROUTE_KEYWORDS = (
     "library",
     "imported documents",
     "imported document",
-    "我的书",
-    "书库",
-    "我的 pdf",
-    "我的pdf",
-    "根据我的资料",
+    "\u6211\u7684\u4e66",
+    "\u4e66\u5e93",
+    "\u6211\u7684 pdf",
+    "\u6211\u7684pdf",
+    "\u6839\u636e\u6211\u7684\u8d44\u6599",
 )
 
 WEB_ROUTE_KEYWORDS = (
@@ -44,10 +44,10 @@ WEB_ROUTE_KEYWORDS = (
     "external",
     "web",
     "internet",
-    "最新",
-    "最近",
-    "网络",
-    "网上",
+    "\u6700\u65b0",
+    "\u6700\u8fd1",
+    "\u7f51\u7edc",
+    "\u7f51\u4e0a",
 )
 
 BOTH_ROUTE_KEYWORDS = (

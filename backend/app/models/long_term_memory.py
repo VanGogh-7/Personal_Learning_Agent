@@ -73,6 +73,9 @@ class LongTermMemory(Base):
     structured_data: Mapped[dict | None] = mapped_column(
         JSONB().with_variant(JSON(), "sqlite"), nullable=True
     )
+    embedding_2048: Mapped[list[float] | None] = mapped_column(
+        Vector(2048).with_variant(JSON(), "sqlite"), nullable=True
+    )
     embedding: Mapped[list[float] | None] = mapped_column(
         Vector(EMBEDDING_DIMENSION).with_variant(JSON(), "sqlite"), nullable=True
     )

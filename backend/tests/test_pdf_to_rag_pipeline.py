@@ -123,8 +123,7 @@ def test_pdf_library_item_indexes_and_answers_through_agent_chat(
             str(item.item_id)
         }
         assert all(
-            citation.document_source_path == str(pdf_path)
-            for citation in response.citations
+            citation.document_source_path is None for citation in response.citations
         )
         assert response.retrieved_chunks[0].citation == response.citations[0]
         assert all(chunk.page_start in {1, 2} for chunk in response.retrieved_chunks)

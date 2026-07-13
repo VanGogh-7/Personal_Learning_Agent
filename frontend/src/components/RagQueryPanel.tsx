@@ -371,9 +371,9 @@ export default function RagQueryPanel({
           onClick={loading ? stopGeneration : undefined}
         >
           {activeRun?.status === "persisting"
-            ? "正在保存..."
+            ? "Saving..."
             : loading
-              ? "停止生成"
+              ? "Stop generating"
               : "Send"}
         </button>
       </form>

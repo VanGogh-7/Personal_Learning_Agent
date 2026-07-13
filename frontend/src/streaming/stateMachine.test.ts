@@ -17,16 +17,48 @@ describe("Agent run state machine", () => {
   it("follows backend status events through streaming and completion", () => {
     let state = createAgentRunState("message-1");
     for (const value of [
-      { type: "status", stage: "loading_context", message: "读取上下文" },
-      { type: "status", stage: "understanding_query", message: "理解问题" },
-      { type: "status", stage: "planning_research", message: "制定计划" },
-      { type: "status", stage: "retrieving_local", message: "检索书库" },
-      { type: "status", stage: "evaluating_sources", message: "评估来源" },
-      { type: "status", stage: "organizing_answer", message: "组织回答" },
-      { type: "status", stage: "synthesizing", message: "生成回答" },
+      {
+        type: "status",
+        stage: "loading_context",
+        message: "Loading conversation context",
+      },
+      {
+        type: "status",
+        stage: "understanding_query",
+        message: "Understanding the question",
+      },
+      {
+        type: "status",
+        stage: "planning_research",
+        message: "Understanding the question",
+      },
+      {
+        type: "status",
+        stage: "retrieving_local",
+        message: "Searching selected books",
+      },
+      {
+        type: "status",
+        stage: "evaluating_sources",
+        message: "Evaluating sources",
+      },
+      {
+        type: "status",
+        stage: "organizing_answer",
+        message: "Generating answer",
+      },
+      {
+        type: "status",
+        stage: "synthesizing",
+        message: "Generating answer",
+      },
       { type: "token", delta: "answer" },
-      { type: "status", stage: "verifying_citations", message: "验证引用" },
-      { type: "status", stage: "persisting", message: "保存回答" },
+      {
+        type: "status",
+        stage: "verifying_citations",
+        message: "Verifying citations",
+      },
+      { type: "status", stage: "persisting", message: "Saving answer" },
       { type: "done" },
     ]) {
       state = reduceAgentRun(state, event(value));
@@ -71,9 +103,21 @@ describe("Agent run state machine", () => {
   it("tracks local and web research as parallel public branches", () => {
     let state = createAgentRunState("message-1");
     for (const value of [
-      { type: "status", stage: "retrieving_local", message: "检索书库" },
-      { type: "status", stage: "planning_research", message: "规划网络检索" },
-      { type: "status", stage: "searching_academic", message: "检索论文" },
+      {
+        type: "status",
+        stage: "retrieving_local",
+        message: "Searching selected books",
+      },
+      {
+        type: "status",
+        stage: "planning_research",
+        message: "Searching the web",
+      },
+      {
+        type: "status",
+        stage: "searching_academic",
+        message: "Searching academic sources",
+      },
     ]) {
       state = reduceAgentRun(state, event(value));
     }

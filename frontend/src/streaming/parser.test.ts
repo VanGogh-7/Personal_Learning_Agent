@@ -23,7 +23,7 @@ describe("AgentSSEParser", () => {
         type: "status",
         sequence: 1,
         stage: "routing",
-        message: "正在分析问题",
+        message: "Understanding the question",
       }) +
       record("token", {
         ...base,
@@ -46,7 +46,7 @@ describe("AgentSSEParser", () => {
         type: "status",
         sequence: 1,
         stage: "searching_academic",
-        message: "正在搜索学术资料",
+        message: "Searching academic sources",
       }),
     );
     expect(seen[0]).toMatchObject({

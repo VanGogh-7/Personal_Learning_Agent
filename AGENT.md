@@ -385,8 +385,9 @@ Stage 60 Settings and Provider rules:
 - Never activate an Embedding profile until its index version is `ready`.
   Versioned vectors live in `chunk_embeddings` and every query filters one exact
   `embedding_index_version`; do not overwrite or mix the legacy vector column.
-- Long-term Memory retains its existing configured embedding space until a
-  separate measured Memory migration explicitly versions that schema.
+- The 1024 migration preserves the prior Long-term Memory `vector(2048)` column
+  separately; new default-profile memories use `vector(1024)`. Never cast or
+  truncate old memory vectors into the new space.
 - Connection tests are minimal and bounded. They must not create Conversation,
   Memory, citation, or learning-event records and must return safe errors only.
 
@@ -411,7 +412,8 @@ Stage 61 legacy-PDF and retrieval rules:
 - Use `scripts/evaluate_pdf_rag.py` for offline comparison. Treat checked-in
   latency/storage values as fixture proxies; real OCR/GPU claims require an
   explicitly marked run and recorded environment.
-- Do not add an ANN vector index without measured production-scale evidence.
+- Do not add or tune an ANN vector index without measured production-scale
+  evidence.
 
 Stage 63 source and citation UX rules:
 
@@ -466,6 +468,63 @@ Stage 64B packaging rules:
   `cargo audit`. Classify vulnerabilities, unsound advisories, unmaintained
   dependencies, and ordinary warnings separately; do not force incompatible
   transitive upgrades.
+
+Stage 64C OCR packaging rules:
+
+- Keep OCR-derived searchable PDFs content-addressed and reusable for retries;
+  never overwrite the imported source PDF. Failed imports must remove their
+  managed source copy and orphan OCR derivative before returning.
+- Keep noisy OCR PDF chunks below the configured Provider input ceiling. The
+  production Zhipu path uses 2,400-character chunks with 400-character overlap
+  to stay conservatively below `embedding-3`'s 3,072-token input limit.
+- Do not let an early Contents or Preface classification propagate through the
+  whole scanned book when OCR loses line boundaries. Do not assign a document-
+  wide parent chunk unless an actual chapter or section heading was detected.
+- Public Local Research and Agent responses must never include
+  `document_source_path`. Preserve `library_item_id`, page ranges, extraction
+  method, OCR confidence and bounded coordinate-space bboxes for Sources UI.
+- Embedding profile reindexing covers only chunks from the active PDF processing
+  version and links that processing version to the newly built index version.
+
+Stage 64D vector-space and retrieval rules:
+
+- The default Zhipu `embedding-3` payload explicitly requests 1024 dimensions
+  and validates the actual response length before persistence.
+- Preserve old 2048 vectors in their own columns and index versions. Provider,
+  model, dimension, and index-version identity must match; dimension equality
+  alone never permits vector mixing.
+- Use exact dense scoring after active-version and document filtering for at
+  most `LOCAL_EXACT_SEARCH_MAX_DOCUMENTS` selected documents. Use L2 HNSW for
+  larger or whole-Library scopes, then retain FTS fusion, reranking, parent
+  expansion, and the existing `[S#]` contract.
+- Keep `vector_l2_ops` aligned with the current `<->` distance. HNSW defaults
+  remain `m=16`, `ef_construction=64`; `HNSW_EF_SEARCH` is backend-only and may
+  change only with recorded Recall/latency evidence.
+- Run `scripts/benchmark_hnsw_retrieval.py` only with `--confirm`. Its unlogged
+  synthetic table must remain isolated from Repository tables and be dropped
+  after the run.
+
+Stage 64E theme, conversation-memory, and language rules:
+
+- All visible colors must come from the semantic Light/Dark theme tokens in
+  `frontend/src/styles.css`. System follows the operating-system preference at
+  runtime; theme changes must not remount Chat or disturb its bottom composer.
+- Reuse one hidden LangGraph `thread_id` for each public `conversation_id`.
+  Query Analysis and every final-answer path receive bounded recent turns and
+  the rolling summary; selected-book changes never create or switch a
+  Conversation.
+- New Chat creates a new Conversation and therefore isolates short-term turns.
+  It does not delete namespace-scoped long-term memory. Ordinary user messages
+  are not automatically promoted; explicit preferred-name requests use the
+  existing conservative long-term-memory pipeline.
+- Query Analysis selects `response_language` from the current user message,
+  honoring an explicit language request first. Propagate it through
+  clarification, planning, synthesis, repair, and streaming rather than asking
+  final synthesis to infer it again.
+- UI, Activity, log, prompt-instruction, error, fallback, comment, test
+  description, and configuration text in source code is English. Preserve user
+  input, model answers, PDF/citation text, and language-routing fixtures.
+- Do not start Stage 65 packaging as part of Stage 64E.
 
 ## Repository Hygiene
 

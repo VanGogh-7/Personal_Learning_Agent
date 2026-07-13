@@ -51,10 +51,10 @@ export function reduceAgentRun(
           : "filtering_sources";
     const label =
       event.source === "local"
-        ? `已检索书库，找到 ${event.result_count} 个相关片段`
+        ? `Searched selected books and found ${event.result_count} relevant chunks`
         : event.source === "academic"
-          ? `已搜索学术资料，找到 ${event.result_count} 个结果`
-          : `已搜索网络资料，找到 ${event.result_count} 个结果`;
+          ? `Searched academic sources and found ${event.result_count} results`
+          : `Searched the web and found ${event.result_count} results`;
     return {
       ...state,
       activity: {

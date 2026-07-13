@@ -83,6 +83,7 @@ def import_pdf_path(
         if refreshed is None:
             raise LibraryImportError("Imported library item could not be loaded.")
     except Exception:
+        _remove_orphan_ocr_output(managed_path)
         managed_path.unlink(missing_ok=True)
         raise
 
@@ -125,6 +126,15 @@ def _resolve_storage_dir(storage_dir: str) -> Path:
     if path.is_absolute():
         return path
     return BACKEND_DIR / path
+
+
+def _remove_orphan_ocr_output(managed_path: Path) -> None:
+    configured = Path(get_settings().pdf_ocr_output_dir).expanduser()
+    output_dir = configured if configured.is_absolute() else BACKEND_DIR / configured
+    if not output_dir.is_dir():
+        return
+    for candidate in output_dir.glob(f"{managed_path.stem}-*-searchable.pdf"):
+        candidate.unlink(missing_ok=True)
 
 
 def _safe_filename(filename: str) -> str:

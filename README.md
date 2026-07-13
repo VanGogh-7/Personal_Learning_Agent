@@ -10,8 +10,8 @@ The product is a learning agent, not a PDF reader. The MVP UI is:
 PDF Repository | Agent Chat
 ```
 
-Current stage: Stage 64B production stabilization and packaging-blocker
-remediation over the unified Local/Web/Academic citation experience.
+Current stage: Stage 64E theme, Conversation memory, and answer-language
+stabilization before desktop packaging. Stage 65 packaging has not started.
 
 ## What It Does
 
@@ -607,7 +607,7 @@ fallback.
 Embedding changes are staged rather than immediately activated. Creating an
 Embedding profile creates a `pending` `embedding_index_versions` row;
 re-indexing writes new vectors to `chunk_embeddings` without overwriting the
-legacy `document_chunks.embedding` column or another profile's vector space.
+preserved 2048-dimensional columns or another profile/model's vector space.
 Only a fully `ready` version can become `active`, and retrieval filters by that
 exact version. Existing Repository indexes therefore remain usable until the
 new version is explicitly activated.
@@ -663,7 +663,8 @@ filters, OCR-confidence weighting, and parent-section expansion. This improves
 exact theorem/section numbers and named terminology while preserving the same
 `LocalEvidence` and `[S#]` citation contract. Non-PDF and legacy documents keep
 their prior dense behavior. A GIN expression index supports the matching
-full-text expression; no speculative ANN vector index was added.
+full-text expression. Stage 64D adds an L2-matched HNSW index only for the new
+fixed-width 1024-dimensional vector space.
 
 The visual page path is an isolated experiment. `PDF_VISUAL_RETRIEVAL_ENABLED`
 defaults to false, no visual model is downloaded, and no GPU is assumed. An
@@ -796,8 +797,9 @@ compensation and a critical structured log if compensation itself fails.
 
 Exact token resume is unsupported because SSE runs are not stored as replayable
 token logs. The UI retains partial text and permits a fresh request instead.
-No ANN index was added: current data still does not demonstrate that HNSW or
-IVFFlat improves the existing L2 query plan.
+Stage 64D keeps exact dense scoring for an explicit selection of at most five
+documents. Larger or whole-Library scopes use the measured L2 HNSW candidate
+path, then the same FTS fusion, reranking, parent expansion, and citation code.
 
 ### Stage 63 citation UX and Stage 64 stabilization
 
@@ -827,6 +829,22 @@ checkpoint wrapper bridges its async streaming calls onto worker threads, so
 streaming and non-streaming paths share the same pool without leaving the event
 loop blocked or calling unsupported async methods.
 
+Stage 64C validated the production Repository pipeline with the 315-page
+scanned `General Topology.pdf`: OCRmyPDF creates one immutable derived
+searchable copy, Tesseract stores page-aware OCR text/confidence/pixel bboxes,
+and the PyMuPDF rule parser produces versioned chunks. PDF chunks are bounded
+to 2,400 characters (400-character overlap) so noisy OCR remains below
+Zhipu `embedding-3`'s 3,072-token per-input limit. Provider failures are
+normalized as retryable indexing errors instead of leaking an HTTP 500.
+
+Early Contents/Preface propagation is bounded so lost OCR line breaks cannot
+classify the entire book as front matter. Parent context is assigned only when
+a real chapter or section heading was detected. Public RAG/Agent responses
+retain page ranges, OCR confidence, coordinate-aware bboxes, and `[S#]`
+citations while suppressing internal filesystem paths. Re-indexing reuses a
+valid content-addressed OCRmyPDF output, embeds only the active processing
+version, and links that processing version to the active embedding index.
+
 Apply and roll back the Stage 64 migration with:
 
 ```bash
@@ -835,6 +853,86 @@ alembic upgrade head
 alembic downgrade c8e4f2a6b9d1
 alembic upgrade head
 ```
+
+### Stage 64D embedding dimension and HNSW retrieval
+
+The default Zhipu `embedding-3` request now explicitly sends
+`dimensions=1024`; the response length must be exactly 1024 before any write.
+Migration `e5c8a1f4b2d9` preserves the former `vector(2048)` and untyped vector
+columns, adds separate `vector(1024)` columns, and creates partial
+`vector_l2_ops` HNSW indexes. Migration `f6d9b2c5a8e1` makes the preserved
+legacy version column nullable so a new 1024-only row does not require a fake
+old-space vector. Provider, model, dimension, and index version remain one
+identity: equal dimensions never permit two models to share a vector space.
+
+Selected scopes up to `LOCAL_EXACT_SEARCH_MAX_DOCUMENTS` (default 5) filter the
+active index version and document IDs before exact L2 scoring. Larger and
+whole-Library scopes issue the indexable `<->` ordering with request-local
+`HNSW_EF_SEARCH` (default 40). Both paths retain PostgreSQL `simple` FTS, RRF,
+reranking, parent context, page metadata, and `[S#]` behavior. HNSW build
+parameters retain pgvector defaults (`m=16`, `ef_construction=64`) until a
+recorded benchmark justifies a schema migration.
+
+Run the destructive, isolated synthetic benchmark only with explicit consent;
+it creates and drops its own unlogged table and does not touch Repository data:
+
+```bash
+cd backend
+python scripts/benchmark_hnsw_retrieval.py --confirm \
+  --sizes 10000,50000,100000,300000 --runs 5
+```
+
+The report includes Recall@10, MRR, p50/p95, build time, index size, hybrid
+latency, and `EXPLAIN (ANALYZE, BUFFERS)` plans. Use
+`scripts/explain_vector_search.sql` for a real active-version plan.
+
+The Stage 64D local PostgreSQL run used pgvector 0.8.4, `ef_search=40`, and
+synthetic 1024-dimensional vectors. It produced the following p50 values; the
+quality metrics are single-query scale checks, not a held-out relevance set:
+
+| vectors | Recall@10 | MRR | exact | HNSW | hybrid | HNSW build | HNSW size |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 10k | 1.00 | 1.00 | 21.321 ms | 0.533 ms | 0.892 ms | 0.846 s | 78.1 MiB |
+| 50k | 0.90 | 1.00 | 172.926 ms | 0.622 ms | 0.993 ms | 22.304 s | 390.6 MiB |
+| 100k | 1.00 | 1.00 | 336.194 ms | 0.651 ms | 1.037 ms | 51.927 s | 781.3 MiB |
+| 300k | 0.90 | 1.00 | 771.831 ms | 0.406 ms | 0.824 ms | 66.888 s | 2.29 GiB |
+
+`EXPLAIN (ANALYZE, BUFFERS)` showed sequential scan plus sort for forced exact,
+HNSW index scan for ANN, and both the HNSW index and FTS GIN bitmap index for
+hybrid. Selected one/five-document exact p50 at 300k was 17.204/45.778 ms.
+
+Apply and round-trip the dimension migration with:
+
+```bash
+cd backend
+alembic upgrade head
+alembic downgrade d4b7e2a9c6f1
+alembic upgrade head
+alembic check
+```
+
+### Stage 64E theme, Conversation memory, and language consistency
+
+Light, Dark, and System appearance now share semantic color tokens for the app
+background, surfaces, message cards, composer inputs, Markdown, KaTeX, code,
+tables, links, citation markers, and Sources. System appearance reacts to an
+operating-system theme change without a refresh, while the existing fixed
+bottom composer and message scroll region remain unchanged.
+
+Each public `conversation_id` continues to map to one hidden LangGraph
+`thread_id`. Bounded recent turns and the rolling summary are now supplied to
+Query Analysis and to both direct and researched synthesis, including the SSE
+path. Changing selected Repository books changes only working context. New
+Chat omits the old `conversation_id`, isolating short-term turns without
+deleting namespace-scoped explicit long-term memory.
+
+Query Analysis emits `response_language` from the current message (`en` or
+`zh`), with an explicit language request taking precedence. Clarification,
+answer planning, direct answers, synthesis, citation repair, and streaming use
+that same value. Product UI, Activity, errors, logs, prompt instructions,
+comments, and configuration descriptions in source remain English; user text,
+model output, PDF/citation excerpts, and required multilingual fixtures remain
+unchanged.
 
 Before desktop packaging, run the deterministic gates from the repository
 root. Real Provider, network, OCR, visual-GPU, soak, and manual Tauri checks

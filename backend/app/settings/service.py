@@ -8,10 +8,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.embeddings.providers import EmbeddingProviderError
+from app.db.vector_search import active_processing_filter
+from app.models.document import Document
 from app.llm.providers import LLMProviderError
 from app.models.document_chunk import DocumentChunk
 from app.models.embedding_index import ChunkEmbedding, EmbeddingIndexVersion
 from app.models.provider_profile import ProviderProfile
+from app.models.pdf_processing import PdfProcessingVersion
 from app.settings.catalog import get_provider_entry
 from app.settings.runtime import ProviderRuntimeRegistry, provider_runtime_registry
 from app.settings.schemas import (
@@ -279,7 +282,12 @@ def reindex_embedding_profile(
     if snapshot.embedding is None:
         raise ValueError("Embedding Provider could not be initialized")
     chunks = (
-        session.execute(select(DocumentChunk).order_by(DocumentChunk.id))
+        session.execute(
+            select(DocumentChunk)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(active_processing_filter())
+            .order_by(DocumentChunk.id)
+        )
         .scalars()
         .all()
     )
@@ -303,13 +311,21 @@ def reindex_embedding_profile(
                     ChunkEmbedding(
                         chunk_id=chunk.id,
                         index_version_id=version.id,
-                        embedding=vector,
+                        embedding=vector if version.dimension == 1024 else None,
+                        embedding_legacy=vector if version.dimension != 1024 else None,
                     )
                 )
             version.embedded_chunks += len(batch)
             session.flush()
         version.status = "ready"
         version.completed_at = datetime.now(UTC)
+        for processing_version in session.execute(
+            select(PdfProcessingVersion).join(
+                Document,
+                Document.active_processing_version_id == PdfProcessingVersion.id,
+            )
+        ).scalars():
+            processing_version.text_index_version_id = version.id
         session.flush()
         return version
     except Exception:

@@ -124,7 +124,7 @@ def test_book_scoped_rag_returns_only_selected_library_item_chunks(
     assert response.citations[0].library_title == "Topology"
     assert response.citations[0].library_author == "Author"
     assert response.citations[0].document_title == "Topology"
-    assert response.citations[0].document_source_path == "/tmp/Topology.txt"
+    assert response.citations[0].document_source_path is None
     assert response.citations[0].chunk_id == response.retrieved_chunks[0].chunk_id
     assert response.citations[0] == response.retrieved_chunks[0].citation
 
@@ -251,7 +251,7 @@ def test_global_rag_endpoint_still_uses_global_retrieval(monkeypatch) -> None:
     assert response.citations[0].library_title == "Global Book"
     assert response.citations[0].library_author == "Global Author"
     assert response.citations[0].document_title == "Global"
-    assert response.citations[0].document_source_path == "/tmp/global.md"
+    assert response.citations[0].document_source_path is None
     assert response.citations[0].chunk_index == 0
     assert response.citations[0].score == 0.01
     assert response.citations[0].excerpt == "Global retrieval still works."
@@ -342,10 +342,7 @@ def test_multi_book_rag_citations_include_library_and_chunk_metadata(
         assert citation.library_title in {"Topology", "Analysis"}
         assert citation.library_author == "Author"
         assert citation.document_title in {"Topology", "Analysis"}
-        assert citation.document_source_path in {
-            "/tmp/Topology.txt",
-            "/tmp/Analysis.txt",
-        }
+        assert citation.document_source_path is None
         assert citation.chunk_id == chunk.chunk_id
         assert citation.document_id == chunk.document_id
         assert citation.chunk_index == chunk.chunk_index

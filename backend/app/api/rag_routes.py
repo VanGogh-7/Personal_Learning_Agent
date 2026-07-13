@@ -364,7 +364,7 @@ def _citation_response(citation: ChunkCitationResult) -> RagCitation:
         library_title=citation.library_title,
         library_author=citation.library_author,
         document_title=citation.document_title,
-        document_source_path=citation.document_source_path,
+        document_source_path=None,
         chunk_index=citation.chunk_index,
         page_number=citation.page_number,
         page_start=citation.page_start,
@@ -375,6 +375,9 @@ def _citation_response(citation: ChunkCitationResult) -> RagCitation:
         score=citation.score,
         excerpt=citation.excerpt,
         content=citation.content,
+        extraction_method=citation.extraction_method,
+        ocr_confidence=citation.ocr_confidence,
+        bounding_boxes=list(citation.bounding_boxes),
     )
 
 
@@ -387,7 +390,7 @@ def _retrieved_chunk_responses(
             chunk_id=str(item.chunk_id),
             document_id=str(item.document_id),
             document_title=item.document_title,
-            document_source_path=item.document_source_path,
+            document_source_path=None,
             chunk_index=item.chunk_index,
             page_number=citation.page_number,
             page_start=item.page_start,

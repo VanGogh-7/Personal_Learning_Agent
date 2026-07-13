@@ -71,6 +71,7 @@ def test_query_analysis_uses_validated_llm_json_and_falls_back_safely() -> None:
                     intent="find_papers",
                     required_sources=["academic"],
                     answer_mode="comparison",
+                    response_language="zh",
                 ).model_dump()
             )
 
@@ -83,6 +84,7 @@ def test_query_analysis_uses_validated_llm_json_and_falls_back_safely() -> None:
     )
     assert result.intent == "find_papers"
     assert result.required_sources == ["academic"]
+    assert result.response_language == "en"
 
     class InvalidProvider:
         def generate(self, prompt: str) -> str:
@@ -97,6 +99,47 @@ def test_query_analysis_uses_validated_llm_json_and_falls_back_safely() -> None:
     )
     assert fallback.required_sources == ["academic"]
     assert fallback.confidence <= 0.65
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("Explain compactness.", "en"),
+        ("解释紧致性。", "zh"),
+        ("Please answer in English: 解释紧致性。", "en"),
+        ("Please answer in Chinese: explain compactness.", "zh"),
+    ],
+)
+def test_response_language_uses_current_message_and_explicit_override(
+    question, expected
+) -> None:
+    result = analyze_query(
+        question,
+        selected_book_count=0,
+        has_conversation_context=True,
+        conversation_context="User: 这是旧的中文上下文。",
+    )
+    assert result.response_language == expected
+
+
+def test_query_analysis_prompt_receives_bounded_conversation_context() -> None:
+    seen: list[str] = []
+
+    class Provider:
+        def generate(self, prompt: str) -> str:
+            seen.append(prompt)
+            return json.dumps(analysis().model_dump())
+
+    analyze_query(
+        "What does it mean?",
+        selected_book_count=0,
+        has_conversation_context=True,
+        conversation_context="User: We were discussing compactness.",
+        provider=Provider(),  # type: ignore[arg-type]
+        provider_name="deepseek",
+    )
+    assert "Use conversation context to resolve follow-ups" in seen[0]
+    assert "We were discussing compactness" in seen[0]
 
 
 @pytest.mark.parametrize(

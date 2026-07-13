@@ -44,6 +44,14 @@ class DocumentChunk(Base):
             postgresql_where=text("processing_version_id IS NULL"),
             sqlite_where=text("processing_version_id IS NULL"),
         ),
+        Index("ix_document_chunks_document_id", "document_id"),
+        Index(
+            "ix_document_chunks_embedding_1024_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_l2_ops"},
+            postgresql_where=text("embedding IS NOT NULL"),
+        ),
         CheckConstraint(
             "char_start >= 0", name="ck_document_chunks_char_start_non_negative"
         ),
@@ -94,6 +102,9 @@ class DocumentChunk(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     # Nullable: existing chunks may not have an embedding yet.
+    embedding_2048: Mapped[list[float] | None] = mapped_column(
+        Vector(2048), nullable=True
+    )
     embedding: Mapped[list[float] | None] = mapped_column(
         Vector(EMBEDDING_DIMENSION), nullable=True
     )

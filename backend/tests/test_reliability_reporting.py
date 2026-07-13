@@ -43,9 +43,9 @@ def test_safe_report_never_contains_provider_keys_or_full_urls() -> None:
 
 
 def test_embedding_dimension_validation_stops_mismatched_writes() -> None:
-    validate_embedding_dimension(actual=2048, configured=2048, schema=2048)
-    with pytest.raises(EmbeddingDimensionMismatch, match="actual=1024"):
-        validate_embedding_dimension(actual=1024, configured=2048, schema=2048)
+    validate_embedding_dimension(actual=1024, configured=1024, schema=1024)
+    with pytest.raises(EmbeddingDimensionMismatch, match="actual=2048"):
+        validate_embedding_dimension(actual=2048, configured=1024, schema=1024)
 
 
 def test_fault_injection_cannot_be_enabled_in_production() -> None:

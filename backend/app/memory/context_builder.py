@@ -28,12 +28,18 @@ def build_memory_context(
     query: str,
 ) -> MemoryContext:
     settings = get_settings()
-    with measure_latency_sync("short_term_memory_load"):
-        recent = get_recent_effective_turns(
-            session, conversation_id, limit=settings.memory_recent_turn_limit
+    try:
+        with measure_latency_sync("short_term_memory_load"):
+            recent = get_recent_effective_turns(
+                session, conversation_id, limit=settings.memory_recent_turn_limit
+            )
+        with measure_latency_sync("conversation_summary_load"):
+            summary = get_conversation_summary(session, conversation_id)
+    except Exception:
+        logger.exception(
+            "conversation_context_load_failed conversation_id=%s", conversation_id
         )
-    with measure_latency_sync("conversation_summary_load"):
-        summary = get_conversation_summary(session, conversation_id)
+        raise
     predicate, scope = _query_memory_hint(query)
     try:
         with session.begin_nested():
@@ -65,9 +71,13 @@ def build_memory_context(
 
 def _query_memory_hint(query: str) -> tuple[str | None, str | None]:
     normalized = query.lower()
+    if "preferred name" in normalized or "my name" in normalized:
+        return "preferred_name", "identity"
     if "leetcode" in normalized:
         return "preferred_leetcode_language", "leetcode"
-    if any(marker in normalized for marker in ("数学", "定理", "theorem")):
+    if any(
+        marker in normalized for marker in ("\u6570\u5b66", "\u5b9a\u7406", "theorem")
+    ):
         return "math_explanation_order", "mathematics"
     return None, None
 

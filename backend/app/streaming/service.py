@@ -21,6 +21,7 @@ from app.graphs.chat_rag_graph import (
     build_initial_agent_state,
     build_streaming_chat_rag_graph,
 )
+from app.graphs.adaptive import ResponseLanguage, detect_response_language
 from app.graphs.schemas import AgentChatRequest, AgentChatResponse
 from app.llm.providers import LLMProviderError
 from app.memory.checkpointer import checkpointer_manager
@@ -337,7 +338,12 @@ async def stream_agent_sse(
         event = factory.create(
             ErrorEvent,
             code=_safe_error_code(exc),
-            message=_safe_error_message(exc),
+            message=_safe_error_message(
+                exc,
+                response_language=detect_response_language(
+                    run.request.question or run.request.message or ""
+                ),
+            ),
             recoverable=True,
             partial_output_preserved=bool(
                 trace.counters.get("streamed_character_count", 0)
@@ -545,8 +551,18 @@ def _provider_name_for_error(error: BaseException) -> str:
     return "agent"
 
 
-def _safe_error_message(error: BaseException) -> str:
+def _safe_error_message(
+    error: BaseException, *, response_language: ResponseLanguage = "en"
+) -> str:
     code = _safe_error_code(error)
+    if response_language == "zh":
+        messages = {
+            "provider_stream_failed": "\u6a21\u578b\u670d\u52a1\u4e2d\u65ad\u4e86\u56de\u7b54\u6d41\u3002",
+            "persistence_failed": "\u56de\u7b54\u5df2\u751f\u6210\uff0c\u4f46\u65e0\u6cd5\u4fdd\u5b58\u3002",
+            "invalid_request": "Agent \u8bf7\u6c42\u65e0\u6548\u3002",
+            "agent_stream_failed": "Agent \u56de\u7b54\u6d41\u672a\u80fd\u5b8c\u6210\u3002",
+        }
+        return messages[code]
     if code == "provider_stream_failed":
         return "The answer stream was interrupted by the model provider."
     if code == "persistence_failed":

@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
-# Stage 36A aligns the persisted pgvector column with the configured
-# Zhipu embedding-3 dimension used for real PDF indexing.
-EMBEDDING_DIMENSION = 2048
+# Stage 64D uses Zhipu embedding-3's explicit 1024-dimensional output for the
+# default production vector space. Older 2048-dimensional versions remain in
+# their legacy columns and are never cast or truncated.
+EMBEDDING_DIMENSION = 1024
 
 
 class EmbeddingProvider(ABC):

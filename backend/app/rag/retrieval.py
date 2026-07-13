@@ -524,6 +524,10 @@ def _search_local_chunks(
             exclude_section_types=exclude_section_types,
             dense_weight=settings.pdf_hybrid_dense_weight,
             keyword_weight=settings.pdf_hybrid_keyword_weight,
+            force_ann=(
+                global_fallback
+                or len(document_ids) > settings.local_exact_search_max_documents
+            ),
         )
         encoder = (
             visual_encoder_registry.get()

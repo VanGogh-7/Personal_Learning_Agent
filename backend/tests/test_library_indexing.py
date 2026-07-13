@@ -4,14 +4,19 @@ import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from app.embeddings.base import EMBEDDING_DIMENSION
+from app.embeddings.base import EMBEDDING_DIMENSION, EmbeddingProvider
+from app.embeddings.providers import EmbeddingProviderError
 from app.library.service import create_library_item
 from app.library.indexing import (
+    PDF_INDEX_CHUNK_SIZE_CHARS,
+    PDF_INDEX_MIN_CHUNK_CHARS,
+    _prepare_pdf_pages_for_chunking,
     LibraryIndexingError,
     classify_pdf_section_type,
     detect_pdf_heading_context,
     index_library_item,
 )
+from app.ingestion.pdf import PDFPageText
 from app.models.document import Document
 from app.models.document_chunk import DocumentChunk
 from app.models.library_item import LibraryItem
@@ -116,6 +121,40 @@ def test_index_library_item_empty_file_path_sets_failed_status(
     updated_item = indexing_session.get(LibraryItem, item.item_id)
     assert updated_item is not None
     assert updated_item.status == "index_failed"
+
+
+def test_index_library_item_normalizes_embedding_failure_and_keeps_no_chunks(
+    indexing_session, tmp_path
+) -> None:
+    class FailingEmbeddingProvider(EmbeddingProvider):
+        @property
+        def dimension(self) -> int:
+            return EMBEDDING_DIMENSION
+
+        def embed_text(self, text: str) -> list[float]:
+            raise EmbeddingProviderError("provider detail must remain private")
+
+    file_path = tmp_path / "retryable.md"
+    file_path.write_text("Topology and compactness. " * 50, encoding="utf-8")
+    item = create_library_item(
+        indexing_session,
+        title="Retryable embedding failure",
+        file_path=str(file_path),
+        file_type="md",
+    )
+
+    with pytest.raises(
+        LibraryIndexingError,
+        match="Embedding provider could not index this Library item",
+    ):
+        index_library_item(
+            indexing_session,
+            item.item_id,
+            embedding_provider=FailingEmbeddingProvider(),
+        )
+
+    assert indexing_session.get(LibraryItem, item.item_id).status == "index_failed"
+    assert not indexing_session.scalars(select(DocumentChunk)).all()
 
 
 def test_index_library_item_pdf_creates_page_aware_chunks(
@@ -263,12 +302,32 @@ def test_index_library_item_pdf_uses_larger_multi_page_chunks(
         .scalars()
         .all()
     )
-    assert len(chunks) < len(page_texts)
+    assert len(chunks) <= len(page_texts)
     assert chunks[0].page_start == 1
     assert chunks[0].page_end is not None
     assert chunks[0].page_end > 1
     assert chunks[0].section_title == "II.6 Completeness"
     assert all(len(chunk.content) >= 350 for chunk in chunks)
+    assert all(
+        len(chunk.content) <= PDF_INDEX_CHUNK_SIZE_CHARS + PDF_INDEX_MIN_CHUNK_CHARS - 1
+        for chunk in chunks
+    )
+
+
+def test_contents_classification_does_not_consume_the_whole_ocr_document() -> None:
+    pages = [PDFPageText(1, "Contents Chapter I Foundations .... 3")] + [
+        PDFPageText(
+            number,
+            f"Ordinary discussion page {number} with topology and open sets.",
+        )
+        for number in range(2, 21)
+    ]
+
+    prepared = _prepare_pdf_pages_for_chunking(pages)
+
+    assert prepared[0].section_type == "contents"
+    assert prepared[-1].section_type == "body"
+    assert sum(page.section_type == "contents" for page in prepared) == 12
 
 
 def test_classify_pdf_section_type_uses_lightweight_heuristics() -> None:

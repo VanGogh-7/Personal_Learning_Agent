@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+import app.memory.context_builder as context_builder_module
 from app.core.config import get_settings
 from app.embeddings.mock import MockEmbeddingProvider
 from app.memory.consolidation import consolidate_candidate
@@ -252,6 +253,29 @@ def test_context_construction_separates_memory_summary_and_recent_turns(
     assert "User memory:" in rendered
     assert "Recent messages:" in rendered
     assert "not evidence" in rendered
+
+
+def test_short_term_context_failure_is_logged_and_not_silently_dropped(
+    memory_architecture_session, monkeypatch, caplog
+) -> None:
+    identity = resolve_conversation(memory_architecture_session)
+    monkeypatch.setattr(
+        context_builder_module,
+        "get_recent_effective_turns",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="failed"):
+        build_memory_context(
+            memory_architecture_session,
+            conversation_id=identity.conversation_id,
+            namespace=identity.namespace,
+            query="What did we discuss?",
+        )
+    assert any(
+        "conversation_context_load_failed" in record.message
+        for record in caplog.records
+    )
 
 
 def test_same_legacy_conversation_reuses_hidden_thread(

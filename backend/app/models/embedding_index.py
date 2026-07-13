@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +23,13 @@ class EmbeddingIndexVersion(Base):
     """A model-specific vector space that is activated only after re-indexing."""
 
     __tablename__ = "embedding_index_versions"
+    __table_args__ = (
+        Index(
+            "ix_embedding_index_versions_profile_status",
+            "embedding_profile_id",
+            "status",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -44,6 +60,13 @@ class ChunkEmbedding(Base):
         UniqueConstraint(
             "chunk_id", "index_version_id", name="uq_chunk_embeddings_chunk_version"
         ),
+        Index(
+            "ix_chunk_embeddings_embedding_1024_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_l2_ops"},
+            postgresql_where=text("embedding IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -60,7 +83,10 @@ class ChunkEmbedding(Base):
         nullable=False,
         index=True,
     )
-    embedding: Mapped[list[float]] = mapped_column(Vector(), nullable=False)
+    embedding_legacy: Mapped[list[float] | None] = mapped_column(
+        Vector(), nullable=True
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
