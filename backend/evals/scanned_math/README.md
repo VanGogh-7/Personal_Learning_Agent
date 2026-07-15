@@ -34,7 +34,7 @@ or tuning set from being reported as the requested real evaluation.
 Probe dependencies without running tools:
 
 ```bash
-python scripts/evaluate_stage62.py --probe-environment \
+uv run python scripts/evaluate_stage62.py --probe-environment \
   --json-report evals/reports/stage62-environment.json
 ```
 
@@ -42,7 +42,7 @@ Run real Tesseract + OCRmyPDF only after installing them and assembling the
 sealed dataset:
 
 ```bash
-PLA_EXTERNAL_OCR_TESTS=true python scripts/evaluate_stage62.py \
+PLA_EXTERNAL_OCR_TESTS=true uv run python scripts/evaluate_stage62.py \
   --dataset-dir /absolute/private/scanned-math \
   --run-ocr --confirm-external-tools \
   --json-report evals/reports/stage62-ocr.json
@@ -53,7 +53,7 @@ already present locally. The command never downloads weights and uses brute-forc
 late interaction rather than adding an ANN index:
 
 ```bash
-PLA_VISUAL_GPU_TESTS=true python scripts/evaluate_stage62.py \
+PLA_VISUAL_GPU_TESTS=true uv run python scripts/evaluate_stage62.py \
   --dataset-dir /absolute/private/scanned-math \
   --run-visual --local-colqwen2-model /absolute/local/weights \
   --visual-observations evals/reports/stage62-visual.jsonl \

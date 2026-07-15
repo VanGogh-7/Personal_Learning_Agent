@@ -192,13 +192,13 @@ approved:
 
 ```bash
 cd backend
-PLA_REAL_PROVIDER_TESTS=true pytest -m real_provider
+PLA_REAL_PROVIDER_TESTS=true uv run pytest -m real_provider
 ```
 
 The dedicated Provider benchmark also requires an explicit cost confirmation:
 
 ```bash
-PLA_REAL_PROVIDER_TESTS=true python scripts/benchmark_real_providers.py \
+PLA_REAL_PROVIDER_TESTS=true uv run python scripts/benchmark_real_providers.py \
   --confirm-costs --runs 10 --warmups 1
 ```
 
@@ -216,7 +216,7 @@ route benchmark reports Router, retrieval, Provider, persistence, citation-ready
 event/count, and total application measurements:
 
 ```bash
-PLA_REAL_PROVIDER_TESTS=true python scripts/benchmark_agent_streaming.py \
+PLA_REAL_PROVIDER_TESTS=true uv run python scripts/benchmark_agent_streaming.py \
   --real-providers --runs 10 --warmups 1
 ```
 
@@ -228,13 +228,13 @@ truncates vectors automatically.
 Verify HTTP delivery against the backend or any proxy target:
 
 ```bash
-python scripts/verify_sse_delivery.py \
+uv run python scripts/verify_sse_delivery.py \
   --base-url http://127.0.0.1:8081 --route local_only --runs 3
 
-python scripts/verify_sse_delivery.py \
+uv run python scripts/verify_sse_delivery.py \
   --base-url http://127.0.0.1:9000 --route both --runs 3 --json
 
-python scripts/verify_sse_delivery.py \
+uv run python scripts/verify_sse_delivery.py \
   --base-url http://127.0.0.1:8081 --route web_only \
   --cancel-after-first-token
 ```
@@ -251,10 +251,10 @@ deployment validation. It is an example, not a claim that Nginx was tested.
 Run a controlled live-backend soak explicitly:
 
 ```bash
-python scripts/soak_agent_sse.py --confirm --runs 20 --route both \
+uv run python scripts/soak_agent_sse.py --confirm --runs 20 --route both \
   --library-item-id <uuid>
-python scripts/soak_agent_sse.py --confirm --runs 20 --cancel-every 3
-pytest -m soak
+uv run python scripts/soak_agent_sse.py --confirm --runs 20 --cancel-every 3
+uv run pytest -m soak
 ```
 
 The HTTP soak reuses one client, reports failures separately from percentiles,
@@ -456,7 +456,7 @@ Run focused adaptive tests with:
 
 ```bash
 cd backend
-pytest -q tests/test_adaptive_research_graph.py \
+uv run pytest -q tests/test_adaptive_research_graph.py \
   tests/test_agent_chat_graph.py tests/test_agent_streaming.py
 ```
 
@@ -471,7 +471,7 @@ Run the deterministic, network-free benchmark:
 
 ```bash
 cd backend
-python scripts/evaluate_adaptive_graph.py \
+uv run python scripts/evaluate_adaptive_graph.py \
   --dataset evals/adaptive_graph.jsonl \
   --variant adaptive --runs 3 \
   --json-report evals/reports/adaptive.json \
@@ -522,7 +522,7 @@ Run the reproducible network-free evaluation with:
 
 ```bash
 cd backend
-python scripts/evaluate_heldout_research.py --runs 3 \
+uv run python scripts/evaluate_heldout_research.py --runs 3 \
   --json-report evals/reports/heldout.json \
   --markdown-report evals/reports/heldout.md
 ```
@@ -532,7 +532,7 @@ independent opt-in experiments. They are refused unless
 `PLA_REAL_PROVIDER_TESTS=true` and `--confirm-costs` are both present:
 
 ```bash
-PLA_REAL_PROVIDER_TESTS=true python scripts/evaluate_heldout_research.py \
+PLA_REAL_PROVIDER_TESTS=true uv run python scripts/evaluate_heldout_research.py \
   --real-query --semantic-verifier --confirm-costs --runs 3 \
   --real-query-max-cases 12 \
   --input-cost-per-million <current-price> \
@@ -616,9 +616,9 @@ Apply or roll back the Stage 60 migration with:
 
 ```bash
 cd backend
-alembic upgrade head
-alembic downgrade a1c4e7f9b2d6
-alembic upgrade head
+uv run alembic upgrade head
+uv run alembic downgrade a1c4e7f9b2d6
+uv run alembic upgrade head
 ```
 
 ### Stage 61 legacy PDF ingestion and dual-index evaluation
@@ -678,7 +678,7 @@ Run the versioned offline retrieval evaluation:
 
 ```bash
 cd backend
-python scripts/evaluate_pdf_rag.py \
+uv run python scripts/evaluate_pdf_rag.py \
   --dataset evals/legacy_pdf_retrieval.jsonl \
   --json-report /tmp/pdf-rag.json \
   --markdown-report /tmp/pdf-rag.md
@@ -703,9 +703,9 @@ Apply or roll back the Stage 61 migration with:
 
 ```bash
 cd backend
-alembic upgrade head
-alembic downgrade f3a9c1d7e5b2
-alembic upgrade head
+uv run alembic upgrade head
+uv run alembic downgrade f3a9c1d7e5b2
+uv run alembic upgrade head
 ```
 
 All raw server results become the internal `WebEvidence` shape before
@@ -739,7 +739,7 @@ Default tests use mock sessions/transports and a local STDIO discovery test:
 
 ```bash
 cd backend
-pytest tests/test_mcp_foundation.py tests/test_mcp_research.py \
+uv run pytest tests/test_mcp_foundation.py tests/test_mcp_research.py \
   tests/test_mcp_evidence.py tests/test_secure_fetch_mcp.py \
   tests/test_academic_mcp.py
 ```
@@ -747,7 +747,7 @@ pytest tests/test_mcp_foundation.py tests/test_mcp_research.py \
 Stage 56 reliability coverage can be run directly with:
 
 ```bash
-pytest -q tests/test_mcp_foundation.py tests/test_mcp_hardening.py \
+uv run pytest -q tests/test_mcp_foundation.py tests/test_mcp_hardening.py \
   tests/test_mcp_gateway_hardening.py tests/test_mcp_research.py \
   tests/test_secure_fetch_mcp.py
 ```
@@ -755,7 +755,7 @@ pytest -q tests/test_mcp_foundation.py tests/test_mcp_hardening.py \
 Real MCP checks are opt-in and may consume search quota:
 
 ```bash
-MCP_ENABLED=true MCP_REAL_TESTS=true pytest -m real_mcp
+MCP_ENABLED=true MCP_REAL_TESTS=true uv run pytest -m real_mcp
 ```
 
 Missing keys/configuration produce a skip. The execution environment must also
@@ -849,9 +849,9 @@ Apply and roll back the Stage 64 migration with:
 
 ```bash
 cd backend
-alembic upgrade head
-alembic downgrade c8e4f2a6b9d1
-alembic upgrade head
+uv run alembic upgrade head
+uv run alembic downgrade c8e4f2a6b9d1
+uv run alembic upgrade head
 ```
 
 ### Stage 64D embedding dimension and HNSW retrieval
@@ -878,7 +878,7 @@ it creates and drops its own unlogged table and does not touch Repository data:
 
 ```bash
 cd backend
-python scripts/benchmark_hnsw_retrieval.py --confirm \
+uv run python scripts/benchmark_hnsw_retrieval.py --confirm \
   --sizes 10000,50000,100000,300000 --runs 5
 ```
 
@@ -905,10 +905,10 @@ Apply and round-trip the dimension migration with:
 
 ```bash
 cd backend
-alembic upgrade head
-alembic downgrade d4b7e2a9c6f1
-alembic upgrade head
-alembic check
+uv run alembic upgrade head
+uv run alembic downgrade d4b7e2a9c6f1
+uv run alembic upgrade head
+uv run alembic check
 ```
 
 ### Stage 64E theme, Conversation memory, and language consistency
@@ -969,13 +969,13 @@ missing.
 
 ```bash
 cd backend
-pytest
-ruff check .
-ruff format --check .
-python -m compileall -q app scripts tests
-alembic current
-alembic check
-pip-audit -r requirements.txt
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run python -m compileall -q app scripts tests
+uv run alembic current
+uv run alembic check
+uv run pip-audit
 
 cd ../frontend
 bun run test
@@ -1047,16 +1047,15 @@ is not `production`; production never exposes internal timing data.
 Run the deterministic benchmark without network calls:
 
 ```bash
-conda activate pla
 cd backend
-python scripts/benchmark_agent_latency.py --runs 10
+uv run python scripts/benchmark_agent_latency.py --runs 10
 ```
 
 It reports count, min, max, mean, p50, p90, p95, and failures separately. One
 warm-up is used by default. A real benchmark is opt-in and consumes API quota:
 
 ```bash
-python scripts/benchmark_agent_latency.py \
+uv run python scripts/benchmark_agent_latency.py \
   --runs 3 \
   --real-providers \
   --scenario local_only \
@@ -1080,7 +1079,7 @@ stream duration, and final Markdown/KaTeX render.
 Run the mock streaming benchmark:
 
 ```bash
-python scripts/benchmark_agent_streaming.py --runs 10
+uv run python scripts/benchmark_agent_streaming.py --runs 10
 ```
 
 It reports route-specific first-status, first-token, generation, final-persist,
@@ -1092,7 +1091,7 @@ run is not a stable performance conclusion.
 Run streaming-focused tests with:
 
 ```bash
-pytest -q tests/test_agent_streaming.py tests/test_llm_providers.py
+uv run pytest -q tests/test_agent_streaming.py tests/test_llm_providers.py
 cd ../frontend && bun run test
 ```
 
@@ -1150,14 +1149,19 @@ Local citations and web sources are separate in the response:
 
 ## Setup
 
-Create and activate the backend environment:
+Create the Python 3.12 backend environment and install the locked runtime and
+development dependencies. The checked-in `.python-version` selects Python 3.12,
+and `uv sync` creates `backend/.venv` automatically:
 
 ```bash
-conda create -n pla python=3.12
-conda activate pla
 cd backend
-pip install -r requirements.txt
+uv sync
 ```
+
+`backend/pyproject.toml` is the dependency source of truth and
+`backend/uv.lock` is the reproducible lock file. Run backend commands through
+`uv run`; no project-level Conda environment or separately maintained
+`requirements.txt` is required.
 
 Create a PostgreSQL database, for example
 `personal_learning_agent`, and ensure pgvector is installed. Migrations
@@ -1197,9 +1201,8 @@ Tavily use local backend `.env` values only.
 Run migrations:
 
 ```bash
-conda activate pla
 cd backend
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 Install frontend dependencies:
@@ -1214,9 +1217,8 @@ bun install
 Start the backend:
 
 ```bash
-conda activate pla
 cd backend
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
+uv run uvicorn app.main:app --reload --port 8081
 ```
 
 Start the desktop frontend:
@@ -1236,18 +1238,17 @@ bun run build
 Run backend tests:
 
 ```bash
-conda activate pla
 cd backend
-pytest
+uv run pytest
 ```
 
 The backend suite includes deterministic unit and SQLite integration tests.
 With the configured local PostgreSQL database, validate migrations with:
 
 ```bash
-alembic upgrade head
-alembic downgrade c8e4f2a6b9d1
-alembic upgrade head
+uv run alembic upgrade head
+uv run alembic downgrade c8e4f2a6b9d1
+uv run alembic upgrade head
 ```
 
 `GET/POST/PATCH/DELETE /api/memory/long-term` provide the minimal auditable

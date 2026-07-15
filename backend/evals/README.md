@@ -10,9 +10,8 @@ judge—are the primary standard.
 Run the deterministic offline evaluation:
 
 ```bash
-conda activate pla
 cd backend
-python scripts/evaluate_adaptive_graph.py \
+uv run python scripts/evaluate_adaptive_graph.py \
   --dataset evals/adaptive_graph.jsonl \
   --variant adaptive \
   --runs 3 \
@@ -30,7 +29,7 @@ retrieval, rendering, or persistence measurements.
 Real DeepSeek QueryAnalysis evaluation is opt-in and consumes quota:
 
 ```bash
-PLA_REAL_PROVIDER_TESTS=true python scripts/evaluate_adaptive_graph.py \
+PLA_REAL_PROVIDER_TESTS=true uv run python scripts/evaluate_adaptive_graph.py \
   --real-providers --confirm-costs --runs 3 \
   --input-cost-per-million <price> \
   --output-cost-per-million <price>
@@ -60,7 +59,7 @@ deterministic evidence grading, structural citation checking, human evidence
 quality labels, confusion matrices, failure categories, and report safety:
 
 ```bash
-python scripts/evaluate_heldout_research.py --runs 3 \
+uv run python scripts/evaluate_heldout_research.py --runs 3 \
   --json-report evals/reports/heldout.json \
   --markdown-report evals/reports/heldout.md
 ```
@@ -69,7 +68,7 @@ Run real DeepSeek temperature/stability and semantic-verifier experiments only
 with explicit quota confirmation:
 
 ```bash
-PLA_REAL_PROVIDER_TESTS=true python scripts/evaluate_heldout_research.py \
+PLA_REAL_PROVIDER_TESTS=true uv run python scripts/evaluate_heldout_research.py \
   --real-query --semantic-verifier --confirm-costs --runs 3 \
   --real-query-max-cases 12 \
   --input-cost-per-million <current-price> \
@@ -110,7 +109,7 @@ fixture indexing latency, query latency, storage, and failure state.
 Run:
 
 ```bash
-python scripts/evaluate_pdf_rag.py \
+uv run python scripts/evaluate_pdf_rag.py \
   --dataset evals/legacy_pdf_retrieval.jsonl \
   --json-report evals/reports/pdf-rag.json \
   --markdown-report evals/reports/pdf-rag.md

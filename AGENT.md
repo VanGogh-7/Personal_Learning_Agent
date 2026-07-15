@@ -187,14 +187,14 @@ Add PDF
 Backend:
 
 ```bash
-conda activate pla
 cd backend
-pytest
-alembic upgrade head
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8081
-python scripts/benchmark_agent_latency.py --runs 10
-python scripts/benchmark_agent_streaming.py --runs 10
-python scripts/verify_sse_delivery.py --base-url http://127.0.0.1:8081 --route local_only
+uv sync
+uv run pytest
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload --port 8081
+uv run python scripts/benchmark_agent_latency.py --runs 10
+uv run python scripts/benchmark_agent_streaming.py --runs 10
+uv run python scripts/verify_sse_delivery.py --base-url http://127.0.0.1:8081 --route local_only
 ```
 
 Frontend:
@@ -209,6 +209,10 @@ bun run tauri dev
 
 ## Environment
 
+- Backend dependency management uses `uv`, `backend/pyproject.toml`,
+  `backend/uv.lock`, Python 3.12, and the project-local `backend/.venv`.
+- `uv sync` is the only recommended backend environment setup workflow; run
+  backend tools through `uv run` from `backend/`.
 - Local backend configuration lives in `backend/.env`.
 - Do not read, print, modify, or commit real `.env` files unless the
   user explicitly asks.
@@ -257,7 +261,7 @@ Stage 54 reliability rules:
 Stage 55 MCP rules:
 
 - Keep `MCP_ENABLED=false` and `MCP_REAL_TESTS=false` by default. Ordinary
-  pytest must never start external Tavily/Brave servers or consume API quota.
+  `uv run pytest` must never start external Tavily/Brave servers or consume API quota.
 - Never auto-install an MCP server. Default external commands use
   `npx --no-install`; operators install and pin audited packages separately.
 - The model never receives unrestricted MCP discovery. A tool must be present
@@ -464,7 +468,7 @@ Stage 64B packaging rules:
 - Production streaming must support the synchronous PostgreSQL checkpoint saver.
   Keep the async-to-thread bridge in the timing wrapper unless the whole saver
   lifecycle is deliberately migrated and both JSON and SSE paths are retested.
-- Release audits are `bun audit`, `pip-audit -r requirements.txt`, and
+- Release audits are `bun audit`, `uv run pip-audit`, and
   `cargo audit`. Classify vulnerabilities, unsound advisories, unmaintained
   dependencies, and ordinary warnings separately; do not force incompatible
   transitive upgrades.

@@ -17,6 +17,7 @@ __pycache__/
 backend/.env
 .env.*
 !.env.example
+# uv creates the backend project environment here.
 .venv/
 venv/
 *.py[cod]
