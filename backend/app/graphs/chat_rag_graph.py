@@ -188,6 +188,8 @@ def build_chat_rag_graph(
     graph.add_node("load_memory", lambda state: load_memory(state, session))
     graph.add_node("analyze_query", analyze_query_node)
     graph.add_node("build_execution_plan", build_execution_plan_node)
+    graph.add_node("direct_response", direct_response_node)
+    graph.add_node("research_dispatch", lambda state: {})
     graph.add_node(
         "local_research",
         lambda state: run_local_node_with_independent_session(state, session),
@@ -229,9 +231,14 @@ def build_chat_rag_graph(
     graph.add_edge("resolve_scope", "load_memory")
     graph.add_edge("load_memory", "analyze_query")
     graph.add_edge("analyze_query", "build_execution_plan")
-    graph.add_edge("build_execution_plan", "local_research")
-    graph.add_edge("build_execution_plan", "web_research")
-    graph.add_edge("build_execution_plan", "academic_research")
+    graph.add_conditional_edges(
+        "build_execution_plan",
+        execution_path,
+        {"direct": "direct_response", "research": "research_dispatch"},
+    )
+    graph.add_edge("research_dispatch", "local_research")
+    graph.add_edge("research_dispatch", "web_research")
+    graph.add_edge("research_dispatch", "academic_research")
     graph.add_edge(
         ["local_research", "web_research", "academic_research"], "merge_evidence"
     )
@@ -244,6 +251,7 @@ def build_chat_rag_graph(
     graph.add_edge("corrective_retrieval", "merge_evidence")
     graph.add_edge("build_answer_plan", "stream_synthesis")
     graph.add_edge("stream_synthesis", "verify_answer")
+    graph.add_edge("direct_response", "save_memory")
     graph.add_edge("verify_answer", "save_memory")
     graph.add_edge("save_memory", "record_learning_event")
     graph.add_edge("record_learning_event", "format_response")
@@ -273,6 +281,8 @@ def build_streaming_chat_rag_graph(
     )
     graph.add_node("analyze_query", streaming_analyze_query_node)
     graph.add_node("build_execution_plan", streaming_execution_plan_node)
+    graph.add_node("direct_response", streaming_direct_response_node)
+    graph.add_node("research_dispatch", lambda state: {})
     graph.add_node(
         "local_research",
         lambda state: streaming_local_node(state, session_factory),
@@ -311,9 +321,14 @@ def build_streaming_chat_rag_graph(
     graph.add_edge("resolve_scope", "load_memory")
     graph.add_edge("load_memory", "analyze_query")
     graph.add_edge("analyze_query", "build_execution_plan")
-    graph.add_edge("build_execution_plan", "local_research")
-    graph.add_edge("build_execution_plan", "web_research")
-    graph.add_edge("build_execution_plan", "academic_research")
+    graph.add_conditional_edges(
+        "build_execution_plan",
+        execution_path,
+        {"direct": "direct_response", "research": "research_dispatch"},
+    )
+    graph.add_edge("research_dispatch", "local_research")
+    graph.add_edge("research_dispatch", "web_research")
+    graph.add_edge("research_dispatch", "academic_research")
     graph.add_edge(
         ["local_research", "web_research", "academic_research"], "merge_evidence"
     )
@@ -326,6 +341,7 @@ def build_streaming_chat_rag_graph(
     graph.add_edge("corrective_retrieval", "merge_evidence")
     graph.add_edge("build_answer_plan", "stream_synthesis")
     graph.add_edge("stream_synthesis", "verify_answer")
+    graph.add_edge("direct_response", "persist_final")
     graph.add_edge("verify_answer", "persist_final")
     graph.add_edge("persist_final", "format_response")
     graph.add_edge("format_response", END)
@@ -406,6 +422,11 @@ def streaming_execution_plan_node(state: ChatRAGState) -> ChatRAGState:
     result = build_execution_plan_node(state)
     _write_custom({"kind": "route_selected", "route": result["route"]})
     return result
+
+
+def execution_path(state: ChatRAGState) -> str:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    return "direct" if plan.mode == "direct_answer" else "research"
 
 
 def streaming_router_node(state: ChatRAGState) -> ChatRAGState:
@@ -530,40 +551,48 @@ def streaming_verify_answer_node(state: ChatRAGState) -> ChatRAGState:
 
 async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
     _write_activity("processing_sources", "Evaluating sources")
-    execution_plan = ExecutionPlan.model_validate(state["execution_plan"])
-    if execution_plan.clarification_question:
-        answer = execution_plan.clarification_question
+    local_result = _state_to_local_library_agent_result(state)
+    web_result = _state_to_web_research_result(state)
+    prepared = prepare_agent_synthesis(
+        question=state["question"],
+        route=state["route"],
+        local_result=local_result,
+        web_result=web_result,
+        memory_context=state.get("memory_prompt_context", ""),
+        answer_plan=json.dumps(state.get("answer_plan", {}), ensure_ascii=False),
+        response_language=state.get("response_language", "en"),
+    )
+    _write_activity("synthesizing", "Generating answer")
+    answer = await _stream_llm_answer(prepared.prompt)
+    return {
+        "answer": answer,
+        "final_answer": answer,
+        "local_summary": prepared.local_summary,
+        "web_summary": prepared.web_summary,
+        "warnings": _merge_unique_strings(state.get("warnings", []), prepared.warnings),
+        "errors": _merge_unique_strings(state.get("errors", []), prepared.errors),
+    }
+
+
+async def streaming_direct_response_node(state: ChatRAGState) -> ChatRAGState:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    _write_activity("responding_directly", "Generating answer")
+    if plan.clarification_question:
+        answer = plan.clarification_question
         _write_activity("streaming", "Generating answer")
         _write_custom({"kind": "synthesis_token", "delta": answer})
-        return {"answer": answer, "final_answer": answer}
-    if execution_plan.mode == "direct_answer":
-        prompt = _direct_answer_prompt(
-            state["question"],
-            memory_context=state.get("memory_prompt_context", ""),
-            response_language=state.get("response_language", "en"),
-        )
-        local_summary = None
-        web_summary = None
-        prepared_warnings: list[str] = []
-        prepared_errors: list[str] = []
     else:
-        local_result = _state_to_local_library_agent_result(state)
-        web_result = _state_to_web_research_result(state)
-        prepared = prepare_agent_synthesis(
-            question=state["question"],
-            route=state["route"],
-            local_result=local_result,
-            web_result=web_result,
-            memory_context=state.get("memory_prompt_context", ""),
-            answer_plan=json.dumps(state.get("answer_plan", {}), ensure_ascii=False),
-            response_language=state.get("response_language", "en"),
+        answer = await _stream_llm_answer(
+            _direct_answer_prompt(
+                state["question"],
+                memory_context=state.get("memory_prompt_context", ""),
+                response_language=state.get("response_language", "en"),
+            )
         )
-        prompt = prepared.prompt
-        local_summary = prepared.local_summary
-        web_summary = prepared.web_summary
-        prepared_warnings = prepared.warnings
-        prepared_errors = prepared.errors
-    _write_activity("synthesizing", "Generating answer")
+    return {"answer": answer, "final_answer": answer}
+
+
+async def _stream_llm_answer(prompt: str) -> str:
     provider = get_llm_provider()
     started_at = perf_counter()
     first_token_at: float | None = None
@@ -607,14 +636,7 @@ async def streaming_synthesis_node(state: ChatRAGState) -> ChatRAGState:
         )
         trace.set_counter("output_character_count", len(answer))
         trace.set_counter("streaming_enabled", True)
-    return {
-        "answer": answer,
-        "final_answer": answer,
-        "local_summary": local_summary,
-        "web_summary": web_summary,
-        "warnings": _merge_unique_strings(state.get("warnings", []), prepared_warnings),
-        "errors": _merge_unique_strings(state.get("errors", []), prepared_errors),
-    }
+    return answer
 
 
 def streaming_persist_node(
@@ -856,12 +878,14 @@ def resolve_scope(state: ChatRAGState, session: Session) -> ChatRAGState:
 
 
 def load_memory(state: ChatRAGState, session: Session) -> ChatRAGState:
+    preliminary_route = route_question(state["question"])
     with measure_latency_sync("memory_load_total"):
         context = build_memory_context(
             session,
             conversation_id=uuid.UUID(state["conversation_id"]),
             namespace=state["memory_namespace"],
             query=state["question"],
+            semantic_search=preliminary_route not in {"direct", "clarify"},
         )
     trace = current_latency_trace()
     if trace is not None:
@@ -1210,23 +1234,6 @@ def verify_answer_node(state: ChatRAGState) -> ChatRAGState:
 
 def synthesis_node(state: ChatRAGState) -> ChatRAGState:
     # Synthesis combines agent outputs without merging local citations and web sources.
-    execution_plan = ExecutionPlan.model_validate(state["execution_plan"])
-    if execution_plan.clarification_question:
-        return {
-            "answer": execution_plan.clarification_question,
-            "final_answer": execution_plan.clarification_question,
-        }
-    if execution_plan.mode == "direct_answer":
-        provider = get_llm_provider()
-        with measure_latency_sync("synthesis_total"):
-            answer = provider.generate(
-                _direct_answer_prompt(
-                    state["question"],
-                    memory_context=state.get("memory_prompt_context", ""),
-                    response_language=state.get("response_language", "en"),
-                )
-            )
-        return {"answer": answer, "final_answer": answer}
     local_result = _state_to_local_library_agent_result(state)
     web_result = _state_to_web_research_result(state)
     synthesis = synthesize_agent_answer(
@@ -1249,6 +1256,22 @@ def synthesis_node(state: ChatRAGState) -> ChatRAGState:
         ),
         "errors": _merge_unique_strings(state.get("errors", []), synthesis.errors),
     }
+
+
+def direct_response_node(state: ChatRAGState) -> ChatRAGState:
+    plan = ExecutionPlan.model_validate(state["execution_plan"])
+    if plan.clarification_question:
+        answer = plan.clarification_question
+    else:
+        with measure_latency_sync("direct_response_total"):
+            answer = get_llm_provider().generate(
+                _direct_answer_prompt(
+                    state["question"],
+                    memory_context=state.get("memory_prompt_context", ""),
+                    response_language=state.get("response_language", "en"),
+                )
+            )
+    return {"answer": answer, "final_answer": answer}
 
 
 def _direct_answer_prompt(
@@ -1287,6 +1310,9 @@ def _deterministic_direct_answer(
     question: str, memory_context: str, response_language: ResponseLanguage
 ) -> str:
     """Provide narrow local-development answers without pretending to be a model."""
+    normalized = (
+        " ".join(question.lower().split()).rstrip(".!?\u3002\uff01\uff1f").strip()
+    )
     declaration = re.search(
         r"\bmy\s+(?:preferred\s+)?name\s+is\s+([A-Za-z][A-Za-z .'-]{0,99})[.!]?\s*$",
         question,
@@ -1312,6 +1338,40 @@ def _deterministic_direct_answer(
             if response_language == "zh":
                 return f"\u60a8\u7684\u540d\u5b57\u662f {name}\u3002"
             return f"Your name is {name}."
+
+    if normalized in {
+        "thanks",
+        "thank you",
+        "many thanks",
+        "\u8c22\u8c22",
+        "\u8c22\u8c22\u4f60",
+    }:
+        return (
+            "\u4e0d\u5ba2\u6c14\uff01"
+            if response_language == "zh"
+            else "You're welcome!"
+        )
+    if normalized in {"bye", "goodbye", "see you", "\u518d\u89c1"}:
+        return "\u518d\u89c1\uff01" if response_language == "zh" else "Goodbye!"
+    if normalized in {"how are you", "how's it going", "\u4f60\u600e\u4e48\u6837"}:
+        return (
+            "\u6211\u5f88\u597d\uff0c\u8c22\u8c22\uff01\u4eca\u5929\u60f3\u5b66\u4e60\u4ec0\u4e48\uff1f"
+            if response_language == "zh"
+            else "I'm doing well, thanks! What would you like to learn today?"
+        )
+    if normalized in {"who are you", "\u4f60\u662f\u8c01"}:
+        return (
+            "\u6211\u662f\u60a8\u7684\u4e2a\u4eba\u5b66\u4e60\u52a9\u624b\u3002"
+            if response_language == "zh"
+            else "I'm your personal learning assistant."
+        )
+    if normalized in {"what can you do", "\u4f60\u80fd\u505a\u4ec0\u4e48"}:
+        return (
+            "\u6211\u53ef\u4ee5\u5e2e\u60a8\u89e3\u91ca\u6982\u5ff5\u3001\u68c0\u7d22\u6240\u9009\u4e66\u7c4d\uff0c"
+            "\u5e76\u5728\u9700\u8981\u65f6\u7814\u7a76\u5916\u90e8\u8d44\u6599\u3002"
+            if response_language == "zh"
+            else "I can explain concepts, search selected books, and research external sources when needed."
+        )
 
     if response_language == "zh":
         return "\u60a8\u597d\uff01\u6211\u53ef\u4ee5\u5982\u4f55\u5e2e\u52a9\u60a8\u5b66\u4e60\uff1f"

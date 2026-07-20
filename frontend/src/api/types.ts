@@ -73,7 +73,8 @@ export interface SelectedLibraryItem {
 }
 
 export type AgentChatScopeType = "global" | "single_book" | "multi_book";
-export type AgentChatRoute = "local_only" | "web_only" | "both";
+export type AgentChatRoute =
+  "direct" | "local_only" | "web_only" | "both" | "clarify";
 
 export interface AgentChatRequest {
   message: string;

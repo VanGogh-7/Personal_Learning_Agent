@@ -158,6 +158,8 @@ def test_query_analysis_prompt_receives_bounded_conversation_context() -> None:
 def test_deterministic_planning_supports_only_fixed_modes(sources, mode) -> None:
     plan = build_execution_plan(analysis(required_sources=sources))
     assert plan.mode == mode
+    if not sources:
+        assert plan.route == "direct"
     assert plan.run_local is ("local" in sources)
     assert plan.run_web is ("web" in sources)
     assert plan.run_academic is ("academic" in sources)
@@ -173,7 +175,25 @@ def test_low_confidence_enters_clarification_without_research() -> None:
         )
     )
     assert plan.mode == "direct_answer"
+    assert plan.route == "clarify"
     assert not plan.run_local and not plan.run_web and not plan.run_academic
+
+
+def test_direct_conversation_skips_llm_query_analysis() -> None:
+    class ForbiddenProvider:
+        def generate(self, prompt: str) -> str:
+            raise AssertionError("direct routing must not call the query-analysis LLM")
+
+    result = analyze_query(
+        "hello",
+        selected_book_count=0,
+        has_conversation_context=False,
+        provider=ForbiddenProvider(),  # type: ignore[arg-type]
+        provider_name="deepseek",
+    )
+
+    assert result.required_sources == []
+    assert build_execution_plan(result).route == "direct"
 
 
 def test_evidence_merge_deduplicates_and_grades_all_states() -> None:

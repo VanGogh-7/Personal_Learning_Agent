@@ -212,6 +212,30 @@ def test_agent_chat_http_endpoint_works(monkeypatch, agent_chat_session) -> None
     assert data["warnings"]
 
 
+def test_direct_conversation_bypasses_all_research_and_synthesis(
+    monkeypatch, agent_chat_session
+) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("direct response must bypass research and synthesis")
+
+    monkeypatch.setattr(chat_rag_graph_module, "retrieve_relevant_chunks", forbidden)
+    monkeypatch.setattr(
+        chat_rag_graph_module, "run_web_research_agent_service", forbidden
+    )
+    monkeypatch.setattr(chat_rag_graph_module, "run_mcp_web_research", forbidden)
+    monkeypatch.setattr(chat_rag_graph_module, "run_mcp_academic_research", forbidden)
+    monkeypatch.setattr(chat_rag_graph_module, "synthesize_agent_answer", forbidden)
+
+    response = agent_chat_endpoint(AgentChatRequest(message="hello"))
+
+    assert response.route == "direct"
+    assert response.answer
+    assert response.total_retrieved == 0
+    assert response.citations == []
+    assert response.web_sources == []
+    assert response.memory.saved_current_turn is True
+
+
 def test_agent_chat_product_request_message_only_uses_defaults(
     monkeypatch, agent_chat_session
 ) -> None:

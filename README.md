@@ -44,8 +44,8 @@ Stage 65 packaging has not started.
 - Managed PDF import/storage.
 - PDF extraction and optimized chunking.
 - PostgreSQL/pgvector retrieval.
-- Deterministic LangGraph router with `local_only`, `web_only`, and
-  `both` routes.
+- Deterministic LangGraph router with `direct`, `local_only`, `web_only`,
+  `both`, and `clarify` routes.
 - Local Library Agent for selected PDF/book evidence.
 - Controlled Web Research Agent with Tavily/Brave search, Secure Fetch, and
   arXiv/OpenAlex/Crossref academic metadata through audited MCP tools.
@@ -393,6 +393,8 @@ Both JSON and SSE chat now use the same bounded orchestration:
 flowchart TD
     C[Load conversation and memory context] --> Q[Structured query analysis]
     Q --> P[Deterministic execution plan]
+    P -->|direct or clarify| D[Direct response]
+    D --> PERSIST[Atomic final persistence]
     P --> L[Local evidence]
     P --> W[Web evidence]
     P --> A[Academic evidence]
@@ -406,7 +408,7 @@ flowchart TD
     B --> S[Only long-form synthesis]
     S --> V[Citation verification]
     V -->|at most once| X[Deterministic citation repair]
-    X --> PERSIST[Atomic final persistence]
+    X --> PERSIST
     V --> PERSIST
 ```
 
@@ -418,6 +420,11 @@ or unavailable analysis falls back to conservative deterministic rules. The
 model never chooses node names. Rule code maps the analysis to exactly one of
 `direct_answer`, `local_only`, `web_only`, `academic_only`, `local_web`,
 `local_academic`, `web_academic`, or `all_sources`.
+
+`direct_answer` is a true graph short-circuit. It uses recent conversation
+context without semantic/vector memory lookup, calls one lightweight response
+node, then persists the completed turn. It does not enter Local, Web, Academic,
+evidence grading, citation verification, or long-form Synthesis nodes.
 
 Local, Web, and Academic branches fan out independently and return evidence,
 not complete answers. Web uses Tavily/Brave/Secure Fetch; Academic uses the
@@ -1135,10 +1142,12 @@ startup. Tests use `MEMORY_CHECKPOINTER_BACKEND=memory`.
 
 Routes:
 
+- `direct`: greetings, thanks, and simple conversational requests.
 - `local_only`: selected books/PDFs/local Library questions.
 - `web_only`: latest/current/news/API/version/external questions.
 - `both`: learning explanations where local and web context may both
   help.
+- `clarify`: ambiguous requests that need clarification before research.
 
 Local citations and web sources are separate in the response:
 

@@ -11,6 +11,7 @@ export type AgentActivityStage =
   | "routing"
   | "understanding_query"
   | "planning_research"
+  | "responding_directly"
   | "retrieving_local"
   | "planning_web"
   | "searching_web"

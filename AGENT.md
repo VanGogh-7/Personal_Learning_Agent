@@ -67,6 +67,7 @@ new stage for them:
 
 ```text
 Router Node
+  -> Direct Response Node -> Persist/Return
   -> Local Library Agent Node --\
                                 -> Synthesis Node
   -> Web Research Agent Node --/
@@ -85,7 +86,10 @@ The product may expose `conversation_id`; it must not expose LangGraph
 Long-term memory is untrusted personalization context and cannot replace local
 `[S#]` evidence or web `[W#]` evidence.
 
-- Router Node: deterministic route selection.
+- Router Node: deterministic `direct`, `local_only`, `web_only`, `both`, or
+  `clarify` selection backed by multi-label capability analysis.
+- Direct Response Node: one short LLM response with no embeddings, retrieval,
+  MCP calls, evidence grading, citation verification, or Synthesis.
 - Local Library Agent Node: pgvector retrieval over selected/local
   Library content and normalized `[S#]` citations.
 - Web Research Agent Node: provider-backed structured web results and
@@ -112,6 +116,7 @@ conversation with `409`; it never serializes unrelated conversations.
 
 Routes:
 
+- `direct`: greetings, thanks, and simple conversational requests.
 - `local_only`: questions about selected books/PDFs/library material,
   including phrases like "this book", "in the PDF", and "in my
   library".
@@ -120,6 +125,7 @@ Routes:
 - `both`: general learning explanations where local material may help
   and external context may also help, including "use my book if
   relevant".
+- `clarify`: ambiguous requests that need a user clarification before research.
 
 ## Data Flow
 

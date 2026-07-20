@@ -19,6 +19,7 @@ const ACTIVITY_STAGES = new Set([
   "routing",
   "understanding_query",
   "planning_research",
+  "responding_directly",
   "retrieving_local",
   "planning_web",
   "searching_web",
@@ -151,7 +152,9 @@ function hasValidEventFields(event: Record<string, unknown>): boolean {
         typeof event.message === "string"
       );
     case "route_selected":
-      return ["local_only", "web_only", "both"].includes(String(event.route));
+      return ["direct", "local_only", "web_only", "both", "clarify"].includes(
+        String(event.route),
+      );
     case "retrieval_completed":
       return (
         ["local", "web", "academic"].includes(String(event.source)) &&

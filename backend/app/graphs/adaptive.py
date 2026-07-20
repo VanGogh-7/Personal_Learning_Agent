@@ -172,6 +172,8 @@ def analyze_query(
         selected_book_count=selected_book_count,
         has_conversation_context=has_conversation_context,
     )
+    if route_question(question) in {"direct", "clarify"}:
+        return fallback
     if provider is None or provider_name == DETERMINISTIC_PROVIDER_NAME:
         return fallback
     prompt = build_query_analysis_prompt(
@@ -202,7 +204,7 @@ def build_execution_plan(analysis: QueryAnalysis) -> ExecutionPlan:
     if analysis.needs_clarification or analysis.confidence < 0.35:
         return ExecutionPlan(
             mode="direct_answer",
-            route="local_only",
+            route="clarify",
             run_local=False,
             run_web=False,
             run_academic=False,
@@ -224,7 +226,9 @@ def build_execution_plan(analysis: QueryAnalysis) -> ExecutionPlan:
     }
     mode = mode_by_sources[frozenset(sources)]
     route: AgentRoute = (
-        "both"
+        "direct"
+        if not sources
+        else "both"
         if "local" in sources and len(sources) > 1
         else "local_only"
         if sources == {"local"} or not sources
@@ -425,14 +429,8 @@ def _rule_analysis(
 ) -> QueryAnalysis:
     normalized = " ".join(question.lower().split())
     response_language = detect_response_language(question)
-    if normalized in {
-        "hello",
-        "hi",
-        "thanks",
-        "thank you",
-        "\u4f60\u597d",
-        "\u8c22\u8c22",
-    }:
+    route = route_question(question)
+    if route == "direct":
         return QueryAnalysis(
             intent="follow_up",
             complexity="simple",
@@ -442,27 +440,17 @@ def _rule_analysis(
             response_language=response_language,
             confidence=0.95,
         )
-    if re.search(
-        r"\b(?:remember(?:\s+that)?\s+)?my\s+(?:preferred\s+)?name\s+is\b|"
-        r"\bwhat(?:'s|\s+is)\s+my\s+(?:preferred\s+)?name\b",
-        normalized,
-        re.IGNORECASE,
-    ):
-        return QueryAnalysis(
-            intent="follow_up",
-            complexity="simple",
-            required_sources=[],
-            answer_mode="concise",
-            response_language=response_language,
-            subqueries=[],
-            confidence=0.98,
-        )
-    unclear = len(normalized) < 4 or normalized in {
-        "this?",
-        "that?",
-        "\u8fd9\u4e2a？",
-        "\u90a3\u4e2a？",
-    }
+    unclear = (
+        route == "clarify"
+        or len(normalized) < 4
+        or normalized
+        in {
+            "this?",
+            "that?",
+            "\u8fd9\u4e2a？",
+            "\u90a3\u4e2a？",
+        }
+    )
     if unclear and not has_conversation_context:
         return QueryAnalysis(
             intent="follow_up",
@@ -474,6 +462,16 @@ def _rule_analysis(
             answer_mode="clarification",
             response_language=response_language,
             confidence=0.25,
+        )
+    if route == "clarify":
+        return QueryAnalysis(
+            intent="follow_up",
+            complexity="simple",
+            required_sources=[],
+            answer_mode="concise",
+            response_language=response_language,
+            subqueries=[],
+            confidence=0.8,
         )
     summarize = any(
         term in normalized
@@ -530,7 +528,6 @@ def _rule_analysis(
             "\u65b0\u95fb",
         )
     )
-    route = route_question(question)
     sources: list[SourceRequirement]
     if academic:
         sources = ["academic"]

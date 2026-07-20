@@ -85,7 +85,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default=settings.pla_sse_target_url)
     parser.add_argument(
         "--route",
-        choices=["local_only", "web_only", "both"],
+        choices=["direct", "local_only", "web_only", "both"],
         default="both",
     )
     parser.add_argument("--runs", type=int, default=settings.pla_sse_soak_runs)

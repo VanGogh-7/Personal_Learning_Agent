@@ -261,6 +261,45 @@ async def test_both_stream_has_parallel_branch_activity(stream_session_factory) 
 
 
 @pytest.mark.anyio
+async def test_direct_stream_bypasses_research_evidence_and_synthesis(
+    monkeypatch, stream_session_factory
+) -> None:
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("direct response must not call MCP")
+
+    monkeypatch.setattr(graph_module, "run_mcp_web_research", forbidden)
+    monkeypatch.setattr(graph_module, "run_mcp_academic_research", forbidden)
+    run = prepare_streaming_run(
+        AgentChatRequest(message="thanks"),
+        request_id=str(uuid.uuid4()),
+        session_factory=stream_session_factory,
+    )
+    events = [
+        _decode_event(chunk)
+        async for chunk in stream_agent_sse(
+            run,
+            disconnect_checker=never_disconnected,
+            deferred_tasks=DeferredTaskCollector(),
+        )
+        if not chunk.startswith(b":")
+    ]
+
+    route = next(event for event in events if event["type"] == "route_selected")
+    stages = [event.get("stage") for event in events if event["type"] == "status"]
+    final = next(event for event in events if event["type"] == "final")
+    assert route["route"] == "direct"
+    assert "responding_directly" in stages
+    assert "retrieving_local" not in stages
+    assert "searching_web" not in stages
+    assert "evaluating_sources" not in stages
+    assert "synthesizing" not in stages
+    assert final["response"]["route"] == "direct"
+    assert final["response"]["citations"] == []
+    assert run.trace.counters.get("embedding_call_count", 0) == 0
+    assert events[-1]["type"] == "done"
+
+
+@pytest.mark.anyio
 async def test_adaptive_activity_follows_real_graph_order(
     stream_session_factory,
 ) -> None:

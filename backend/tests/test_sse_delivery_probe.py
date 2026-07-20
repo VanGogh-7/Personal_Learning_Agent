@@ -128,7 +128,7 @@ def test_direct_fastapi_stream_arrives_in_multiple_network_chunks() -> None:
             time.sleep(0.01)
         assert server.started
         report = asyncio.run(
-            probe_sse_delivery(base_url=f"http://127.0.0.1:{port}", route="local_only")
+            probe_sse_delivery(base_url=f"http://127.0.0.1:{port}", route="direct")
         )
         assert report.error is None
         assert report.validate() == []

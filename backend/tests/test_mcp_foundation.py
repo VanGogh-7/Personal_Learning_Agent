@@ -8,7 +8,12 @@ import pytest
 from mcp.types import CallToolResult
 
 from app.mcp.client import MCPClientManager, MCPError, MCPToolNotAllowedError
-from app.mcp.config import MCPServerConfig, SERVER_TOOL_ALLOWLISTS
+from app.mcp.config import (
+    MCPServerConfig,
+    SERVER_TOOL_ALLOWLISTS,
+    build_mcp_server_configs,
+)
+from app.core.config import Settings
 from app.observability.latency import AgentLatencyTrace, latency_trace_context
 
 
@@ -45,6 +50,35 @@ def test_mcp_config_validates_stdio_http_and_allowlist() -> None:
         allowed_tools=SERVER_TOOL_ALLOWLISTS["tavily"],
     )
     assert "secret-value" not in repr(secret)
+
+
+def test_mcp_provider_credentials_are_backend_only_and_required_for_search() -> None:
+    missing = build_mcp_server_configs(
+        Settings(
+            _env_file=None,
+            mcp_enabled=True,
+            tavily_api_key="",
+            brave_api_key="",
+        )
+    )
+    assert missing["tavily"].enabled is False
+    assert missing["brave"].enabled is False
+    assert missing["fetch"].enabled is True
+    assert missing["academic"].enabled is True
+
+    configured = build_mcp_server_configs(
+        Settings(
+            _env_file=None,
+            mcp_enabled=True,
+            tavily_api_key="tavily-secret",
+            brave_api_key="brave-secret",
+        )
+    )
+    assert configured["tavily"].env == {"TAVILY_API_KEY": "tavily-secret"}
+    assert configured["tavily"].headers == {"Authorization": "Bearer tavily-secret"}
+    assert configured["brave"].env["BRAVE_API_KEY"] == "brave-secret"
+    assert "tavily-secret" not in repr(configured["tavily"])
+    assert "brave-secret" not in repr(configured["brave"])
 
 
 @pytest.mark.anyio

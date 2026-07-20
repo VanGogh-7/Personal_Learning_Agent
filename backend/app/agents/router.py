@@ -1,6 +1,43 @@
+import re
 from typing import Literal
 
-AgentRoute = Literal["local_only", "web_only", "both"]
+AgentRoute = Literal["direct", "local_only", "web_only", "both", "clarify"]
+
+DIRECT_ROUTE_MESSAGES = frozenset(
+    {
+        "hello",
+        "hi",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "thanks",
+        "thank you",
+        "many thanks",
+        "you're welcome",
+        "you are welcome",
+        "bye",
+        "goodbye",
+        "see you",
+        "how are you",
+        "how's it going",
+        "who are you",
+        "what can you do",
+        "tell me a joke",
+        "\u4f60\u597d",
+        "\u55e8",
+        "\u8c22\u8c22",
+        "\u8c22\u8c22\u4f60",
+        "\u518d\u89c1",
+        "\u4f60\u662f\u8c01",
+        "\u4f60\u80fd\u505a\u4ec0\u4e48",
+        "\u4f60\u600e\u4e48\u6837",
+    }
+)
+
+CLARIFY_ROUTE_MESSAGES = frozenset(
+    {"this", "that", "it", "this one", "that one", "\u8fd9\u4e2a", "\u90a3\u4e2a"}
+)
 
 LOCAL_ROUTE_KEYWORDS = (
     "this book",
@@ -62,6 +99,16 @@ BOTH_ROUTE_KEYWORDS = (
 def route_question(question: str) -> AgentRoute:
     """Route a question to fixed local/web agent paths using deterministic rules."""
     normalized = " ".join(question.strip().lower().split())
+    conversational = normalized.rstrip(".!?\u3002\uff01\uff1f").strip()
+    if conversational in DIRECT_ROUTE_MESSAGES or re.search(
+        r"\b(?:remember(?:\s+that)?\s+)?my\s+(?:preferred\s+)?name\s+is\b|"
+        r"\bwhat(?:'s|\s+is)\s+my\s+(?:preferred\s+)?name\b",
+        conversational,
+        re.IGNORECASE,
+    ):
+        return "direct"
+    if conversational in CLARIFY_ROUTE_MESSAGES:
+        return "clarify"
     wants_both = any(keyword in normalized for keyword in BOTH_ROUTE_KEYWORDS)
     wants_local = any(keyword in normalized for keyword in LOCAL_ROUTE_KEYWORDS)
     wants_web = any(keyword in normalized for keyword in WEB_ROUTE_KEYWORDS)

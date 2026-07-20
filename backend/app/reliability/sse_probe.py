@@ -231,12 +231,13 @@ def _route_payload(
     library_item_ids: list[str],
 ) -> dict[str, Any]:
     questions = {
+        "direct": "Hello",
         "local_only": "What does my local library say about Banach spaces?",
         "web_only": "What are the latest official updates about Python?",
         "both": "Explain the closed graph theorem using my library if relevant.",
     }
     if route not in questions:
-        raise ValueError("route must be local_only, web_only, or both")
+        raise ValueError("route must be direct, local_only, web_only, or both")
     return {
         "message": questions[route],
         "selected_library_item_ids": library_item_ids,

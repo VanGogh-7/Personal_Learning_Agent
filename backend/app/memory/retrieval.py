@@ -37,13 +37,16 @@ def retrieve_memories(
     scope: str | None = None,
     limit: int | None = None,
     embedding_provider: EmbeddingProvider | None = None,
+    semantic_search: bool = True,
     update_access: bool = True,
 ) -> list[RetrievedMemory]:
     """Retrieve a small namespace-isolated hybrid memory context."""
     settings = get_settings()
     bounded_limit = limit or settings.memory_retrieval_limit
-    provider = embedding_provider or get_embedding_provider(settings)
-    query_embedding = get_request_query_embedding(provider, query)
+    query_embedding: list[float] = []
+    if semantic_search:
+        provider = embedding_provider or get_embedding_provider(settings)
+        query_embedding = get_request_query_embedding(provider, query)
 
     stmt = (
         select(LongTermMemory)
@@ -66,7 +69,11 @@ def retrieve_memories(
         ).scalars()
     )
     candidate_by_id = {memory.id: memory for memory in candidates}
-    if session.bind is not None and session.bind.dialect.name == "postgresql":
+    if (
+        query_embedding
+        and session.bind is not None
+        and session.bind.dialect.name == "postgresql"
+    ):
         vector_stmt = (
             stmt.where(LongTermMemory.embedding.is_not(None))
             .order_by(LongTermMemory.embedding.cosine_distance(query_embedding))

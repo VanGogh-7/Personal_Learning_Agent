@@ -26,6 +26,7 @@ def build_memory_context(
     conversation_id: uuid.UUID,
     namespace: str,
     query: str,
+    semantic_search: bool = True,
 ) -> MemoryContext:
     settings = get_settings()
     try:
@@ -51,6 +52,7 @@ def build_memory_context(
                     limit=settings.memory_retrieval_limit,
                     predicate=predicate,
                     scope=scope,
+                    semantic_search=semantic_search,
                 )
     except Exception as exc:
         logger.warning(

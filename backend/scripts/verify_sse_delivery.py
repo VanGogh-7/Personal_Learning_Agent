@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default=settings.pla_sse_target_url)
     parser.add_argument(
         "--route",
-        choices=["local_only", "web_only", "both"],
+        choices=["direct", "local_only", "web_only", "both"],
         default="local_only",
     )
     parser.add_argument("--conversation-id")

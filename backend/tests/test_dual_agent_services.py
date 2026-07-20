@@ -21,6 +21,14 @@ def test_router_routes_local_only_questions() -> None:
     assert route_question("根据我的资料解释线性空间") == "local_only"
 
 
+def test_router_routes_direct_conversation_and_clarification() -> None:
+    assert route_question("hello") == "direct"
+    assert route_question("Thanks!") == "direct"
+    assert route_question("How are you?") == "direct"
+    assert route_question("What is my preferred name?") == "direct"
+    assert route_question("This?") == "clarify"
+
+
 def test_router_routes_web_only_questions() -> None:
     assert route_question("What is the latest news about topology?") == "web_only"
     assert route_question("最近网上有什么关于 AI 的消息？") == "web_only"

@@ -61,6 +61,7 @@ describe("AgentSSEParser", () => {
     const stages = [
       "understanding_query",
       "planning_research",
+      "responding_directly",
       "evaluating_sources",
       "correcting_retrieval",
       "organizing_answer",
@@ -95,6 +96,25 @@ describe("AgentSSEParser", () => {
       source: "academic",
       result_count: 2,
     });
+  });
+
+  it("accepts direct and clarify route decisions", () => {
+    const seen: AgentStreamEvent[] = [];
+    const parser = new AgentSSEParser((event) => seen.push(event));
+    ["direct", "clarify"].forEach((route, index) =>
+      parser.feed(
+        record("route_selected", {
+          ...base,
+          type: "route_selected",
+          sequence: index + 1,
+          route,
+        }),
+      ),
+    );
+    expect(seen.map((event) => event.type)).toEqual([
+      "route_selected",
+      "route_selected",
+    ]);
   });
 
   it("preserves Unicode split across byte chunks and ignores heartbeats", () => {
