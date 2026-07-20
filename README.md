@@ -10,7 +10,7 @@ The product is a learning agent, not a PDF reader. The desktop UI is:
 Sidebar | Agent Chat | optional Context panel
 ```
 
-Current stage: Stage 64F frontend visual redesign and information architecture.
+Current stage: Stage 64G architecture documentation with GitHub Mermaid diagrams.
 Stage 65 packaging has not started.
 
 ## What It Does
@@ -21,7 +21,7 @@ Stage 65 packaging has not started.
 - Chunks PDF text for mathematical/learning material.
 - Embeds chunks through an API-based embedding provider.
 - Stores and searches vectors with PostgreSQL + pgvector.
-- Answers through a LangGraph dual-agent backend.
+- Answers through a bounded LangGraph adaptive research workflow.
 - Shows local Library citations as `[S1]`, `[S2]`, etc.
 - Shows web research sources as `[W1]`, `[W2]`, etc. when configured.
 - Makes `[S#]` and `[W#]` markers keyboard-operable and maps them to grouped
@@ -69,105 +69,237 @@ Stage 65 packaging has not started.
 
 ## Architecture
 
-PDF import and chat follow this path:
+These diagrams describe the current production paths. Optional capabilities are
+marked explicitly; they are not future-planning diagrams.
 
-```text
-Add PDF
-  -> backend-managed storage
-  -> PDF text extraction
-  -> chunking
-  -> API embeddings
-  -> pgvector retrieval
-  -> LangGraph agent graph
-  -> answer with local citations and web sources
+### System Overview
+
+The desktop frontend uses FastAPI for Repository operations and Agent Chat. PDF
+bytes stay in backend-managed storage, while indexed chunks, memory, citations,
+and LangGraph checkpoints live in PostgreSQL.
+
+```mermaid
+flowchart LR
+    subgraph SYS_DESKTOP[Desktop Application]
+        SYS_UI[Tauri and React Frontend]
+    end
+
+    subgraph SYS_BACKEND[FastAPI Backend]
+        SYS_API[JSON and SSE APIs]
+        SYS_GRAPH[LangGraph Agent Workflow]
+        SYS_INDEX[PDF Extraction and Indexing]
+    end
+
+    subgraph SYS_DATA[Local Data]
+        SYS_FILES[Managed PDF Storage]
+        SYS_DB[(PostgreSQL and pgvector)]
+    end
+
+    subgraph SYS_RESEARCH[Research Capabilities]
+        SYS_LOCAL[Local Library Research]
+        SYS_MCP[Web and Academic MCP Tools]
+    end
+
+    subgraph SYS_PROVIDERS[Model Providers]
+        SYS_LLM[LLM Provider]
+        SYS_EMBED[Embedding Provider]
+    end
+
+    SYS_UI -->|Chat, SSE, and Repository APIs| SYS_API
+    SYS_API --> SYS_GRAPH
+    SYS_API -->|Imported PDF| SYS_FILES
+    SYS_FILES --> SYS_INDEX
+    SYS_INDEX --> SYS_EMBED
+    SYS_INDEX --> SYS_DB
+    SYS_GRAPH --> SYS_LOCAL
+    SYS_GRAPH --> SYS_MCP
+    SYS_GRAPH --> SYS_LLM
+    SYS_GRAPH -->|Memory and checkpoints| SYS_DB
+    SYS_LOCAL --> SYS_EMBED
+    SYS_LOCAL --> SYS_DB
 ```
 
-`POST /api/agent/chat/stream` runs this bounded memory and evidence flow.
-`POST /api/agent/chat` remains as the compatible complete-JSON endpoint:
+### Agent Graph
+
+JSON and SSE chat use the same conditional topology. Research dispatch invokes
+the three research nodes in parallel; each unselected capability returns a
+skipped state. Clarification is handled inside the real Direct Response node,
+not by a separate graph node.
 
 ```mermaid
 flowchart TD
-    A[Frontend Request] --> B[Conversation and Memory Load]
-    B --> C[Router]
-    C --> D[Query Embedding]
-    D --> E[Local Retrieval]
-    C --> F[Web Research]
-    E --> G[Synthesis LLM]
-    F --> G
-    G --> H[Stream Final Answer Tokens]
-    H --> I[Persist Complete Turn and Citations]
-    I --> J[Final and Done Events]
-    J --> K[Background Memory Processing]
+    AG_START[Validate Input] --> AG_SCOPE[Resolve Library Scope]
+    AG_SCOPE --> AG_CONTEXT[Load Conversation and Memory Context]
+    AG_CONTEXT --> AG_ANALYZE[Analyze Query]
+    AG_ANALYZE --> AG_PLAN[Build Execution Plan]
+
+    AG_PLAN -->|Direct or Clarify| AG_DIRECT[Direct Response]
+    AG_PLAN -->|Research| AG_DISPATCH[Research Dispatch]
+
+    AG_DISPATCH --> AG_LOCAL[Local Research]
+    AG_DISPATCH --> AG_WEB[Web Research]
+    AG_DISPATCH --> AG_ACADEMIC[Academic Research]
+
+    AG_LOCAL --> AG_MERGE[Merge and Deduplicate Evidence]
+    AG_WEB --> AG_MERGE
+    AG_ACADEMIC --> AG_MERGE
+    AG_MERGE --> AG_GRADE[Grade Evidence]
+
+    AG_GRADE -->|Correction needed and retry remains| AG_CORRECT[Corrective Retrieval]
+    AG_CORRECT --> AG_MERGE
+    AG_GRADE -->|Answer with available evidence| AG_ANSWER_PLAN[Build Answer Plan]
+    AG_ANSWER_PLAN --> AG_SYNTHESIS[Streaming Synthesis]
+    AG_SYNTHESIS --> AG_VERIFY[Citation Verification and Optional One Repair]
+
+    AG_DIRECT --> AG_PERSIST[Final Persistence]
+    AG_VERIFY --> AG_PERSIST
+    AG_PERSIST --> AG_FORMAT[Format Final Response]
+    AG_FORMAT --> AG_END[Response Complete]
+    AG_END -.-> AG_MEMORY[Background Summary, Extraction, and Consolidation]
 ```
 
-For `both`, Local Retrieval and Web Research are LangGraph parallel branches.
-The answer turn is persisted before the response is returned. Rolling summary,
-memory extraction, and consolidation run afterward as managed FastAPI
-background work with a separate database session.
+Corrective retrieval reruns only the capabilities selected by the execution
+plan, keeps prior successful evidence, and returns to evidence merge. The
+default retry budget is one; the hard model limit is two. Citation repair, when
+needed, occurs inside the verification node and is followed by one recheck. The
+dotted Background Memory step is FastAPI post-response work, not a LangGraph
+node.
 
-### SSE streaming
+### Research Subgraphs
 
-The frontend sends the normal `AgentChatRequest` JSON with `fetch`, then reads
-`text/event-stream` from `Response.body`. SSE is the only stream protocol; the
-app does not also maintain NDJSON, WebSocket, or `EventSource` paths. Public
-events are `run_started`, `status`, `route_selected`, `retrieval_completed`,
-`token`, `citations`, `warning`, `final`, `done`, `cancelled`, and `error`.
-Every event has a request/conversation/run ID, UTC timestamp, and monotonically
-increasing sequence. Heartbeats are SSE comments and are not Activity steps.
+Processed PDFs use the Text Hybrid path by default. Its reranker is bounded and
+deterministic, not a second model call. Unprocessed or legacy documents use the
+dense fallback. Web and Academic branches use the allowlisted MCP gateway when
+MCP is enabled; legacy Tavily compatibility remains available for Web Research.
+Experimental visual-page retrieval is omitted because it is disabled by
+default and is not the production retrieval path.
 
-Public Activity stages are `loading_context`, `retrieving_memory`, `routing`,
-`retrieving_local`, `searching_web`, `processing_sources`, `synthesizing`,
-`streaming`, and `persisting`. They are emitted by the backend at the real
-execution boundary. Skipped route branches emit no fake status. Only the
-Synthesis node can publish `synthesis_token`; the SSE mapper ignores every
-other custom payload, so Router, Memory, tool payloads, prompts, and private
-reasoning cannot become public token events.
+```mermaid
+flowchart TD
+    subgraph RS_LOCAL[Local Research]
+        RS_L_START[Local Query] --> RS_L_MODE{Processed PDF and Text Hybrid enabled}
+        RS_L_MODE -->|Yes| RS_L_DENSE[Dense Retrieval, Exact or ANN]
+        RS_L_MODE -->|Yes| RS_L_FTS[PostgreSQL Full Text Search]
+        RS_L_DENSE --> RS_L_FUSION[Weighted Reciprocal Rank Fusion]
+        RS_L_FTS --> RS_L_FUSION
+        RS_L_FUSION --> RS_L_RERANK[Deterministic Rerank]
+        RS_L_RERANK --> RS_L_PARENT[Optional Parent Context Expansion]
+        RS_L_MODE -->|No| RS_L_FALLBACK[Dense Retrieval Fallback]
+        RS_L_PARENT --> RS_L_EVIDENCE[Local Evidence and S Citations]
+        RS_L_FALLBACK --> RS_L_EVIDENCE
+    end
+
+    subgraph RS_WEB[Web Research]
+        RS_W_START[Web Query] --> RS_W_PLAN[Deterministic Web Plan]
+        RS_W_PLAN --> RS_W_TAVILY[Tavily Search]
+        RS_W_PLAN --> RS_W_BRAVE[Brave Fallback or News Cross Check]
+        RS_W_TAVILY --> RS_W_NORMALIZE[Normalize, Deduplicate, and Rank]
+        RS_W_BRAVE --> RS_W_NORMALIZE
+        RS_W_NORMALIZE --> RS_W_FETCH[Bounded Secure Fetch]
+        RS_W_NORMALIZE --> RS_W_EVIDENCE[Web Evidence and W Sources]
+        RS_W_FETCH --> RS_W_EVIDENCE
+    end
+
+    subgraph RS_ACADEMIC[Academic Research]
+        RS_A_START[Academic Query] -->|Search| RS_A_ARXIV[arXiv]
+        RS_A_START -->|Search| RS_A_OPENALEX[OpenAlex]
+        RS_A_START -->|DOI lookup| RS_A_CROSSREF[Crossref]
+        RS_A_ARXIV --> RS_A_NORMALIZE[Normalize, Deduplicate, and Rank]
+        RS_A_OPENALEX --> RS_A_NORMALIZE
+        RS_A_CROSSREF --> RS_A_NORMALIZE
+        RS_A_NORMALIZE --> RS_A_EVIDENCE[Academic Evidence and W Sources]
+    end
+
+    RS_L_EVIDENCE --> RS_UNIFIED[Unified Evidence Merge]
+    RS_W_EVIDENCE --> RS_UNIFIED
+    RS_A_EVIDENCE --> RS_UNIFIED
+    RS_UNIFIED --> RS_DOWNSTREAM[Grade Evidence and Build Answer Plan]
+    RS_DOWNSTREAM --> RS_SYNTHESIS[Synthesis]
+```
+
+### Streaming Flow
+
+The frontend posts `AgentChatRequest` JSON with `fetch` and consumes one SSE
+response body. Tokens are transient: the complete verified answer and source
+payload are persisted atomically before the successful terminal events.
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant A as FastAPI
-    participant G as LangGraph
-    participant D as DeepSeek
-    participant P as PostgreSQL
+    participant SQ_USER as User
+    participant SQ_UI as Tauri Frontend
+    participant SQ_API as FastAPI SSE Endpoint
+    participant SQ_GRAPH as LangGraph
+    participant SQ_TOOLS as Research Tools
+    participant SQ_LLM as LLM Provider
+    participant SQ_DB as PostgreSQL
+    participant SQ_MEMORY as Background Memory
 
-    U->>F: Submit question
-    F->>A: POST /api/agent/chat/stream
-    A-->>F: run_started + real status events
-    A->>G: astream(custom + values)
-    G-->>A: routing and retrieval status
-    A-->>F: Activity events
-    G->>D: Stream final Synthesis
-    D-->>G: Normalized token deltas
-    G-->>A: synthesis_token only
-    A-->>F: token events
-    F-->>U: Incremental plain-text preview
-    G->>P: Short transaction: complete turn + citation payload
-    P-->>G: Commit
-    G-->>A: Final state after checkpoint
-    A-->>F: citations + final + done
+    SQ_USER->>SQ_UI: Submit question
+    SQ_UI->>SQ_API: POST /api/agent/chat/stream
+    SQ_API-->>SQ_UI: run_started
+    SQ_API->>SQ_GRAPH: astream with custom and values modes
+    SQ_GRAPH-->>SQ_API: route and status events
+    SQ_API-->>SQ_UI: Activity events
+
+    alt Research route
+        SQ_GRAPH->>SQ_TOOLS: Run selected research capabilities
+        SQ_TOOLS-->>SQ_GRAPH: Local, Web, and Academic evidence
+        SQ_GRAPH->>SQ_GRAPH: Merge, grade, and bounded correction
+        SQ_GRAPH->>SQ_LLM: Stream final synthesis
+        SQ_LLM-->>SQ_GRAPH: Normalized token deltas
+    else Direct response route
+        SQ_GRAPH->>SQ_LLM: Stream direct response
+        SQ_LLM-->>SQ_GRAPH: Normalized token deltas
+    else Clarification route
+        SQ_GRAPH->>SQ_GRAPH: Use fixed clarification text
+    end
+
+    loop Visible answer deltas
+        SQ_GRAPH-->>SQ_API: Private synthesis_token payload
+        SQ_API-->>SQ_UI: token event
+        SQ_UI-->>SQ_USER: Incremental preview
+    end
+
+    alt Research route
+        SQ_GRAPH->>SQ_GRAPH: Verify citations and optionally repair once
+    else Direct or clarification route
+        SQ_GRAPH->>SQ_GRAPH: Finalize source-free response
+    end
+    SQ_GRAPH->>SQ_DB: Commit complete turn, sources, and learning event
+    SQ_DB-->>SQ_GRAPH: Commit succeeds
+    SQ_GRAPH-->>SQ_API: Final graph state after checkpoint
+    SQ_API-->>SQ_UI: citations
+    SQ_API-->>SQ_UI: final
+    SQ_API-->>SQ_UI: done
+    SQ_UI-->>SQ_USER: Render completed answer
+    SQ_API->>SQ_MEMORY: Run deferred memory processing
 ```
 
-Tokens are accumulated in memory and are never written one by one. The final
-answer, full local citations, web sources, and learning event are committed in
-one short SQL transaction. The production LangGraph checkpoint is written with
-`durability="exit"`; `done` is emitted only after graph completion. If that
-separate checkpoint step fails after the SQL commit, the service attempts a
-targeted compensation delete and emits `error`, never successful `done`.
-Post-response extraction, consolidation, and rolling-summary work starts only
-after success and uses independent database sessions.
+For a clarification response, the Direct Response node can emit the fixed
+clarification text without calling the LLM. Public events are `run_started`,
+`status`, `route_selected`, `retrieval_completed`, `token`, `citations`,
+`warning`, `final`, `done`, `cancelled`, and `error`. Every event carries a
+request/conversation/run ID, UTC timestamp, and monotonically increasing
+sequence. Heartbeats are SSE comments, not Activity steps.
 
-The frontend creates one stable Assistant placeholder, batches token rendering
-at the server-advertised 30–80 ms interval, and updates only that turn.
-Incomplete Markdown/LaTeX is shown as safe plain text. After `done`, the full
-answer is rendered once with GFM, remark-math, and KaTeX; no raw HTML is used.
-An `AbortController` powers Stop Generation. Cancellation or disconnect closes
-the upstream async Provider iterator where possible, retains visible partial
-text as cancelled/failed, skips completed persistence and Memory post-work,
-and leaves the conversation and selected books usable for the next request.
-The frontend submission lock and a per-process backend conversation registry
-allow one active run per conversation while leaving other conversations free.
+Only the Direct Response and Streaming Synthesis nodes can publish the private
+`synthesis_token` kind that the SSE layer maps to public `token` events. Skipped
+research branches emit no fake Activity. Prompts, raw tool payloads, and private
+reasoning are never exposed.
+
+Tokens are accumulated in memory and never written one by one. The final
+answer, full local citations, web sources, and learning event are committed in
+one short SQL transaction. The production LangGraph checkpoint uses
+`durability="exit"`; `done` is emitted only after graph completion. If the
+separate checkpoint step fails after SQL commit, the service attempts targeted
+compensation and emits `error`, never successful `done`. Post-response memory
+work runs only after success with independent database sessions.
+
+The frontend keeps one stable Assistant placeholder and batches rendering at
+the server-advertised 30–80 ms interval. An `AbortController` powers Stop
+Generation. Cancellation retains visible partial text but skips completed
+persistence and deferred memory work. One in-process registry allows one active
+run per conversation without blocking unrelated conversations.
 
 Streaming controls are backend-only:
 
@@ -279,22 +411,7 @@ frontend streaming endpoint and compatible JSON endpoint share the same
 research service; the sync JSON graph submits MCP work to the FastAPI lifespan
 event loop instead of starting per-request subprocesses.
 
-```mermaid
-flowchart LR
-    Q[Web Research question] --> P[Rule-based Research Planner]
-    P --> G[Bounded MCP Tool Gateway]
-    G --> T[Tavily MCP]
-    G --> B[Brave Search MCP]
-    G --> F[PLA Secure Fetch MCP]
-    G --> A[PLA Academic MCP]
-    T --> N[WebEvidence normalization]
-    B --> N
-    F --> N
-    A --> N
-    N --> D[URL and content deduplication]
-    D --> W[Ranked W citations]
-    W --> S[Synthesis]
-```
+The current MCP relationships are summarized in **Research Subgraphs** above.
 
 The planner is deterministic and bounded; it does not expose every discovered
 tool to the LLM:
@@ -303,7 +420,7 @@ tool to the LLM:
   fallback;
 - latest/news/cross-check questions call Tavily and `brave_news_search` in
   parallel;
-- paper, arXiv, journal, theorem, or DOI questions use the Academic MCP;
+- paper, arXiv, journal, academic, or DOI questions use the Academic MCP;
 - explicit public URLs and the top one to three ranked search results use the
   Secure Fetch MCP;
 - at most `MCP_MAX_CALLS_PER_REQUEST` calls, `MCP_MAX_FETCH_URLS` page reads,
@@ -387,30 +504,8 @@ raw stack traces, or secrets.
 
 ### Stage 57 adaptive corrective research graph
 
-Both JSON and SSE chat now use the same bounded orchestration:
-
-```mermaid
-flowchart TD
-    C[Load conversation and memory context] --> Q[Structured query analysis]
-    Q --> P[Deterministic execution plan]
-    P -->|direct or clarify| D[Direct response]
-    D --> PERSIST[Atomic final persistence]
-    P --> L[Local evidence]
-    P --> W[Web evidence]
-    P --> A[Academic evidence]
-    L --> M[Merge and deduplicate]
-    W --> M
-    A --> M
-    M --> G[Deterministic evidence grade]
-    G -->|empty or materially irrelevant, retry budget remains| R[One corrective retrieval]
-    R --> M
-    G --> B[Answer plan]
-    B --> S[Only long-form synthesis]
-    S --> V[Citation verification]
-    V -->|at most once| X[Deterministic citation repair]
-    X --> PERSIST
-    V --> PERSIST
-```
+Both JSON and SSE chat use the bounded orchestration shown in **Agent Graph**
+above.
 
 Query understanding is a strict Pydantic object containing intent,
 complexity, required Local/Web/Academic sources, freshness, selected-book
@@ -431,10 +526,10 @@ not complete answers. Web uses Tavily/Brave/Secure Fetch; Academic uses the
 existing arXiv/OpenAlex/Crossref MCP boundary. They share one request-scoped
 `MCPToolGateway`, so initial and corrective calls consume the same call budget.
 Different MCP servers may progress in parallel, while the Stage 56 manager
-continues serializing calls within one server session. The existing Local RAG
-remains pgvector-based; Stage 57 supplies bounded query rewrite and expanded
-`top_k` on correction but does not invent an unmeasured hybrid index, reranker,
-or parent-document store.
+continues serializing calls within one server session. Local RAG remains an
+internal PostgreSQL/pgvector service. Processed PDFs use the current Text Hybrid
+path; bounded query rewrite and expanded `top_k` apply during corrective
+retrieval without converting Local Research into MCP.
 
 The evidence grader records relevance, required-source coverage, source
 quality, freshness, citation readiness, missing aspects, conflicts, and one of
@@ -715,7 +810,7 @@ uv run alembic downgrade f3a9c1d7e5b2
 uv run alembic upgrade head
 ```
 
-All raw server results become the internal `WebEvidence` shape before
+All raw server results become a normalized internal web-source shape before
 Synthesis: evidence ID, source type, provider, title, canonical URL, excerpt,
 optional bounded page content, authors, publication/retrieval time, DOI, and
 arXiv ID. URL tracking parameters and fragments are removed, duplicate URLs
@@ -1368,7 +1463,7 @@ scripts.
 ## Development Status
 
 MVP / experimental personal learning agent. The codebase is intentionally
-scoped around Repository + Agent Chat so future work can build on a
-stable LangGraph dual-agent core.
+scoped around Repository + Agent Chat with a stable bounded LangGraph research
+workflow.
 
 For contributor and future-agent guidance, see `AGENT.md`.

@@ -14,7 +14,7 @@ source management and Agent Chat as the main interaction surface.
 - Classify born-digital/scanned/mixed PDFs and retain retryable OCR processing
   versions without modifying the source PDF.
 - Chunk, embed, retrieve, and cite local Library evidence.
-- Run `/api/agent/chat` through an explicit LangGraph dual-agent graph.
+- Run `/api/agent/chat` through an explicit bounded adaptive research graph.
 - Stream `/api/agent/chat/stream` as POST SSE while retaining `/api/agent/chat`
   as the compatible complete-JSON route.
 - Keep conversation/thread mapping internal and persist production checkpoints in PostgreSQL.
@@ -32,8 +32,8 @@ source management and Agent Chat as the main interaction surface.
   never expose prompts, raw node state, tool payloads, or private reasoning.
 - Persist one complete Assistant answer and its citation payload atomically
   before emitting successful `done`.
-- Run Local and Web branches concurrently for `both` and defer non-critical
-  Memory post-processing until after the HTTP response.
+- Run selected Local, Web, and Academic branches concurrently and defer
+  non-critical Memory post-processing until after the HTTP response.
 - Render Assistant messages as safe Markdown with GFM and locally bundled
   KaTeX for `$...$` inline math and `$$...$$` display math.
 
@@ -63,15 +63,12 @@ new stage for them:
 
 ## LangGraph Design
 
-`POST /api/agent/chat` runs the MVP graph:
-
-```text
-Router Node
-  -> Direct Response Node -> Persist/Return
-  -> Local Library Agent Node --\
-                                -> Synthesis Node
-  -> Web Research Agent Node --/
-```
+`POST /api/agent/chat` and its SSE counterpart share one graph. After input,
+scope, and memory loading, query analysis builds a fixed execution plan. Direct
+and clarification requests short-circuit through Direct Response. Research
+requests fan out through Local, Web, and Academic nodes, then merge and grade
+evidence, optionally perform bounded corrective retrieval, build an answer plan,
+synthesize, verify citations, persist, and format the response.
 
 Before routing, the graph resolves `conversation_id`, loads the rolling
 summary plus at most `MEMORY_RECENT_TURN_LIMIT` effective turns, and retrieves
@@ -87,22 +84,25 @@ Long-term memory is untrusted personalization context and cannot replace local
 `[S#]` evidence or web `[W#]` evidence.
 
 - Router Node: deterministic `direct`, `local_only`, `web_only`, `both`, or
-  `clarify` selection backed by multi-label capability analysis.
+  `clarify` public routing backed by multi-label Local/Web/Academic capability
+  analysis and explicit internal execution modes.
 - Direct Response Node: one short LLM response with no embeddings, retrieval,
   MCP calls, evidence grading, citation verification, or Synthesis.
-- Local Library Agent Node: pgvector retrieval over selected/local
-  Library content and normalized `[S#]` citations.
-- Web Research Agent Node: provider-backed structured web results and
+- Local Library Agent Node: Text Hybrid retrieval for processed PDFs (dense,
+  PostgreSQL FTS, weighted rank fusion, deterministic rerank, and optional
+  parent context), with dense fallback and normalized `[S#]` citations.
+- Web and Academic Research Nodes: provider/MCP-backed structured results and
   `[W#]` sources; unavailable providers return warnings, not crashes.
-- Synthesis Node: combines local and web outputs while keeping local
-  citations and web sources structurally separate.
+- Synthesis Node: combines Local, Web, and Academic evidence while keeping
+  local citations and external sources structurally separate.
 
 The streaming route uses the same nodes and services through LangGraph
 `astream` with `custom` plus final `values`. Product statuses are written only
 at real node boundaries. Final-answer deltas use the private custom kind
 `synthesis_token`; the API whitelist maps only that kind to public `token`
-events. Local and Web branches remain parallel. The bounded event queue applies
-backpressure so disconnect checks and client delivery stay interleaved.
+events. Local, Web, and Academic branches remain parallel. The bounded event
+queue applies backpressure so disconnect checks and client delivery stay
+interleaved.
 
 During generation no token is persisted. The final transaction creates a
 provisional conversation if needed, writes one complete turn with full
@@ -129,17 +129,10 @@ Routes:
 
 ## Data Flow
 
-```text
-Add PDF
-  -> managed backend storage
-  -> PDF extraction
-  -> optimized chunking
-  -> API embedding
-  -> PostgreSQL/pgvector
-  -> retrieval
-  -> LangGraph agent graph
-  -> synthesized answer with [S#] and [W#] sources
-```
+Imported PDFs are copied into managed backend storage, extracted and chunked,
+embedded through the configured Provider, and indexed in PostgreSQL/pgvector.
+Agent Chat retrieves local evidence and optional external evidence before final
+answer generation, verification, and persistence.
 
 ## Key Files
 
